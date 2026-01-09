@@ -1,0 +1,31 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+ [Pp]ublish/
+ [Aa]rtifacts/
+ *.nupkg
+ *.snupkg
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## OS
+[Dd]esktop.ini
+Thumbs.db
+
+## Logs
+*.log
+
+## Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+## NuGet
+# Packages are restored to a global cache by default, no need to commit.
+# If you enable packages.lock.json, you may want to commit it for deterministic restore.
+.nuget/

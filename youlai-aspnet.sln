@@ -1,0 +1,57 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{ADE2BD63-476E-4FB3-88AE-3918B287991A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youlai.Api", "src\Youlai.Api\Youlai.Api.csproj", "{EED5A9A3-1F5C-4116-9058-239019616DBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youlai.Application", "src\Youlai.Application\Youlai.Application.csproj", "{F8EE2521-334A-4C63-8EF9-CC766A12004F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youlai.Domain", "src\Youlai.Domain\Youlai.Domain.csproj", "{F3AD4121-E761-4401-9C94-2627C359BA7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youlai.Infrastructure", "src\Youlai.Infrastructure\Youlai.Infrastructure.csproj", "{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{771A238C-FDCD-4C77-B190-8CC1EC679530}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youlai.Api.Tests", "tests\Youlai.Api.Tests\Youlai.Api.Tests.csproj", "{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EED5A9A3-1F5C-4116-9058-239019616DBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EED5A9A3-1F5C-4116-9058-239019616DBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EED5A9A3-1F5C-4116-9058-239019616DBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EED5A9A3-1F5C-4116-9058-239019616DBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8EE2521-334A-4C63-8EF9-CC766A12004F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8EE2521-334A-4C63-8EF9-CC766A12004F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8EE2521-334A-4C63-8EF9-CC766A12004F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8EE2521-334A-4C63-8EF9-CC766A12004F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3AD4121-E761-4401-9C94-2627C359BA7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3AD4121-E761-4401-9C94-2627C359BA7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3AD4121-E761-4401-9C94-2627C359BA7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3AD4121-E761-4401-9C94-2627C359BA7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EED5A9A3-1F5C-4116-9058-239019616DBC} = {ADE2BD63-476E-4FB3-88AE-3918B287991A}
+		{F8EE2521-334A-4C63-8EF9-CC766A12004F} = {ADE2BD63-476E-4FB3-88AE-3918B287991A}
+		{F3AD4121-E761-4401-9C94-2627C359BA7D} = {ADE2BD63-476E-4FB3-88AE-3918B287991A}
+		{FB765051-0E8F-4A0C-A8EA-D2B85209AB5B} = {ADE2BD63-476E-4FB3-88AE-3918B287991A}
+		{8BDAA7A3-DCD8-48AF-B7D9-361FC0C6E9E7} = {771A238C-FDCD-4C77-B190-8CC1EC679530}
+	EndGlobalSection
+EndGlobal
