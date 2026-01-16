@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Youlai.Application.Common.Security;
 using Youlai.Infrastructure.Constants;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -18,9 +18,9 @@ internal sealed class RolePermissionService : IRolePermissionService
     private const string ButtonMenuType = "B";
 
     private readonly IConnectionMultiplexer _redis;
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
 
-    public RolePermissionService(IConnectionMultiplexer redis, AppDbContext dbContext)
+    public RolePermissionService(IConnectionMultiplexer redis, YoulaiDbContext dbContext)
     {
         _redis = redis;
         _dbContext = dbContext;

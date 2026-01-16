@@ -197,12 +197,22 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
+        public Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
         public Task<bool> SendEmailCodeAsync(string email, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
 
         public Task<bool> BindOrChangeEmailAsync(EmailUpdateForm formData, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }

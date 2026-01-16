@@ -3,10 +3,10 @@ using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
 using Youlai.Application.Common.Services;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Notice;
 using Youlai.Application.System.Services;
 using Youlai.Domain.Entities;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -22,11 +22,11 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     private const int TargetAll = 1;
     private const int TargetSpecified = 2;
 
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly IWebSocketService _webSocketService;
 
-    public SystemNoticeService(AppDbContext dbContext, ICurrentUser currentUser, IWebSocketService webSocketService)
+    public SystemNoticeService(YoulaiDbContext dbContext, ICurrentUser currentUser, IWebSocketService webSocketService)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -36,7 +36,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// <summary>
     /// 公告分页
     /// </summary>
-    public async Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default)
+    public async Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
     {
         var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
         var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -451,7 +451,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// <summary>
     /// 我的公告分页
     /// </summary>
-    public async Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default)
+    public async Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetRequiredCurrentUserId();
 

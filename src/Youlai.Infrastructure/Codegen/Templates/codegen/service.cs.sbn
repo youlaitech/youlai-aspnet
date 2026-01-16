@@ -1,0 +1,20 @@
+using Youlai.Application.Common.Results;
+using Youlai.Application.{{ moduleNamePascal }}.Dtos;
+
+namespace Youlai.Application.{{ moduleNamePascal }}.Services;
+
+/// <summary>
+/// {{ businessName }}服务
+/// </summary>
+public interface I{{ entityName }}Service
+{
+    Task<PageResult<{{ entityName }}PageVo>> GetPageAsync({{ entityName }}Query query, CancellationToken cancellationToken = default);
+
+    Task<{{ entityName }}Form> GetFormAsync(long id, CancellationToken cancellationToken = default);
+
+    Task<bool> CreateAsync({{ entityName }}Form formData, CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateAsync(long id, {{ entityName }}Form formData, CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(string ids, CancellationToken cancellationToken = default);
+}

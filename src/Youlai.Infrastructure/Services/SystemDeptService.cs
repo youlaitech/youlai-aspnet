@@ -3,9 +3,9 @@ using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Dept;
 using Youlai.Application.System.Services;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 using Youlai.Domain.Entities;
 
 namespace Youlai.Infrastructure.Services;
@@ -22,10 +22,10 @@ internal sealed class SystemDeptService : ISystemDeptService
 
     private sealed record DeptOptionRow(long Id, long ParentId, string Name);
 
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public SystemDeptService(AppDbContext dbContext, ICurrentUser currentUser)
+    public SystemDeptService(YoulaiDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;

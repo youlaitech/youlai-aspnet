@@ -3,10 +3,10 @@ using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Role;
 using Youlai.Application.System.Services;
-using Youlai.Infrastructure.Data;
 using Youlai.Domain.Entities;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -18,11 +18,11 @@ namespace Youlai.Infrastructure.Services;
 /// </remarks>
 internal sealed class SystemRoleService : ISystemRoleService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
 
-    public SystemRoleService(AppDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
+    public SystemRoleService(YoulaiDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -32,7 +32,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// <summary>
     /// 角色分页
     /// </summary>
-    public async Task<PageResult<RolePageVo>> GetRolePageAsync(RolePageQuery query, CancellationToken cancellationToken = default)
+    public async Task<PageResult<RolePageVo>> GetRolePageAsync(RoleQuery query, CancellationToken cancellationToken = default)
     {
         var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
         var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -44,12 +44,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
         var roles = _dbContext.SysRoles
             .AsNoTracking()
-            .Where(r => !r.IsDeleted);
-
-        if (!_currentUser.IsRoot)
-        {
-            roles = roles.Where(r => r.Code != SecurityConstants.RootRoleCode);
-        }
+            .Where(r => !r.IsDeleted && r.Code != SecurityConstants.RootRoleCode);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -97,12 +92,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     {
         var roles = _dbContext.SysRoles
             .AsNoTracking()
-            .Where(r => !r.IsDeleted && r.Status == 1);
-
-        if (!_currentUser.IsRoot)
-        {
-            roles = roles.Where(r => r.Code != SecurityConstants.RootRoleCode);
-        }
+            .Where(r => !r.IsDeleted && r.Status == 1 && r.Code != SecurityConstants.RootRoleCode);
 
         var list = await roles
             .OrderBy(r => r.Sort ?? 0)

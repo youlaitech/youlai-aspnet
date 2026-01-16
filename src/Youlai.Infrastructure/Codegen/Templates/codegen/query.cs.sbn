@@ -1,0 +1,29 @@
+using System;
+using Youlai.Application.Common.Models;
+
+namespace Youlai.Application.{{ moduleNamePascal }}.Dtos;
+
+/// <summary>
+/// {{ businessName }}分页查询参数
+/// </summary>
+public sealed class {{ entityName }}Query : BaseQuery
+{
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInQuery == 1 }}
+{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+{{ if field.QueryType == "BETWEEN" }}
+    public string[]? {{ field.PropertyName }} { get; init; }
+{{ else }}
+    public string? {{ field.PropertyName }} { get; init; }
+{{ end }}
+{{ else }}
+{{ if field.CsType == "string" }}
+    public string? {{ field.PropertyName }} { get; init; }
+{{ else }}
+    public {{ field.CsTypeNullable }} {{ field.PropertyName }} { get; init; }
+{{ end }}
+{{ end }}
+
+{{ end }}
+{{ end }}
+}

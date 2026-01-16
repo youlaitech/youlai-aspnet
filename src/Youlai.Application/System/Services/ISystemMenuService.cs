@@ -1,4 +1,4 @@
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Menu;
 using Youlai.Application.Common.Models;
 
 namespace Youlai.Application.System.Services;

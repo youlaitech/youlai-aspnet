@@ -16,4 +16,10 @@
     <ProjectReference Include="..\Youlai.Infrastructure\Youlai.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Codegen\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

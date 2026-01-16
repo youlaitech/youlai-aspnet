@@ -1,5 +1,5 @@
 using Youlai.Application.Common.Models;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Dept;
 
 namespace Youlai.Application.System.Services;
 

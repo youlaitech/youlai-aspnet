@@ -1,0 +1,287 @@
+using Microsoft.EntityFrameworkCore;
+using Youlai.Application.Common.Exceptions;
+using Youlai.Application.Common.Results;
+using Youlai.Application.Common.Security;
+using Youlai.Application.{{ moduleNamePascal }}.Dtos;
+using Youlai.Application.{{ moduleNamePascal }}.Services;
+using Youlai.Domain.Entities;
+using Youlai.Infrastructure.Persistence.DbContext;
+
+namespace Youlai.Infrastructure.Services;
+
+/// <summary>
+/// {{ businessName }}服务
+/// </summary>
+/// <remarks>
+/// 提供{{ businessName }}的查询与维护能力
+/// </remarks>
+internal sealed class {{ entityName }}Service : I{{ entityName }}Service
+{
+    private readonly YoulaiDbContext _dbContext;
+{{ if hasCreateBy || hasUpdateBy }}
+    private readonly ICurrentUser _currentUser;
+{{ end }}
+
+    public {{ entityName }}Service(YoulaiDbContext dbContext{{ if hasCreateBy || hasUpdateBy }}, ICurrentUser currentUser{{ end }})
+    {
+        _dbContext = dbContext;
+{{ if hasCreateBy || hasUpdateBy }}
+        _currentUser = currentUser;
+{{ end }}
+    }
+
+    /// <summary>
+    /// {{ businessName }}分页
+    /// </summary>
+    public async Task<PageResult<{{ entityName }}PageVo>> GetPageAsync({{ entityName }}Query query, CancellationToken cancellationToken = default)
+    {
+        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
+        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+
+        if (pageSize > 200)
+        {
+            pageSize = 200;
+        }
+
+        var q = _dbContext.Set<{{ entityName }}>()
+            .AsNoTracking();
+{{ if hasIsDeleted }}
+        q = q.Where(x => x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }});
+{{ end }}
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInQuery == 1 }}
+{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+{{ if field.QueryType == "BETWEEN" }}
+        if (query.{{ field.PropertyName }} is { Length: 2 })
+        {
+            var startOk = DateTime.TryParse(query.{{ field.PropertyName }}[0], out var start);
+            var endOk = DateTime.TryParse(query.{{ field.PropertyName }}[1], out var end);
+            if (startOk && endOk)
+            {
+                q = q.Where(x => x.{{ field.PropertyName }} >= start && x.{{ field.PropertyName }} <= end);
+            }
+        }
+{{ else }}
+        if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
+        {
+            var value = query.{{ field.PropertyName }}!.Trim();
+            if (DateTime.TryParse(value, out var dateValue))
+            {
+                q = q.Where(x => x.{{ field.PropertyName }} == dateValue);
+            }
+        }
+{{ end }}
+{{ else }}
+{{ if field.QueryType == "LIKE" }}
+        if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
+        {
+            var keyword = query.{{ field.PropertyName }}!.Trim();
+            q = q.Where(x => x.{{ field.PropertyName }} != null && x.{{ field.PropertyName }}.Contains(keyword));
+        }
+{{ else if field.QueryType == "IN" }}
+        if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
+        {
+            var values = query.{{ field.PropertyName }}!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            q = q.Where(x => values.Contains(x.{{ field.PropertyName }}!.ToString()));
+        }
+{{ else }}
+{{ if field.CsType == "string" }}
+        if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
+        {
+            q = q.Where(x => x.{{ field.PropertyName }} == query.{{ field.PropertyName }}!.Trim());
+        }
+{{ else }}
+        if (query.{{ field.PropertyName }} != null)
+        {
+            q = q.Where(x => x.{{ field.PropertyName }} == query.{{ field.PropertyName }});
+        }
+{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{ if hasUpdateTime }}
+        q = q.OrderByDescending(x => x.UpdateTime ?? x.CreateTime);
+{{ else if hasCreateTime }}
+        q = q.OrderByDescending(x => x.CreateTime);
+{{ else if hasId }}
+        q = q.OrderByDescending(x => x.Id);
+{{ end }}
+
+        var total = await q.LongCountAsync(cancellationToken).ConfigureAwait(false);
+        if (total == 0)
+        {
+            return PageResult<{{ entityName }}PageVo>.Success(Array.Empty<{{ entityName }}PageVo>(), 0, pageNum, pageSize);
+        }
+
+        var list = await q
+            .Skip((pageNum - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new {{ entityName }}PageVo
+            {
+{{ if hasId }}
+                Id = x.Id,
+{{ end }}
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInList == 1 }}
+{{ if field.FieldName != "id" }}
+                {{ field.PropertyName }} = x.{{ field.PropertyName }},
+{{ end }}
+{{ end }}
+{{ end }}
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return PageResult<{{ entityName }}PageVo>.Success(list, total, pageNum, pageSize);
+    }
+
+    /// <summary>
+    /// {{ businessName }}表单
+    /// </summary>
+    public async Task<{{ entityName }}Form> GetFormAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var entity = await _dbContext.Set<{{ entityName }}>()
+            .AsNoTracking()
+{{ if hasIsDeleted }}
+            .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
+{{ else }}
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+{{ end }}
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "{{ businessName }}不存在");
+        }
+
+        return new {{ entityName }}Form
+        {
+{{ if hasId }}
+            Id = entity.Id,
+{{ end }}
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 }}
+{{ if field.FieldName != "id" }}
+            {{ field.PropertyName }} = entity.{{ field.PropertyName }},
+{{ end }}
+{{ end }}
+{{ end }}
+        };
+    }
+
+    /// <summary>
+    /// 新增{{ businessName }}
+    /// </summary>
+    public async Task<bool> CreateAsync({{ entityName }}Form formData, CancellationToken cancellationToken = default)
+    {
+        var entity = new {{ entityName }}
+        {
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 }}
+{{ if field.FieldName != "id" }}
+            {{ field.PropertyName }} = formData.{{ field.PropertyName }},
+{{ end }}
+{{ end }}
+{{ end }}
+{{ if hasCreateTime }}
+            CreateTime = DateTime.Now,
+{{ end }}
+{{ if hasUpdateTime }}
+            UpdateTime = DateTime.Now,
+{{ end }}
+{{ if hasCreateBy }}
+            CreateBy = _currentUser.UserId,
+{{ end }}
+{{ if hasUpdateBy }}
+            UpdateBy = _currentUser.UserId,
+{{ end }}
+{{ if hasIsDeleted }}
+            IsDeleted = {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}
+{{ end }}
+        };
+
+        _dbContext.Set<{{ entityName }}>().Add(entity);
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// 更新{{ businessName }}
+    /// </summary>
+    public async Task<bool> UpdateAsync(long id, {{ entityName }}Form formData, CancellationToken cancellationToken = default)
+    {
+        var entity = await _dbContext.Set<{{ entityName }}>()
+{{ if hasIsDeleted }}
+            .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
+{{ else }}
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+{{ end }}
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "{{ businessName }}不存在");
+        }
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 }}
+{{ if field.FieldName != "id" }}
+        entity.{{ field.PropertyName }} = formData.{{ field.PropertyName }};
+{{ end }}
+{{ end }}
+{{ end }}
+{{ if hasUpdateTime }}
+        entity.UpdateTime = DateTime.Now;
+{{ end }}
+{{ if hasUpdateBy }}
+        entity.UpdateBy = _currentUser.UserId;
+{{ end }}
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// 删除{{ businessName }}
+    /// </summary>
+    public async Task<bool> DeleteAsync(string ids, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => long.TryParse(v, out var idValue) ? idValue : 0)
+            .Where(v => v > 0)
+            .Distinct()
+            .ToList();
+
+        if (idList.Count == 0)
+        {
+            return true;
+        }
+
+        var list = await _dbContext.Set<{{ entityName }}>()
+            .Where(x => idList.Contains(x.Id))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (list.Count == 0)
+        {
+            return true;
+        }
+{{ if hasIsDeleted }}
+        foreach (var item in list)
+        {
+            item.IsDeleted = {{ if isDeletedType == "bool" }}true{{ else }}1{{ end }};
+{{ if hasUpdateTime }}
+            item.UpdateTime = DateTime.Now;
+{{ end }}
+{{ if hasUpdateBy }}
+            item.UpdateBy = _currentUser.UserId;
+{{ end }}
+        }
+{{ else }}
+        _dbContext.Set<{{ entityName }}>().RemoveRange(list);
+{{ end }}
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+}

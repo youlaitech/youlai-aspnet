@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Log;
+using Youlai.Application.System.Dtos.Statistics;
 using Youlai.Application.System.Services;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -14,9 +15,9 @@ namespace Youlai.Infrastructure.Services;
 /// </remarks>
 internal sealed class SystemLogService : ISystemLogService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
 
-    public SystemLogService(AppDbContext dbContext)
+    public SystemLogService(YoulaiDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -24,7 +25,7 @@ internal sealed class SystemLogService : ISystemLogService
     /// <summary>
     /// 操作日志分页
     /// </summary>
-    public async Task<PageResult<LogPageVo>> GetLogPageAsync(LogPageQuery query, CancellationToken cancellationToken = default)
+    public async Task<PageResult<LogPageVo>> GetLogPageAsync(LogQuery query, CancellationToken cancellationToken = default)
     {
         var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
         var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;

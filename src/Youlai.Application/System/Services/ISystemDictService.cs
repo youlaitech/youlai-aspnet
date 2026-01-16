@@ -1,6 +1,6 @@
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Dict;
 
 namespace Youlai.Application.System.Services;
 
@@ -12,7 +12,7 @@ public interface ISystemDictService
     /// <summary>
     /// 分页查询字典
     /// </summary>
-    Task<PageResult<DictPageVo>> GetDictPageAsync(DictPageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<DictPageVo>> GetDictPageAsync(DictQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 字典下拉选项
@@ -42,7 +42,7 @@ public interface ISystemDictService
     /// <summary>
     /// 分页查询字典项
     /// </summary>
-    Task<PageResult<DictItemPageVo>> GetDictItemPageAsync(string dictCode, DictItemPageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<DictItemPageVo>> GetDictItemPageAsync(string dictCode, DictItemQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 字典项列表

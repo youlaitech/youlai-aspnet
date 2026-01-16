@@ -1,0 +1,52 @@
+/**
+ * {{ entityName }} {{ businessName }}类型定义
+ */
+
+import type { BaseQueryParams } from "./common";
+
+/** {{ businessName }}查询参数 */
+export interface {{ entityName }}QueryParams extends BaseQueryParams {
+{{ for field in fieldConfigs }}
+  {{ if field.IsShowInQuery == 1 }}
+    {{ if field.FieldComment != "" }}
+  /** {{ field.FieldComment }} */
+    {{ end }}
+    {{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+      {{ if field.QueryType == "BETWEEN" }}
+  {{ field.FieldName }}?: [string, string];
+      {{ else }}
+  {{ field.FieldName }}?: {{ field.TsType }};
+      {{ end }}
+    {{ else }}
+  {{ field.FieldName }}?: {{ field.TsType }};
+    {{ end }}
+  {{ end }}
+{{ end }}
+}
+
+/** {{ businessName }}表单对象 */
+export interface {{ entityName }}Form {
+{{ for field in fieldConfigs }}
+  {{ if field.IsShowInForm == 1 }}
+    {{ if field.FieldComment != "" }}
+  /** {{ field.FieldComment }} */
+    {{ end }}
+  {{ field.FieldName }}?: {{ field.TsType }};
+  {{ end }}
+{{ end }}
+}
+
+/** {{ businessName }}详情对象 */
+export type {{ entityName }}Detail = {{ entityName }}Item & {{ entityName }}Form;
+
+/** {{ businessName }}列表项 */
+export interface {{ entityName }}Item {
+{{ for field in fieldConfigs }}
+  {{ if field.IsShowInList == 1 }}
+    {{ if field.FieldComment != "" }}
+  /** {{ field.FieldComment }} */
+    {{ end }}
+  {{ field.FieldName }}?: {{ field.TsType }};
+  {{ end }}
+{{ end }}
+}

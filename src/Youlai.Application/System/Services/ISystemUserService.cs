@@ -1,6 +1,6 @@
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Models;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.User;
 
 namespace Youlai.Application.System.Services;
 
@@ -17,7 +17,7 @@ public interface ISystemUserService
     /// <summary>
     /// 分页查询用户
     /// </summary>
-    Task<PageResult<UserPageVo>> GetUserPageAsync(UserPageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<UserPageVo>> GetUserPageAsync(UserQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取用户表单
@@ -57,7 +57,7 @@ public interface ISystemUserService
     /// <summary>
     /// 导出用户
     /// </summary>
-    Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserPageQuery query, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 导入用户
@@ -89,6 +89,8 @@ public interface ISystemUserService
     /// </summary>
     Task<bool> BindOrChangeMobileAsync(MobileUpdateForm formData, CancellationToken cancellationToken = default);
 
+    Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// 发送邮箱验证码
     /// </summary>
@@ -98,6 +100,8 @@ public interface ISystemUserService
     /// 绑定或修改邮箱
     /// </summary>
     Task<bool> BindOrChangeEmailAsync(EmailUpdateForm formData, CancellationToken cancellationToken = default);
+
+    Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 用户下拉选项

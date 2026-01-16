@@ -1,6 +1,6 @@
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Role;
 
 namespace Youlai.Application.System.Services;
 
@@ -12,7 +12,7 @@ public interface ISystemRoleService
     /// <summary>
     /// 分页查询角色
     /// </summary>
-    Task<PageResult<RolePageVo>> GetRolePageAsync(RolePageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<RolePageVo>> GetRolePageAsync(RoleQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 角色下拉选项

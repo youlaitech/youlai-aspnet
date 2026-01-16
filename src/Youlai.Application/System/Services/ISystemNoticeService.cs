@@ -1,5 +1,5 @@
 using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Notice;
 
 namespace Youlai.Application.System.Services;
 
@@ -11,7 +11,7 @@ public interface ISystemNoticeService
     /// <summary>
     /// 分页查询公告
     /// </summary>
-    Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取公告表单
@@ -56,5 +56,5 @@ public interface ISystemNoticeService
     /// <summary>
     /// 我的公告分页
     /// </summary>
-    Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default);
 }

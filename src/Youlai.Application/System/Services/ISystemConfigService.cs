@@ -1,5 +1,5 @@
 using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Config;
 
 namespace Youlai.Application.System.Services;
 
@@ -11,7 +11,7 @@ public interface ISystemConfigService
     /// <summary>
     /// 分页查询配置
     /// </summary>
-    Task<PageResult<ConfigPageVo>> GetConfigPageAsync(ConfigPageQuery query, CancellationToken cancellationToken = default);
+    Task<PageResult<ConfigPageVo>> GetConfigPageAsync(ConfigQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取配置表单

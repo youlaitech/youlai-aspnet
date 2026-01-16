@@ -4,9 +4,9 @@ using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Menu;
 using Youlai.Application.System.Services;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -26,11 +26,11 @@ internal sealed class SystemMenuService : ISystemMenuService
     private sealed record MenuOptionRow(long Id, long ParentId, string Name);
     private sealed record MenuRow(long Id, long ParentId, string Name, string Type, string? RouteName, string? RoutePath, string? Component, int? Sort, int? Visible, string? Icon, string? Redirect, string? Perm);
 
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
 
-    public SystemMenuService(AppDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
+    public SystemMenuService(YoulaiDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;

@@ -1,0 +1,88 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Youlai.Api.Security;
+using Youlai.Application.Common.Exceptions;
+using Youlai.Application.Common.Results;
+using Youlai.Application.{{ moduleNamePascal }}.Dtos;
+using Youlai.Application.{{ moduleNamePascal }}.Services;
+
+namespace Youlai.Api.Controllers;
+
+/// <summary>
+/// {{ businessName }}接口
+/// </summary>
+/// <remarks>
+/// 提供{{ businessName }}的分页查询、表单、创建、更新与删除能力
+/// </remarks>
+[ApiController]
+[Route("api/v1/{{ entityKebab }}")]
+[Authorize]
+public sealed class {{ entityName }}Controller : ControllerBase
+{
+    private readonly I{{ entityName }}Service _service;
+
+    public {{ entityName }}Controller(I{{ entityName }}Service service)
+    {
+        _service = service;
+    }
+
+    /// <summary>
+    /// {{ businessName }}分页
+    /// </summary>
+    [HttpGet]
+    [HasPerm("{{ moduleName }}:{{ entityKebab }}:list")]
+    public Task<PageResult<{{ entityName }}PageVo>> GetPage([FromQuery] {{ entityName }}Query query, CancellationToken cancellationToken)
+    {
+        return _service.GetPageAsync(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// {{ businessName }}表单
+    /// </summary>
+    [HttpGet("{id:long}/form")]
+    [HasPerm("{{ moduleName }}:{{ entityKebab }}:update")]
+    public async Task<Result<{{ entityName }}Form>> GetForm([FromRoute] long id, CancellationToken cancellationToken)
+    {
+        var form = await _service.GetFormAsync(id, cancellationToken);
+        return Result.Success(form);
+    }
+
+    /// <summary>
+    /// 新增{{ businessName }}
+    /// </summary>
+    [HttpPost]
+    [HasPerm("{{ moduleName }}:{{ entityKebab }}:create")]
+    public async Task<Result<object?>> Create([FromBody] {{ entityName }}Form formData, CancellationToken cancellationToken)
+    {
+        var ok = await _service.CreateAsync(formData, cancellationToken);
+        return Result.Judge(ok);
+    }
+
+    /// <summary>
+    /// 更新{{ businessName }}
+    /// </summary>
+    [HttpPut("{id:long}")]
+    [HasPerm("{{ moduleName }}:{{ entityKebab }}:update")]
+    public async Task<Result<object?>> Update([FromRoute] long id, [FromBody] {{ entityName }}Form formData, CancellationToken cancellationToken)
+    {
+{{ if hasId }}
+        if (formData.Id.HasValue && formData.Id.Value != id)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "参数不匹配");
+        }
+{{ end }}
+        var ok = await _service.UpdateAsync(id, formData, cancellationToken);
+        return Result.Judge(ok);
+    }
+
+    /// <summary>
+    /// 删除{{ businessName }}
+    /// </summary>
+    [HttpDelete("{ids}")]
+    [HasPerm("{{ moduleName }}:{{ entityKebab }}:delete")]
+    public async Task<Result<object?>> Delete([FromRoute] string ids, CancellationToken cancellationToken)
+    {
+        var ok = await _service.DeleteAsync(ids, cancellationToken);
+        return Result.Judge(ok);
+    }
+}

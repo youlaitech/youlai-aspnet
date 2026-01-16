@@ -3,11 +3,11 @@ using StackExchange.Redis;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos;
+using Youlai.Application.System.Dtos.Config;
 using Youlai.Application.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Constants;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -19,11 +19,11 @@ namespace Youlai.Infrastructure.Services;
 /// </remarks>
 internal sealed class SystemConfigService : ISystemConfigService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly IConnectionMultiplexer _redis;
 
-    public SystemConfigService(AppDbContext dbContext, ICurrentUser currentUser, IConnectionMultiplexer redis)
+    public SystemConfigService(YoulaiDbContext dbContext, ICurrentUser currentUser, IConnectionMultiplexer redis)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -33,7 +33,7 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// <summary>
     /// 配置分页
     /// </summary>
-    public async Task<PageResult<ConfigPageVo>> GetConfigPageAsync(ConfigPageQuery query, CancellationToken cancellationToken = default)
+    public async Task<PageResult<ConfigPageVo>> GetConfigPageAsync(ConfigQuery query, CancellationToken cancellationToken = default)
     {
         var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
         var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;

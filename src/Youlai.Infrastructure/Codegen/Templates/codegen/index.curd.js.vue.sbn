@@ -1,0 +1,283 @@
+<template>
+  <div class="app-container">
+    <!-- 搜索 -->
+    <page-search
+      ref="searchRef"
+      :search-config="searchConfig"
+      @query-click="handleQueryClick"
+      @reset-click="handleResetClick"
+    >
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInQuery == 1 && field.DictType != "" }}
+      <template #{{ field.FieldName }}="scope">
+        <Dict v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
+      </template>
+{{ end }}
+{{ end }}
+    </page-search>
+
+    <!-- 列表 -->
+    <page-content
+      ref="contentRef"
+      :content-config="contentConfig"
+      @add-click="handleAddClick"
+      @export-click="handleExportClick"
+      @search-click="handleSearchClick"
+      @toolbar-click="handleToolbarClick"
+      @operat-click="handleOperatClick"
+      @filter-change="handleFilterChange"
+    >
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInList == 1 && field.DictType != "" }}
+      <template #{{ field.FieldName }}="scope">
+        <DictLabel v-model="scope.row[scope.prop]" code="{{ field.DictType }}" />
+      </template>
+{{ end }}
+{{ end }}
+    </page-content>
+
+    <!-- 新增 -->
+    <page-modal ref="addModalRef" :modal-config="addModalConfig" @submit-click="handleSubmitClick">
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
+      <template #{{ field.FieldName }}="scope">
+        <Dict v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
+      </template>
+{{ end }}
+{{ end }}
+    </page-modal>
+
+    <!-- 编辑 -->
+    <page-modal ref="editModalRef" :modal-config="editModalConfig" @submit-click="handleSubmitClick">
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
+      <template #{{ field.FieldName }}="scope">
+        <Dict v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
+      </template>
+{{ end }}
+{{ end }}
+    </page-modal>
+  </div>
+</template>
+
+<script setup>
+defineOptions({ name: "{{ entityName }}" });
+
+import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
+import usePage from "@/components/CURD/usePage";
+
+const {
+  searchRef,
+  contentRef,
+  addModalRef,
+  editModalRef,
+  handleQueryClick,
+  handleResetClick,
+  handleAddClick,
+  handleEditClick,
+  handleSubmitClick,
+  handleExportClick,
+  handleSearchClick,
+  handleFilterChange,
+} = usePage();
+
+const searchConfig = reactive({
+  pageName: "{{ moduleName }}:{{ entityKebab }}",
+  formItems: [
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInQuery == 1 }}
+{{ if field.DictType != "" }}
+    {
+      type: "custom",
+      slotName: "{{ field.FieldName }}",
+      label: "{{ field.FieldComment }}",
+      prop: "{{ field.FieldName }}",
+      attrs: {
+        placeholder: "{{ field.FieldComment }}",
+        clearable: true,
+        style: { width: "200px" },
+      },
+    },
+{{ else }}
+    {
+      type: "{{ if field.FormType == "INPUT_NUMBER" }}input-number{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}date-picker{{ else if field.FormType == "SELECT" }}select{{ else }}input{{ end }}",
+      label: "{{ field.FieldComment }}",
+      prop: "{{ field.FieldName }}",
+      attrs: {
+        placeholder: "{{ field.FieldComment }}",
+{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+        type: "{{ if field.QueryType == "BETWEEN" }}daterange{{ else }}{{ if field.FormType == "DATE_TIME" }}datetime{{ else }}date{{ end }}{{ end }}",
+{{ if field.QueryType == "BETWEEN" }}
+        "range-separator": "~",
+        "start-placeholder": "开始时间",
+        "end-placeholder": "结束时间",
+{{ end }}
+        "value-format": "{{ if field.FormType == "DATE_TIME" }}YYYY-MM-DD HH:mm:ss{{ else }}YYYY-MM-DD{{ end }}",
+{{ end }}
+        clearable: true,
+        style: { width: "200px" },
+      },
+{{ if field.FormType == "SELECT" }}
+      options: [],
+{{ end }}
+    },
+{{ end }}
+{{ end }}
+{{ end }}
+  ],
+});
+
+const contentConfig = reactive({
+  pageName: "{{ moduleName }}:{{ entityKebab }}",
+  table: {
+    border: true,
+    highlightCurrentRow: true,
+  },
+  pk: "id",
+  indexAction: {{ entityName }}API.getPage,
+  deleteAction: {{ entityName }}API.deleteByIds,
+  parseData(res) {
+    return {
+      total: res?.page?.total ?? 0,
+      list: res?.data ?? [],
+    };
+  },
+  pagination: {
+    background: true,
+    layout: "total, sizes, prev, pager, next, jumper",
+    pageSize: 20,
+    pageSizes: [10, 20, 30, 50],
+  },
+  toolbar: ["add", "delete"],
+  defaultToolbar: ["refresh", "filter", "search"],
+  cols: [
+    { type: "selection", width: 55, align: "center" },
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInList == 1 }}
+{{ if field.DictType != "" }}
+    {
+      label: "{{ field.FieldComment }}",
+      prop: "{{ field.FieldName }}",
+      templet: "custom",
+      slotName: "{{ field.FieldName }}",
+    },
+{{ else }}
+    { label: "{{ field.FieldComment }}", prop: "{{ field.FieldName }}" },
+{{ end }}
+{{ end }}
+{{ end }}
+    {
+      label: "操作",
+      prop: "operation",
+      width: 220,
+      templet: "tool",
+      operat: ["edit", "delete"],
+    },
+  ],
+});
+
+const addModalConfig = reactive({
+  pageName: "{{ moduleName }}:{{ entityKebab }}",
+  pk: "id",
+  dialog: {
+    title: "新增{{ businessName }}",
+    width: 800,
+    draggable: true,
+  },
+  form: {
+    labelWidth: 100,
+  },
+  formItems: [
+{{ for field in fieldConfigs }}
+{{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" }}
+{{ if field.DictType != "" }}
+    {
+      type: "custom",
+      label: "{{ field.FieldComment }}",
+      prop: "{{ field.FieldName }}",
+      slotName: "{{ field.FieldName }}",
+      attrs: {
+        placeholder: "{{ field.FieldComment }}",
+        style: { width: "100%" },
+      },
+{{ if field.IsRequired == 1 }}
+      rules: [{ required: true, message: "{{ field.FieldComment }}不能为空", trigger: "change" }],
+{{ end }}
+    },
+{{ else }}
+    {
+      type: "{{ if field.FormType == "INPUT_NUMBER" }}input-number{{ else if field.FormType == "TEXT_AREA" }}input{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}date-picker{{ else if field.FormType == "SELECT" }}select{{ else if field.FormType == "RADIO" }}radio{{ else if field.FormType == "CHECK_BOX" }}checkbox{{ else if field.FormType == "SWITCH" }}switch{{ else }}input{{ end }}",
+      label: "{{ field.FieldComment }}",
+      prop: "{{ field.FieldName }}",
+{{ if field.FormType == "TEXT_AREA" }}
+      attrs: {
+        type: "textarea",
+        rows: 3,
+        placeholder: "{{ field.FieldComment }}",
+      },
+{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+      attrs: {
+        type: "{{ if field.FormType == "DATE_TIME" }}datetime{{ else }}date{{ end }}",
+        placeholder: "{{ field.FieldComment }}",
+        "value-format": "{{ if field.FormType == "DATE_TIME" }}YYYY-MM-DD HH:mm:ss{{ else }}YYYY-MM-DD{{ end }}",
+        style: { width: "100%" },
+      },
+{{ else if field.FormType == "SWITCH" }}
+      attrs: {
+        activeValue: 1,
+        inactiveValue: 0,
+      },
+{{ else }}
+      attrs: {
+        placeholder: "{{ field.FieldComment }}",
+{{ if field.FormType == "INPUT_NUMBER" }}
+        style: { width: "100%" },
+{{ end }}
+      },
+{{ end }}
+{{ if field.FormType == "SELECT" || field.FormType == "RADIO" || field.FormType == "CHECK_BOX" }}
+      options: [],
+{{ end }}
+{{ if field.IsRequired == 1 }}
+      rules: [{ required: true, message: "{{ field.FieldComment }}不能为空", trigger: "{{ if field.FormType == "INPUT" || field.FormType == "TEXT_AREA" || field.FormType == "INPUT_NUMBER" }}blur{{ else }}change{{ end }}" }],
+{{ end }}
+    },
+{{ end }}
+{{ end }}
+{{ end }}
+  ],
+  formAction: (data) => {
+    if (data.id) {
+      return {{ entityName }}API.update(data.id, data);
+    }
+
+    return {{ entityName }}API.create(data);
+  },
+});
+
+const editModalConfig = reactive({
+  pageName: "{{ moduleName }}:{{ entityKebab }}",
+  component: "drawer",
+  drawer: {
+    title: "编辑{{ businessName }}",
+    size: 500,
+  },
+  pk: "id",
+  formAction(data) {
+    return {{ entityName }}API.update(data.id, data);
+  },
+  formItems: addModalConfig.formItems,
+});
+
+const handleOperatClick = (data) => {
+  if (data.name === "edit") {
+    handleEditClick(data.row, async () => {
+      return await {{ entityName }}API.getFormData(String(data.row.id));
+    });
+  }
+};
+
+const handleToolbarClick = (name) => {
+  console.log(name);
+};
+</script>

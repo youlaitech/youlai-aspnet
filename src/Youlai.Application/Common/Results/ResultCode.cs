@@ -21,6 +21,9 @@ public enum ResultCode
     RequestRequiredParameterIsEmpty = 10,
     ParameterFormatMismatch = 11,
 
+    UploadFileException = 70,
+    DeleteFileException = 71,
+
     SystemError = 1000,
 
     ThirdPartyServiceError = 2000,
@@ -56,6 +59,9 @@ public static class ResultCodeExtensions
             ResultCode.RequestRequiredParameterIsEmpty => "A0410",
             ResultCode.ParameterFormatMismatch => "A0421",
 
+            ResultCode.UploadFileException => "A0700",
+            ResultCode.DeleteFileException => "A0710",
+
             ResultCode.SystemError => "B0001",
 
             ResultCode.ThirdPartyServiceError => "C0001",
@@ -88,6 +94,9 @@ public static class ResultCodeExtensions
             ResultCode.InvalidUserInput => "无效的用户输入",
             ResultCode.RequestRequiredParameterIsEmpty => "请求必填参数为空",
             ResultCode.ParameterFormatMismatch => "参数格式不匹配",
+
+            ResultCode.UploadFileException => "上传文件异常",
+            ResultCode.DeleteFileException => "删除文件异常",
 
             ResultCode.SystemError => "系统执行出错",
 

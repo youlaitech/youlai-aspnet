@@ -1,0 +1,15 @@
+namespace Youlai.Domain.Entities;
+
+/// <summary>
+/// {{ businessName }}
+/// </summary>
+public sealed class {{ entityName }}
+{
+{{ for field in fieldConfigs }}
+    /// <summary>
+    /// {{ field.FieldComment }}
+    /// </summary>
+    public {{ if (field.FieldName == "id" || field.ColumnName == "id") }}{{ field.CsType }}{{ else }}{{ field.CsTypeNullable }}{{ end }} {{ field.PropertyName }} { get; set; }
+
+{{ end }}
+}

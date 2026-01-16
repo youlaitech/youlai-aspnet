@@ -5,7 +5,7 @@ using Youlai.Application.Auth.Services;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
-using Youlai.Infrastructure.Data;
+using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
@@ -14,11 +14,11 @@ namespace Youlai.Infrastructure.Services;
 /// </summary>
 internal sealed class AuthService : IAuthService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly YoulaiDbContext _dbContext;
     private readonly ICaptchaService _captchaService;
     private readonly JwtTokenManager _tokenManager;
 
-    public AuthService(AppDbContext dbContext, ICaptchaService captchaService, JwtTokenManager tokenManager)
+    public AuthService(YoulaiDbContext dbContext, ICaptchaService captchaService, JwtTokenManager tokenManager)
     {
         _dbContext = dbContext;
         _captchaService = captchaService;
