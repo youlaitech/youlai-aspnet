@@ -15,6 +15,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/statistics")]
 [Authorize]
+[Tags("12.统计接口")]
 public sealed class StatisticsController : ControllerBase
 {
     private readonly ISystemLogService _logService;

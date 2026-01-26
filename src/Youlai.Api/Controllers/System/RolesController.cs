@@ -18,6 +18,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/roles")]
 [Authorize]
+[Tags("03.角色接口")]
 public sealed class RolesController : ControllerBase
 {
     private readonly ISystemRoleService _roleService;

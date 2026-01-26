@@ -17,6 +17,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/menus")]
 [Authorize]
+[Tags("04.菜单接口")]
 public sealed class MenusController : ControllerBase
 {
     private readonly ISystemMenuService _menuService;

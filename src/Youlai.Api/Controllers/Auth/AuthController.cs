@@ -15,6 +15,7 @@ namespace Youlai.Api.Controllers.Auth;
 [ApiController]
 [Route("api/v1/auth")]
 [Authorize]
+[Tags("01.认证接口")]
 public sealed class AuthController : ControllerBase
 {
     private readonly ICaptchaService _captchaService;

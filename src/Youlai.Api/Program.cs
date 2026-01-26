@@ -1,8 +1,11 @@
 using System.Text;
+using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerUI;
 using Youlai.Api.Converters;
 using Youlai.Api.WebSockets;
 using Youlai.Api.Security;
@@ -41,6 +44,20 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "youlai-aspnet",
+        Description = "youlai 全家桶（ASP.NET Core 8）权限管理后台接口文档",
+        Version = "1.0",
+    });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+
     options.OperationFilter<Youlai.Api.Swagger.FileUploadOperationFilter>();
 });
 
@@ -97,8 +114,8 @@ if (!string.IsNullOrWhiteSpace(jwtSecret))
                                 var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
                                 var jwt = handler.ReadJwtToken(rawToken);
                                 var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                                var exp = jwt.Payload.Exp ?? 0;
-                                var iat = jwt.Payload.Iat ?? 0;
+                                var exp = jwt.Payload.Expiration ?? 0;
+                                var iat = new DateTimeOffset(jwt.Payload.IssuedAt).ToUnixTimeSeconds();
                                 var sub = jwt.Subject ?? string.Empty;
                                 var tokenType = jwt.Payload.TryGetValue("tokenType", out var tt) ? tt?.ToString() : null;
                                 var securityVersion = jwt.Payload.TryGetValue("securityVersion", out var sv) ? sv?.ToString() : null;
@@ -221,7 +238,18 @@ app.UseStatusCodePages(async statusContext =>
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Youlai.Api v1");
+        options.DocumentTitle = "youlai-aspnet API 文档";
+        options.ConfigObject = new ConfigObject
+        {
+            AdditionalItems =
+            {
+                ["tagsSorter"] = "alpha",
+            },
+        };
+    });
 }
 
 app.UseHttpsRedirection();

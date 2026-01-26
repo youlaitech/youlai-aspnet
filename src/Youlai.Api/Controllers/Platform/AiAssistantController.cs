@@ -15,6 +15,7 @@ namespace Youlai.Api.Controllers.Platform;
 [ApiController]
 [Route("api/v1/ai/assistant")]
 [Authorize]
+[Tags("99.AI助手")]
 public sealed class AiAssistantController : ControllerBase
 {
     private readonly IAiAssistantService _aiAssistantService;

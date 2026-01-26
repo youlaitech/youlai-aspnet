@@ -7,5 +7,8 @@ namespace Youlai.Application.System.Dtos.Config;
 /// </summary>
 public sealed class ConfigQuery : BaseQuery
 {
+    /// <summary>
+    /// 关键字
+    /// </summary>
     public string? Keywords { get; init; }
 }

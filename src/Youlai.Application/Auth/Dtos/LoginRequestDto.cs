@@ -8,25 +8,25 @@ namespace Youlai.Application.Auth.Dtos;
 public sealed class LoginRequestDto
 {
     /// <summary>
-    /// 用户名
+    /// 登录账号
     /// </summary>
     [Required]
     public string Username { get; init; } = string.Empty;
 
     /// <summary>
-    /// 密码
+    /// 登录密码
     /// </summary>
     [Required]
     public string Password { get; init; } = string.Empty;
 
     /// <summary>
-    /// 验证码标识
+    /// 验证码 ID
     /// </summary>
     [Required]
     public string CaptchaId { get; init; } = string.Empty;
 
     /// <summary>
-    /// 验证码
+    /// 验证码内容
     /// </summary>
     [Required]
     public string CaptchaCode { get; init; } = string.Empty;

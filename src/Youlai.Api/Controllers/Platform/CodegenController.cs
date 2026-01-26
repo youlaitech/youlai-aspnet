@@ -16,6 +16,7 @@ namespace Youlai.Api.Controllers.Platform;
 [ApiController]
 [Route("api/v1/codegen")]
 [Authorize]
+[Tags("13.代码生成")]
 public sealed class CodegenController : ControllerBase
 {
     private readonly ICodegenService _codegenService;

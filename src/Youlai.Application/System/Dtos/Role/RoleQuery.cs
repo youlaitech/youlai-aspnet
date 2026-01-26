@@ -11,9 +11,18 @@ namespace Youlai.Application.System.Dtos.Role;
 /// </remarks>
 public sealed class RoleQuery : BaseQuery
 {
+    /// <summary>
+    /// 关键字
+    /// </summary>
     public string? Keywords { get; init; }
 
+    /// <summary>
+    /// 开始时间
+    /// </summary>
     public DateTime? StartDate { get; init; }
 
+    /// <summary>
+    /// 结束时间
+    /// </summary>
     public DateTime? EndDate { get; init; }
 }

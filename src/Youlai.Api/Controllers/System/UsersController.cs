@@ -17,6 +17,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/users")]
 [Authorize]
+[Tags("02.用户接口")]
 public sealed class UsersController : ControllerBase
 {
     private readonly ISystemUserService _userService;
@@ -137,10 +138,11 @@ public sealed class UsersController : ControllerBase
     /// 导入用户
     /// </summary>
     [HttpPost("import")]
+    [Consumes("multipart/form-data")]
     [HasPerm("sys:user:import")]
     public async Task<Result<Application.Common.Models.ExcelResult>> ImportUsers(
         [FromQuery] long deptId,
-        [FromForm] IFormFile file,
+        IFormFile file,
         CancellationToken cancellationToken)
     {
         await using var stream = file.OpenReadStream();

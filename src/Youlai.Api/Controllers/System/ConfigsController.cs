@@ -16,6 +16,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/configs")]
 [Authorize]
+[Tags("08.系统配置")]
 public sealed class ConfigsController : ControllerBase
 {
     private readonly ISystemConfigService _configService;

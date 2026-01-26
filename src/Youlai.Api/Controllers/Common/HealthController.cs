@@ -11,6 +11,7 @@ namespace Youlai.Api.Controllers.Common;
 /// </remarks>
 [ApiController]
 [Route("api/v1/health")]
+[Tags("98.基础能力")]
 public sealed class HealthController : ControllerBase
 {
     /// <summary>
