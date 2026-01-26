@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Dict;
 
 /// <summary>
-/// 瀛楀吀鍒嗛〉鏌ヨ鍙傛暟
+/// 字典分页查询参数
 /// </summary>
 public sealed class DictQuery : BaseQuery
 {

@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Menu;
 
 /// <summary>
-/// 鑿滃崟鏌ヨ鍙傛暟
+/// 菜单查询参数
 /// </summary>
 public sealed class MenuQuery
 {

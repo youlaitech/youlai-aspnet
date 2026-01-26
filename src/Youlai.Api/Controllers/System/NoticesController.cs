@@ -8,10 +8,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 閫氱煡鍏憡鎺ュ彛
+/// 通知公告接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鍏憡鐨勫垎椤垫煡璇€佽鎯呫€佸彂甯冧笌鎾ゅ洖绛夎兘鍔?
+/// 提供公告的分页查询、表单、创建、更新、删除、发布与撤回等能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/notices")]
@@ -26,7 +26,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍏憡鍒嗛〉
+    /// 公告分页
     /// </summary>
     [HttpGet]
     [HasPerm("sys:notice:list")]
@@ -36,7 +36,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍏憡琛ㄥ崟
+    /// 公告表单
     /// </summary>
     [HttpGet("{id:long}/form")]
     [HasPerm("sys:notice:update")]
@@ -47,7 +47,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板鍏憡
+    /// 新增公告
     /// </summary>
     [HttpPost]
     [HasPerm("sys:notice:create")]
@@ -58,7 +58,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊鍏憡
+    /// 更新公告
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:notice:update")]
@@ -69,7 +69,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵归噺鍒犻櫎鍏憡
+    /// 批量删除公告
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:notice:delete")]
@@ -80,7 +80,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍙戝竷鍏憡
+    /// 发布公告
     /// </summary>
     [HttpPut("{id:long}/publish")]
     [HasPerm("sys:notice:publish")]
@@ -91,7 +91,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鎾ゅ洖鍏憡
+    /// 撤回公告
     /// </summary>
     [HttpPut("{id:long}/revoke")]
     [HasPerm("sys:notice:revoke")]
@@ -102,7 +102,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍏憡璇︽儏
+    /// 公告详情
     /// </summary>
     [HttpGet("{id:long}/detail")]
     public async Task<Result<NoticeDetailVo>> Detail([FromRoute] long id, CancellationToken cancellationToken)
@@ -112,7 +112,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍏ㄩ儴鏍囪宸茶
+    /// 全部标记已读
     /// </summary>
     [HttpPut("read-all")]
     public async Task<Result<object?>> ReadAll(CancellationToken cancellationToken)
@@ -122,7 +122,7 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
-    /// 鎴戠殑鍏憡鍒嗛〉
+    /// 我的公告分页
     /// </summary>
     [HttpGet("my")]
     public Task<PageResult<NoticePageVo>> GetMyNoticePage([FromQuery] NoticeQuery query, CancellationToken cancellationToken)

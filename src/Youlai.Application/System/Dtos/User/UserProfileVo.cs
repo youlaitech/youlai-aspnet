@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 涓汉璧勬枡鏁版嵁
+/// 个人资料数据
 /// </summary>
 public sealed class UserProfileVo
 {

@@ -71,6 +71,7 @@ internal sealed class SystemConfigService : ISystemConfigService
                 ConfigName = x.ConfigName,
                 ConfigKey = x.ConfigKey,
                 ConfigValue = x.ConfigValue,
+                Remark = x.Remark,
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

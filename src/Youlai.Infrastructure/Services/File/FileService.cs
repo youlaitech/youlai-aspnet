@@ -11,9 +11,9 @@ internal sealed class FileService : IFileService
     private readonly IReadOnlyCollection<IFileStorage> _storages;
     private readonly OssOptions _options;
 
-    public FileService(IReadOnlyCollection<IFileStorage> storages, OssOptions options)
+    public FileService(IEnumerable<IFileStorage> storages, OssOptions options)
     {
-        _storages = storages;
+        _storages = storages.ToList();
         _options = options;
     }
 

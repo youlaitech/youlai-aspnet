@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Notice;
 
 /// <summary>
-/// 鍏憡鍒嗛〉鏌ヨ鍙傛暟
+/// 公告分页查询参数
 /// </summary>
 public sealed class NoticeQuery : BaseQuery
 {

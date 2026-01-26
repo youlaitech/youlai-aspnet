@@ -8,10 +8,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 鍙傛暟閰嶇疆鎺ュ彛
+/// 参数配置接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鍙傛暟閰嶇疆鐨勫垎椤垫煡璇€佽鎯呫€佸垱寤恒€佷慨鏀广€佸垹闄ょ瓑鑳藉姏
+/// 提供参数配置的分页查询、表单数据、创建、更新、删除及缓存刷新能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/configs")]
@@ -26,7 +26,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 閰嶇疆鍒嗛〉
+    /// 配置分页
     /// </summary>
     [HttpGet]
     [HasPerm("sys:config:list")]
@@ -36,7 +36,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 閰嶇疆琛ㄥ崟
+    /// 配置表单
     /// </summary>
     [HttpGet("{id:long}/form")]
     public async Task<Result<ConfigForm>> GetConfigForm([FromRoute] long id, CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板閰嶇疆
+    /// 新增配置
     /// </summary>
     [HttpPost]
     [HasPerm("sys:config:create")]
@@ -57,7 +57,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊閰嶇疆
+    /// 更新配置
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:config:update")]
@@ -68,7 +68,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒犻櫎閰嶇疆
+    /// 删除配置
     /// </summary>
     [HttpDelete("{id:long}")]
     [HasPerm("sys:config:delete")]
@@ -79,7 +79,7 @@ public sealed class ConfigsController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒锋柊閰嶇疆缂撳瓨
+    /// 刷新配置缓存
     /// </summary>
     [HttpPut("refresh")]
     [HasPerm("sys:config:refresh")]

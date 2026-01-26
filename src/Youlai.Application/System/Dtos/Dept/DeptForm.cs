@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Dtos.Dept;
 
 /// <summary>
-/// 閮ㄩ棬琛ㄥ崟
+/// 部门表单
 /// </summary>
 public sealed class DeptForm
 {
@@ -18,11 +18,11 @@ public sealed class DeptForm
     public string? Code { get; init; }
 
     [JsonPropertyName("parentId")]
-    [Required(ErrorMessage = "鐖堕儴闂↖D涓嶈兘涓虹┖")]
+    [Required(ErrorMessage = "父部门ID不能为空")]
     public long? ParentId { get; init; }
 
     [JsonPropertyName("status")]
-    [Range(0, 1, ErrorMessage = "鐘舵€佸€间笉姝ｇ‘")]
+    [Range(0, 1, ErrorMessage = "状态值不正确")]
     public int? Status { get; init; }
 
     [JsonPropertyName("sort")]

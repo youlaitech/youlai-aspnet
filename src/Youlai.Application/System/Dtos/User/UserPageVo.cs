@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 鐢ㄦ埛鍒嗛〉鏁版嵁
+/// 用户分页数据
 /// </summary>
 public sealed class UserPageVo
 {

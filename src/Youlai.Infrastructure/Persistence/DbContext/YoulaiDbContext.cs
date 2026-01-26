@@ -3,9 +3,9 @@ using Youlai.Domain.Entities;
 
 namespace Youlai.Infrastructure.Persistence.DbContext;
 
-internal sealed class YoulaiDbContext : DbContext
+internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 {
-    public YoulaiDbContext(DbContextOptions<YoulaiDbContext> options)
+    public YoulaiDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<YoulaiDbContext> options)
         : base(options)
     {
     }

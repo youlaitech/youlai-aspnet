@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Role;
 
 /// <summary>
-/// 瑙掕壊鍒嗛〉鏁版嵁
+/// 角色分页数据
 /// </summary>
 public sealed class RolePageVo
 {

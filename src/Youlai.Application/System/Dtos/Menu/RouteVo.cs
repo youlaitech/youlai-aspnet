@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Menu;
 
 /// <summary>
-/// 鍓嶇璺敱鏁版嵁
+/// 前端路由数据
 /// </summary>
 public sealed class RouteVo
 {
@@ -31,7 +31,7 @@ public sealed class RouteVo
     public IReadOnlyCollection<RouteVo>? Children { get; init; }
 
     /// <summary>
-    /// 璺敱鍏冧俊鎭?
+    /// 路由元信息
     /// </summary>
     public sealed class RouteMeta
     {

@@ -1,7 +1,7 @@
 ﻿namespace Youlai.Application.System.Dtos.Statistics;
 
 /// <summary>
-/// 璁块棶瓒嬪娍鏌ヨ鍙傛暟
+/// 访问趋势查询参数
 /// </summary>
 public sealed class VisitTrendQuery
 {

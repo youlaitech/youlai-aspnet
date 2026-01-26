@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Config;
 
 /// <summary>
-/// 閰嶇疆鍒嗛〉鏁版嵁
+/// 配置分页数据
 /// </summary>
 public sealed class ConfigPageVo
 {
@@ -18,4 +18,7 @@ public sealed class ConfigPageVo
 
     [JsonPropertyName("configValue")]
     public string ConfigValue { get; init; } = string.Empty;
+
+    [JsonPropertyName("remark")]
+    public string? Remark { get; init; }
 }

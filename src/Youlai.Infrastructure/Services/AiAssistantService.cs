@@ -3,7 +3,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Linq;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -148,6 +150,112 @@ internal sealed class AiAssistantService : IAiAssistantService
                 Error = record.ParseErrorMessage ?? "命令解析失败",
             };
         }
+    }
+
+    public async Task<PageResult<AiAssistantRecordVo>> GetRecordPageAsync(AiAssistantQuery query, CancellationToken cancellationToken = default)
+    {
+        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
+        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+
+        if (pageSize > 200)
+        {
+            pageSize = 200;
+        }
+
+        var records = _dbContext.AiAssistantRecords.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Keywords))
+        {
+            var keywords = query.Keywords.Trim();
+            records = records.Where(x => (x.OriginalCommand != null && x.OriginalCommand.Contains(keywords))
+                || (x.FunctionName != null && x.FunctionName.Contains(keywords))
+                || (x.Username != null && x.Username.Contains(keywords)));
+        }
+
+        if (query.ExecuteStatus.HasValue)
+        {
+            records = records.Where(x => x.ExecuteStatus == query.ExecuteStatus.Value);
+        }
+
+        if (query.UserId.HasValue)
+        {
+            records = records.Where(x => x.UserId == query.UserId.Value);
+        }
+
+        if (query.ParseStatus.HasValue)
+        {
+            records = records.Where(x => x.ParseStatus == query.ParseStatus.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.FunctionName))
+        {
+            var functionName = query.FunctionName.Trim();
+            records = records.Where(x => x.FunctionName != null && x.FunctionName.Contains(functionName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.AiProvider))
+        {
+            var provider = query.AiProvider.Trim();
+            records = records.Where(x => x.AiProvider != null && x.AiProvider.Contains(provider));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.AiModel))
+        {
+            var model = query.AiModel.Trim();
+            records = records.Where(x => x.AiModel != null && x.AiModel.Contains(model));
+        }
+
+        var (start, end) = ParseDateRange(query.CreateTime);
+        if (start.HasValue)
+        {
+            records = records.Where(x => x.CreateTime >= start.Value);
+        }
+
+        if (end.HasValue)
+        {
+            records = records.Where(x => x.CreateTime <= end.Value);
+        }
+
+        records = records.OrderByDescending(x => x.CreateTime).ThenByDescending(x => x.Id);
+
+        var total = await records.LongCountAsync(cancellationToken).ConfigureAwait(false);
+        if (total == 0)
+        {
+            return PageResult<AiAssistantRecordVo>.Success(Array.Empty<AiAssistantRecordVo>(), 0, pageNum, pageSize);
+        }
+
+        var skip = (pageNum - 1) * pageSize;
+        var rows = await records
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(x => new AiAssistantRecordVo
+            {
+                Id = x.Id,
+                UserId = x.UserId,
+                Username = x.Username,
+                OriginalCommand = x.OriginalCommand,
+                AiProvider = x.AiProvider,
+                AiModel = x.AiModel,
+                ParseStatus = x.ParseStatus,
+                FunctionCalls = x.FunctionCalls,
+                Explanation = x.Explanation,
+                Confidence = x.Confidence,
+                ParseErrorMessage = x.ParseErrorMessage,
+                InputTokens = x.InputTokens,
+                OutputTokens = x.OutputTokens,
+                ParseDurationMs = x.ParseDurationMs,
+                FunctionName = x.FunctionName,
+                FunctionArguments = x.FunctionArguments,
+                ExecuteStatus = x.ExecuteStatus,
+                ExecuteErrorMessage = x.ExecuteErrorMessage,
+                IpAddress = x.IpAddress,
+                CreateTime = x.CreateTime.HasValue ? x.CreateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
+                UpdateTime = x.UpdateTime.HasValue ? x.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return PageResult<AiAssistantRecordVo>.Success(rows, total, pageNum, pageSize);
     }
 
     public async Task<AiExecuteResponseDto> ExecuteCommandAsync(AiExecuteRequestDto request, CancellationToken cancellationToken = default)
@@ -368,6 +476,39 @@ internal sealed class AiAssistantService : IAiAssistantService
         }
 
         return context.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+    }
+
+    private static (DateTime? Start, DateTime? End) ParseDateRange(string[]? createTime)
+    {
+        if (createTime is not { Length: >= 1 })
+        {
+            return (null, null);
+        }
+
+        DateTime? start = null;
+        DateTime? end = null;
+
+        if (!string.IsNullOrWhiteSpace(createTime[0]))
+        {
+            start = ParseDateTimeMaybeDateOnly(createTime[0].Trim(), isStart: true);
+        }
+
+        if (createTime.Length >= 2 && !string.IsNullOrWhiteSpace(createTime[1]))
+        {
+            end = ParseDateTimeMaybeDateOnly(createTime[1].Trim(), isStart: false);
+        }
+
+        return (start, end);
+    }
+
+    private static DateTime? ParseDateTimeMaybeDateOnly(string value, bool isStart)
+    {
+        if (value.Length == 10 && DateOnly.TryParse(value, out var d))
+        {
+            return isStart ? d.ToDateTime(TimeOnly.MinValue) : d.ToDateTime(TimeOnly.MaxValue);
+        }
+
+        return DateTime.TryParse(value, out var dt) ? dt : null;
     }
 
     private static ParseResult ParseAiResponse(string rawContent)

@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 褰撳墠鐧诲綍鐢ㄦ埛淇℃伅
+/// 当前登录用户信息
 /// </summary>
 public sealed class CurrentUserDto
 {

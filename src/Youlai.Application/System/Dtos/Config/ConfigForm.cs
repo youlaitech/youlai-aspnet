@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Dtos.Config;
 
 /// <summary>
-/// 閰嶇疆琛ㄥ崟
+/// 配置表单
 /// </summary>
 public sealed class ConfigForm
 {
@@ -12,15 +12,15 @@ public sealed class ConfigForm
     public long? Id { get; init; }
 
     [JsonPropertyName("configName")]
-    [Required(ErrorMessage = "閰嶇疆鍚嶇О涓嶈兘涓虹┖")]
+    [Required(ErrorMessage = "配置名称不能为空")]
     public string? ConfigName { get; init; }
 
     [JsonPropertyName("configKey")]
-    [Required(ErrorMessage = "閰嶇疆閿笉鑳戒负绌?)]
+    [Required(ErrorMessage = "配置键不能为空")]
     public string? ConfigKey { get; init; }
 
     [JsonPropertyName("configValue")]
-    [Required(ErrorMessage = "閰嶇疆鍊间笉鑳戒负绌?)]
+    [Required(ErrorMessage = "配置值不能为空")]
     public string? ConfigValue { get; init; }
 
     [JsonPropertyName("remark")]

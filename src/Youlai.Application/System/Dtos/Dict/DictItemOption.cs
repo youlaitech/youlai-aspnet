@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Dict;
 
 /// <summary>
-/// 瀛楀吀椤逛笅鎷夐€夐」
+/// 字典项下拉选项
 /// </summary>
 public sealed class DictItemOption
 {

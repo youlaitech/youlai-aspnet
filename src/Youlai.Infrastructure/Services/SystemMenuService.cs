@@ -600,7 +600,19 @@ internal sealed class SystemMenuService : ISystemMenuService
         var routeName = menu.RouteName;
         if (string.IsNullOrWhiteSpace(routeName))
         {
-            routeName = externalLink ? $"ext-{menu.Id}" : ToPascalCase(routePath);
+            if (externalLink)
+            {
+                routeName = $"ext-{menu.Id}";
+            }
+            else if (string.Equals(menu.Type, CatalogMenuType, StringComparison.Ordinal))
+            {
+                // 目录使用路由路径作为名称，避免与子菜单路由名称冲突
+                routeName = routePath;
+            }
+            else
+            {
+                routeName = ToPascalCase(routePath);
+            }
         }
 
         var meta = new RouteVo.RouteMeta

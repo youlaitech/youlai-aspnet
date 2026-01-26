@@ -7,10 +7,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 绯荤粺鏃ュ織鎺ュ彛
+/// 系统日志接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鎿嶄綔鏃ュ織鏌ヨ涓庢竻鐞嗚兘鍔?
+/// 提供操作日志查询与清理能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/logs")]
@@ -25,7 +25,7 @@ public sealed class LogsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏃ュ織鍒嗛〉
+    /// 日志分页
     /// </summary>
     [HttpGet]
     public async Task<PageResult<LogPageVo>> GetLogPage([FromQuery] LogQuery queryParams, CancellationToken cancellationToken)

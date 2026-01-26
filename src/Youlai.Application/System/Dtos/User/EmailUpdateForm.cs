@@ -4,19 +4,19 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 閭缁戝畾鎴栦慨鏀硅〃鍗?
+/// 邮箱绑定或修改表单
 /// </summary>
 public sealed class EmailUpdateForm
 {
     [JsonPropertyName("email")]
-    [Required(ErrorMessage = "閭涓嶈兘涓虹┖")]
+    [Required(ErrorMessage = "邮箱不能为空")]
     public string? Email { get; init; }
 
     [JsonPropertyName("code")]
-    [Required(ErrorMessage = "楠岃瘉鐮佷笉鑳戒负绌?)]
+    [Required(ErrorMessage = "验证码不能为空")]
     public string? Code { get; init; }
 
     [JsonPropertyName("password")]
-    [Required(ErrorMessage = "褰撳墠瀵嗙爜涓嶈兘涓虹┖")]
+    [Required(ErrorMessage = "当前密码不能为空")]
     public string? Password { get; init; }
 }

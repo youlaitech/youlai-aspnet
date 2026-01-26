@@ -4,17 +4,17 @@ using Youlai.Application.Common.Results;
 namespace Youlai.Api.Controllers.Common;
 
 /// <summary>
-/// 鍋ュ悍妫€鏌ユ帴鍙?
+/// 健康检查接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鏈嶅姟鍙敤鎬ф鏌?
+/// 提供服务可用性检测。
 /// </remarks>
 [ApiController]
 [Route("api/v1/health")]
 public sealed class HealthController : ControllerBase
 {
     /// <summary>
-    /// 鍋ュ悍妫€鏌?
+    /// 健康检查
     /// </summary>
     [HttpGet]
     public Result<string> Get()

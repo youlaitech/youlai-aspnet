@@ -7,10 +7,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 缁熻鎺ュ彛
+/// 统计接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵绯荤粺缁熻鏁版嵁鏌ヨ鑳藉姏
+/// 提供系统统计数据查询能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/statistics")]
@@ -25,7 +25,7 @@ public sealed class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// 璁块棶瓒嬪娍
+    /// 访问趋势
     /// </summary>
     [HttpGet("visits/trend")]
     public async Task<Result<VisitTrendVo>> GetVisitTrend([FromQuery] VisitTrendQuery queryParams, CancellationToken cancellationToken)
@@ -35,7 +35,7 @@ public sealed class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// 璁块棶姒傝
+    /// 访问概览
     /// </summary>
     [HttpGet("visits/overview")]
     public async Task<Result<VisitStatsVo>> GetVisitOverview(CancellationToken cancellationToken)

@@ -85,9 +85,29 @@ internal sealed class SystemLogService : ISystemLogService
         }
 
         var skip = (pageNum - 1) * pageSize;
-        var list = await logs
+        var rows = await logs
             .Skip(skip)
             .Take(pageSize)
+            .Select(x => new
+            {
+                x.Id,
+                x.Module,
+                x.Content,
+                x.RequestUri,
+                x.RequestMethod,
+                x.Ip,
+                x.Province,
+                x.City,
+                x.Browser,
+                x.BrowserVersion,
+                x.Os,
+                x.ExecutionTime,
+                x.Operator,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var list = rows
             .Select(x => new LogPageVo
             {
                 Id = x.Id,
@@ -102,8 +122,7 @@ internal sealed class SystemLogService : ISystemLogService
                 ExecutionTime = x.ExecutionTime ?? 0,
                 Operator = x.Operator ?? string.Empty,
             })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ToList();
 
         return PageResult<LogPageVo>.Success(list, total, pageNum, pageSize);
     }

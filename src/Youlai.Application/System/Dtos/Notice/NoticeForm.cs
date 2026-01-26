@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Dtos.Notice;
 
 /// <summary>
-/// 鍏憡琛ㄥ崟
+/// 公告表单
 /// </summary>
 public sealed class NoticeForm
 {

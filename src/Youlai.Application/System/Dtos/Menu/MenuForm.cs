@@ -5,7 +5,7 @@ using Youlai.Application.Common.Models;
 namespace Youlai.Application.System.Dtos.Menu;
 
 /// <summary>
-/// 鑿滃崟琛ㄥ崟
+/// 菜单表单
 /// </summary>
 public sealed class MenuForm
 {

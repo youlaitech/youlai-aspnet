@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Log;
 
 /// <summary>
-/// 鏃ュ織鍒嗛〉鏁版嵁
+/// 日志分页数据
 /// </summary>
 public sealed class LogPageVo
 {

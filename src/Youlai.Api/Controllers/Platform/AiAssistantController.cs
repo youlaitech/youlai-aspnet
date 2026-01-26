@@ -7,10 +7,10 @@ using Youlai.Application.Platform.Ai.Services;
 namespace Youlai.Api.Controllers.Platform;
 
 /// <summary>
-/// AI 鍔╂墜鎺ュ彛
+/// AI 助手接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵 AI 鍛戒护瑙ｆ瀽涓庢墽琛岃兘鍔?
+/// 提供 AI 命令解析与执行能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/ai/assistant")]
@@ -25,7 +25,7 @@ public sealed class AiAssistantController : ControllerBase
     }
 
     /// <summary>
-    /// 瑙ｆ瀽鑷劧璇█鍛戒护
+    /// 解析自然语言命令
     /// </summary>
     [HttpPost("parse")]
     public async Task<Result<AiParseResponseDto>> ParseCommand(
@@ -37,7 +37,7 @@ public sealed class AiAssistantController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵ц宸茶В鏋愮殑鍛戒护
+    /// 执行已解析的命令
     /// </summary>
     [HttpPost("execute")]
     public async Task<Result<AiExecuteResponseDto>> ExecuteCommand(
@@ -46,5 +46,16 @@ public sealed class AiAssistantController : ControllerBase
     {
         var result = await _aiAssistantService.ExecuteCommandAsync(request, cancellationToken);
         return Result.Success(result);
+    }
+
+    /// <summary>
+    /// 获取 AI 命令记录分页列表
+    /// </summary>
+    [HttpGet("records")]
+    public async Task<PageResult<AiAssistantRecordVo>> GetRecordPage(
+        [FromQuery] AiAssistantQuery query,
+        CancellationToken cancellationToken)
+    {
+        return await _aiAssistantService.GetRecordPageAsync(query, cancellationToken);
     }
 }

@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Log;
 
 /// <summary>
-/// 鏃ュ織鍒嗛〉鏌ヨ鍙傛暟
+/// 日志分页查询参数
 /// </summary>
 public sealed class LogQuery : BaseQuery
 {

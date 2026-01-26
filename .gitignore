@@ -9,6 +9,7 @@
 ## Visual Studio / Rider
 .vs/
 .idea/
+.history
 *.user
 *.suo
 *.userosscache

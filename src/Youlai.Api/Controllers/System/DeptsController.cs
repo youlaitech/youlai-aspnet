@@ -9,10 +9,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 閮ㄩ棬绠＄悊鎺ュ彛
+/// 部门管理接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵閮ㄩ棬鏍戞煡璇€佽鎯呫€佸垱寤恒€佷慨鏀广€佸垹闄ょ瓑鑳藉姏
+/// 提供部门树查询、详情、创建、修改、删除等能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/depts")]
@@ -27,7 +27,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 閮ㄩ棬鍒楄〃
+    /// 部门列表
     /// </summary>
     [HttpGet]
     public async Task<Result<IReadOnlyCollection<DeptVo>>> GetDeptList([FromQuery] DeptQuery queryParams, CancellationToken cancellationToken)
@@ -37,7 +37,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 閮ㄩ棬涓嬫媺閫夐」
+    /// 部门下拉选项
     /// </summary>
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetDeptOptions(CancellationToken cancellationToken)
@@ -47,7 +47,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板閮ㄩ棬
+    /// 新增部门
     /// </summary>
     [HttpPost]
     [HasPerm("sys:dept:create")]
@@ -58,7 +58,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 閮ㄩ棬琛ㄥ崟
+    /// 部门表单
     /// </summary>
     [HttpGet("{deptId:long}/form")]
     public async Task<Result<DeptForm>> GetDeptForm([FromRoute] long deptId, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊閮ㄩ棬
+    /// 更新部门
     /// </summary>
     [HttpPut("{deptId:long}")]
     [HasPerm("sys:dept:update")]
@@ -79,7 +79,7 @@ public sealed class DeptsController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵归噺鍒犻櫎閮ㄩ棬
+    /// 批量删除部门
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:dept:delete")]

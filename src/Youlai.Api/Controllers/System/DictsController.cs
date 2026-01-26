@@ -9,10 +9,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 鏁版嵁瀛楀吀鎺ュ彛
+/// 数据字典接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵瀛楀吀绫诲瀷涓庡瓧鍏搁」鐨勬煡璇€佺淮鎶ゅ強鍙樻洿閫氱煡鑳藉姏
+/// 提供字典类型与字典项的查询、维护及变更通知能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/dicts")]
@@ -27,7 +27,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀鍒嗛〉
+    /// 字典分页
     /// </summary>
     [HttpGet]
     public Task<PageResult<DictPageVo>> GetDictPage([FromQuery] DictQuery query, CancellationToken cancellationToken)
@@ -36,7 +36,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀涓嬫媺閫夐」
+    /// 字典下拉选项
     /// </summary>
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<string>>>> GetDictList(CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀琛ㄥ崟
+    /// 字典表单
     /// </summary>
     [HttpGet("{id:long}/form")]
     public async Task<Result<DictForm>> GetDictForm([FromRoute] long id, CancellationToken cancellationToken)
@@ -56,7 +56,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板瀛楀吀
+    /// 新增字典
     /// </summary>
     [HttpPost]
     [HasPerm("sys:dict:create")]
@@ -67,7 +67,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊瀛楀吀
+    /// 更新字典
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:dict:update")]
@@ -78,7 +78,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵归噺鍒犻櫎瀛楀吀
+    /// 批量删除字典
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:dict:delete")]
@@ -89,7 +89,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀椤瑰垎椤?
+    /// 字典项分页
     /// </summary>
     [HttpGet("{dictCode}/items")]
     public Task<PageResult<DictItemPageVo>> GetDictItemPage([FromRoute] string dictCode, [FromQuery] DictItemQuery query, CancellationToken cancellationToken)
@@ -98,7 +98,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀椤瑰垪琛?
+    /// 字典项列表
     /// </summary>
     [HttpGet("{dictCode}/items/options")]
     public async Task<Result<IReadOnlyCollection<DictItemOption>>> GetDictItems([FromRoute] string dictCode, CancellationToken cancellationToken)
@@ -108,7 +108,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板瀛楀吀椤?
+    /// 新增字典项
     /// </summary>
     [HttpPost("{dictCode}/items")]
     [HasPerm("sys:dict-item:create")]
@@ -119,7 +119,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 瀛楀吀椤硅〃鍗?
+    /// 字典项表单
     /// </summary>
     [HttpGet("{dictCode}/items/{id:long}/form")]
     public async Task<Result<DictItemForm>> GetDictItemForm([FromRoute] string dictCode, [FromRoute] long id, CancellationToken cancellationToken)
@@ -129,7 +129,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊瀛楀吀椤?
+    /// 更新字典项
     /// </summary>
     [HttpPut("{dictCode}/items/{id:long}")]
     [HasPerm("sys:dict-item:update")]
@@ -140,7 +140,7 @@ public sealed class DictsController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵归噺鍒犻櫎瀛楀吀椤?
+    /// 批量删除字典项
     /// </summary>
     [HttpDelete("{dictCode}/items/{ids}")]
     [HasPerm("sys:dict-item:delete")]

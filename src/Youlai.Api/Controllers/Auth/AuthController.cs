@@ -7,10 +7,10 @@ using Youlai.Application.Common.Results;
 namespace Youlai.Api.Controllers.Auth;
 
 /// <summary>
-/// 璁よ瘉鎺ュ彛
+/// 认证接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鐧诲綍銆佸埛鏂颁护鐗屻€侀€€鍑虹櫥褰曠瓑鑳藉姏
+/// 提供登录、刷新令牌、退出登录等能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/auth")]
@@ -27,7 +27,7 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// 鑾峰彇楠岃瘉鐮?
+    /// 获取验证码
     /// </summary>
     [AllowAnonymous]
     [HttpGet("captcha")]
@@ -38,7 +38,7 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// 鐧诲綍
+    /// 登录
     /// </summary>
     [AllowAnonymous]
     [HttpPost("login")]
@@ -49,7 +49,7 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒锋柊浠ょ墝
+    /// 刷新令牌
     /// </summary>
     [AllowAnonymous]
     [HttpPost("refresh-token")]
@@ -60,7 +60,7 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// 閫€鍑虹櫥褰?
+    /// 退出登录
     /// </summary>
     [AllowAnonymous]
     [HttpDelete("logout")]

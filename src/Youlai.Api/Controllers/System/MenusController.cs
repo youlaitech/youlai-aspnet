@@ -9,10 +9,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 鑿滃崟绠＄悊鎺ュ彛
+/// 菜单管理接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鑿滃崟鏍戞煡璇€佽鎯呫€佸垱寤恒€佷慨鏀广€佸垹闄ゅ強璺敱鏋勫缓绛夎兘鍔?
+/// 提供菜单路由、菜单列表、表单数据、增删改及显示状态维护等能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/menus")]
@@ -27,7 +27,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 褰撳墠鐢ㄦ埛璺敱
+    /// 获取当前用户菜单路由
     /// </summary>
     [HttpGet("routes")]
     public async Task<Result<IReadOnlyCollection<RouteVo>>> GetCurrentUserRoutes(CancellationToken cancellationToken)
@@ -37,7 +37,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鑿滃崟鍒楄〃
+    /// 获取菜单列表（树形）
     /// </summary>
     [HttpGet]
     public async Task<Result<IReadOnlyCollection<MenuVo>>> GetMenus([FromQuery] MenuQuery queryParams, CancellationToken cancellationToken)
@@ -47,7 +47,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鑿滃崟涓嬫媺閫夐」
+    /// 获取菜单下拉选项
     /// </summary>
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetMenuOptions([FromQuery] bool onlyParent = false, CancellationToken cancellationToken = default)
@@ -57,7 +57,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鑿滃崟琛ㄥ崟
+    /// 获取菜单表单数据
     /// </summary>
     [HttpGet("{id:long}/form")]
     [HasPerm("sys:menu:update")]
@@ -68,7 +68,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板鑿滃崟
+    /// 新增菜单
     /// </summary>
     [HttpPost]
     [HasPerm("sys:menu:create")]
@@ -79,7 +79,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊鑿滃崟
+    /// 更新菜单
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:menu:update")]
@@ -107,7 +107,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒犻櫎鑿滃崟
+    /// 删除菜单
     /// </summary>
     [HttpDelete("{id:long}")]
     [HasPerm("sys:menu:delete")]
@@ -118,7 +118,7 @@ public sealed class MenusController : ControllerBase
     }
 
     /// <summary>
-    /// 淇敼鍙鐘舵€?
+    /// 修改菜单显示状态
     /// </summary>
     [HttpPatch("{menuId:long}")]
     [HasPerm("sys:menu:update")]

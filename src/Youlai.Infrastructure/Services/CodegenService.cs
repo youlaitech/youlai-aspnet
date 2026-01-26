@@ -780,12 +780,12 @@ ORDER BY ORDINAL_POSITION ASC";
         }
 
         var fullPath = Path.Combine(_templateRoot, tplPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-        if (!File.Exists(fullPath))
+        if (!System.IO.File.Exists(fullPath))
         {
             throw new BusinessException(ResultCode.InterfaceNotExist, $"模板不存在: {tplPath}");
         }
 
-        var content = File.ReadAllText(fullPath, Encoding.UTF8);
+        var content = System.IO.File.ReadAllText(fullPath, Encoding.UTF8);
         var template = Template.Parse(content);
         if (template.HasErrors)
         {

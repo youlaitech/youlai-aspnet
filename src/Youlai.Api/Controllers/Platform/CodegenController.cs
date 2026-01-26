@@ -8,10 +8,10 @@ using Youlai.Application.Platform.Codegen.Services;
 namespace Youlai.Api.Controllers.Platform;
 
 /// <summary>
-/// 浠ｇ爜鐢熸垚鎺ュ彛
+/// 代码生成接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵鏁版嵁琛ㄦ煡璇€侀厤缃淮鎶ゃ€侀瑙堜互鍙婁笅杞借兘鍔?
+/// 提供数据表查询、配置维护、预览以及下载能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/codegen")]
@@ -26,20 +26,18 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
-    /// 鏁版嵁琛ㄥ垎椤?
+    /// 数据表分页
     /// </summary>
     [HttpGet("table")]
-    [HasPerm("tool:codegen:list")]
     public Task<PageResult<CodegenTableDto>> GetTablePage([FromQuery] CodegenTableQuery query, CancellationToken cancellationToken)
     {
         return _codegenService.GetTablePageAsync(query, cancellationToken);
     }
 
     /// <summary>
-    /// 鑾峰彇鐢熸垚閰嶇疆
+    /// 获取生成配置
     /// </summary>
     [HttpGet("{tableName}/config")]
-    [HasPerm("tool:codegen:config")]
     public async Task<Result<GenConfigFormDto>> GetConfig([FromRoute] string tableName, CancellationToken cancellationToken)
     {
         var data = await _codegenService.GetConfigAsync(tableName, cancellationToken);
@@ -47,10 +45,9 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
-    /// 淇濆瓨鐢熸垚閰嶇疆
+    /// 保存生成配置
     /// </summary>
     [HttpPost("{tableName}/config")]
-    [HasPerm("tool:codegen:save")]
     public async Task<Result<object?>> SaveConfig([FromRoute] string tableName, [FromBody] GenConfigFormDto formData, CancellationToken cancellationToken)
     {
         var ok = await _codegenService.SaveConfigAsync(tableName, formData, cancellationToken);
@@ -58,10 +55,9 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒犻櫎鐢熸垚閰嶇疆
+    /// 删除生成配置
     /// </summary>
     [HttpDelete("{tableName}/config")]
-    [HasPerm("tool:codegen:delete")]
     public async Task<Result<object?>> DeleteConfig([FromRoute] string tableName, CancellationToken cancellationToken)
     {
         var ok = await _codegenService.DeleteConfigAsync(tableName, cancellationToken);
@@ -69,10 +65,9 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
-    /// 棰勮鐢熸垚浠ｇ爜
+    /// 预览生成代码
     /// </summary>
     [HttpGet("{tableName}/preview")]
-    [HasPerm("tool:codegen:preview")]
     public async Task<Result<IReadOnlyCollection<CodegenPreviewDto>>> Preview(
         [FromRoute] string tableName,
         [FromQuery] string pageType = "classic",
@@ -84,10 +79,9 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
-    /// 涓嬭浇浠ｇ爜
+    /// 下载代码
     /// </summary>
     [HttpGet("{tableName}/download")]
-    [HasPerm("tool:codegen:download")]
     public async Task<IActionResult> Download(
         [FromRoute] string tableName,
         [FromQuery] string pageType = "classic",

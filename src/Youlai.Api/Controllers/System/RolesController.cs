@@ -10,10 +10,10 @@ using Youlai.Application.System.Services;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 瑙掕壊绠＄悊鎺ュ彛
+/// 角色管理接口
 /// </summary>
 /// <remarks>
-/// 鎻愪緵瑙掕壊鐨勫垎椤垫煡璇€佽鎯呫€佸垱寤恒€佷慨鏀广€佸垹闄や互鍙婅彍鍗曟潈闄愬垎閰嶇瓑鑳藉姏
+/// 提供角色的分页查询、表单、创建、更新、删除及菜单权限分配等能力。
 /// </remarks>
 [ApiController]
 [Route("api/v1/roles")]
@@ -28,7 +28,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 瑙掕壊鍒嗛〉
+    /// 角色分页
     /// </summary>
     [HttpGet]
     [HasPerm("sys:role:list")]
@@ -38,7 +38,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 瑙掕壊涓嬫媺閫夐」
+    /// 角色下拉选项
     /// </summary>
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetRoleOptions(CancellationToken cancellationToken)
@@ -48,7 +48,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 鏂板瑙掕壊
+    /// 新增角色
     /// </summary>
     [HttpPost]
     [HasPerm("sys:role:create")]
@@ -59,7 +59,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 瑙掕壊琛ㄥ崟
+    /// 角色表单
     /// </summary>
     [HttpGet("{roleId:long}/form")]
     [HasPerm("sys:role:update")]
@@ -70,7 +70,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 鏇存柊瑙掕壊
+    /// 更新角色
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:role:update")]
@@ -78,7 +78,7 @@ public sealed class RolesController : ControllerBase
     {
         if (formData.Id.HasValue && formData.Id.Value != id)
         {
-            throw new BusinessException(ResultCode.InvalidUserInput, "瑙掕壊ID涓嶅尮閰?);
+            throw new BusinessException(ResultCode.InvalidUserInput, "角色ID不匹配");
         }
 
         var ok = await _roleService.SaveRoleAsync(new RoleForm
@@ -95,7 +95,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 鎵归噺鍒犻櫎瑙掕壊
+    /// 批量删除角色
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:role:delete")]
@@ -106,7 +106,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 淇敼瑙掕壊鐘舵€?
+    /// 修改角色状态
     /// </summary>
     [HttpPut("{roleId:long}/status")]
     [HasPerm("sys:role:update")]
@@ -117,7 +117,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 瑙掕壊宸插垎閰嶇殑鑿滃崟ID
+    /// 角色已分配的菜单ID
     /// </summary>
     [HttpGet("{roleId:long}/menuIds")]
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleMenuIds([FromRoute] long roleId, CancellationToken cancellationToken)
@@ -127,7 +127,7 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// 鍒嗛厤鑿滃崟
+    /// 分配菜单
     /// </summary>
     [HttpPut("{roleId:long}/menus")]
     [HasPerm("sys:role:assign")]

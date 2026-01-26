@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 涓汉璧勬枡琛ㄥ崟
+/// 个人资料表单
 /// </summary>
 public sealed class UserProfileForm
 {

@@ -4,10 +4,10 @@ using Youlai.Application.Common.Models;
 namespace Youlai.Application.System.Dtos.Role;
 
 /// <summary>
-/// 瑙掕壊鍒嗛〉鏌ヨ鍙傛暟
+/// 角色分页查询参数
 /// </summary>
 /// <remarks>
-/// 鐢ㄤ簬瑙掕壊鍒嗛〉鎺ュ彛鐨勬煡璇㈡潯浠?
+/// 用于角色分页接口的查询条件。
 /// </remarks>
 public sealed class RoleQuery : BaseQuery
 {

@@ -1,7 +1,7 @@
 ﻿namespace Youlai.Application.System.Dtos.Dept;
 
 /// <summary>
-/// 閮ㄩ棬鏌ヨ鍙傛暟
+/// 部门查询参数
 /// </summary>
 public sealed class DeptQuery
 {

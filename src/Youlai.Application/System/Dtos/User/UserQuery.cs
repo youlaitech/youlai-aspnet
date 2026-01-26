@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.User;
 
 /// <summary>
-/// 鐢ㄦ埛鍒嗛〉鏌ヨ鍙傛暟
+/// 用户分页查询参数
 /// </summary>
 public sealed class UserQuery : BaseQuery
 {

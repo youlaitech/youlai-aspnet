@@ -12,7 +12,7 @@ namespace Youlai.Infrastructure.Services.File;
 internal sealed class MinioFileStorage : IFileStorage
 {
     private readonly OssOptions.MinioOptions _options;
-    private readonly MinioClient _client;
+    private readonly IMinioClient _client;
     private readonly string _publicEndpoint;
 
     public MinioFileStorage(OssOptions options)
@@ -91,22 +91,30 @@ internal sealed class MinioFileStorage : IFileStorage
         }
     }
 
-    private static MinioClient BuildClient(OssOptions.MinioOptions options)
+    private static IMinioClient BuildClient(OssOptions.MinioOptions options)
     {
         var builder = new MinioClient();
         if (Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var uri))
         {
             var host = uri.Host;
-            var port = uri.IsDefaultPort ? null : uri.Port;
-            builder = port.HasValue ? builder.WithEndpoint(host, port.Value) : builder.WithEndpoint(host);
+            int? port = uri.IsDefaultPort ? null : uri.Port;
+            if (port.HasValue)
+            {
+                builder.WithEndpoint(host, port.Value);
+            }
+            else
+            {
+                builder.WithEndpoint(host);
+            }
+
             if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
             {
-                builder = builder.WithSSL();
+                builder.WithSSL();
             }
         }
         else
         {
-            builder = builder.WithEndpoint(options.Endpoint);
+            builder.WithEndpoint(options.Endpoint);
         }
 
         return builder
@@ -162,7 +170,7 @@ internal sealed class MinioFileStorage : IFileStorage
             var path = uri.AbsolutePath.TrimStart('/');
             if (path.StartsWith(_options.BucketName + "/", StringComparison.OrdinalIgnoreCase))
             {
-                return path[_options.BucketName.Length + 1..];
+                return path[(_options.BucketName.Length + 1)..];
             }
 
             return path;
@@ -171,7 +179,7 @@ internal sealed class MinioFileStorage : IFileStorage
         var normalized = filePath.TrimStart('/');
         if (normalized.StartsWith(_options.BucketName + "/", StringComparison.OrdinalIgnoreCase))
         {
-            return normalized[_options.BucketName.Length + 1..];
+            return normalized[(_options.BucketName.Length + 1)..];
         }
 
         return normalized;

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Dtos.Dict;
 
 /// <summary>
-/// 瀛楀吀椤硅〃鍗?
+/// 字典项表单
 /// </summary>
 public sealed class DictItemForm
 {

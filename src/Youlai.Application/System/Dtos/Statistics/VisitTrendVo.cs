@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Statistics;
 
 /// <summary>
-/// 璁块棶瓒嬪娍鏁版嵁
+/// 访问趋势数据
 /// </summary>
 public sealed class VisitTrendVo
 {

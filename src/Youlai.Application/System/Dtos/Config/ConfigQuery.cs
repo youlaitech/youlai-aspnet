@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Config;
 
 /// <summary>
-/// 閰嶇疆鍒嗛〉鏌ヨ鍙傛暟
+/// 配置分页查询参数
 /// </summary>
 public sealed class ConfigQuery : BaseQuery
 {

@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Notice;
 
 /// <summary>
-/// 鍏憡璇︽儏
+/// 公告详情
 /// </summary>
 public sealed class NoticeDetailVo
 {

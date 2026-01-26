@@ -104,24 +104,42 @@ internal sealed class CaptchaService : ICaptchaService
 
         image.Mutate(ctx =>
         {
-            ctx.Fill(Color.White);
+            var background = Color.FromRgb(245, 248, 255);
+            var lineColor = Color.FromRgb(219, 229, 249);
+            ctx.Fill(background);
 
             for (var i = 0; i < _options.InterfereCount; i++)
             {
                 var p1 = new PointF(RandomNumberGenerator.GetInt32(0, _options.Width), RandomNumberGenerator.GetInt32(0, _options.Height));
                 var p2 = new PointF(RandomNumberGenerator.GetInt32(0, _options.Width), RandomNumberGenerator.GetInt32(0, _options.Height));
-                ctx.DrawLine(Color.LightGray, 1, p1, p2);
+                ctx.DrawLine(lineColor, 1, p1, p2);
             }
 
             var family = ResolveFontFamily();
             var font = family.CreateFont(_options.FontSize, FontStyle.Bold);
-
-            var origin = new PointF(10, (_options.Height - _options.FontSize) / 2f);
-            var textOptions = new RichTextOptions(font)
+            var palette = new[]
             {
-                Origin = origin,
+                Color.FromRgb(76, 110, 245),
+                Color.FromRgb(34, 139, 230),
+                Color.FromRgb(32, 201, 151),
+                Color.FromRgb(250, 176, 5),
+                Color.FromRgb(255, 146, 43),
             };
-            ctx.DrawText(textOptions, code, Color.Black);
+
+            var charSpacing = _options.Width / (code.Length + 1f);
+            for (var i = 0; i < code.Length; i++)
+            {
+                var x = (i + 0.6f) * charSpacing;
+                var yOffset = RandomNumberGenerator.GetInt32(-2, 3);
+                var origin = new PointF(x, (_options.Height - _options.FontSize) / 2f + yOffset);
+                var textOptions = new RichTextOptions(font)
+                {
+                    Origin = origin,
+                };
+
+                var color = palette[RandomNumberGenerator.GetInt32(0, palette.Length)];
+                ctx.DrawText(textOptions, code[i].ToString(), color);
+            }
         });
 
         using var ms = new MemoryStream();

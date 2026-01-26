@@ -3,7 +3,7 @@
 namespace Youlai.Application.System.Dtos.Dept;
 
 /// <summary>
-/// 閮ㄩ棬鏁版嵁
+/// 部门数据
 /// </summary>
 public sealed class DeptVo
 {

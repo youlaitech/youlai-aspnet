@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
@@ -25,13 +26,18 @@ public sealed class JwtTokenManager
 
     private readonly SecurityOptions _securityOptions;
     private readonly IConnectionMultiplexer _redis;
+    private readonly ILogger<JwtTokenManager> _logger;
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private readonly TokenValidationParameters _validationParameters;
 
-    public JwtTokenManager(IOptions<SecurityOptions> securityOptions, IConnectionMultiplexer redis)
+    public JwtTokenManager(
+        IOptions<SecurityOptions> securityOptions,
+        IConnectionMultiplexer redis,
+        ILogger<JwtTokenManager> logger)
     {
         _securityOptions = securityOptions.Value;
         _redis = redis;
+        _logger = logger;
 
         var secretKey = Encoding.UTF8.GetBytes(_securityOptions.Session.Jwt.SecretKey);
         _validationParameters = new TokenValidationParameters
@@ -200,6 +206,7 @@ public sealed class JwtTokenManager
         payload = new JwtPayload();
         if (string.IsNullOrWhiteSpace(token))
         {
+            _logger.LogWarning("JWT validation failed: token is empty.");
             return false;
         }
 
@@ -208,6 +215,7 @@ public sealed class JwtTokenManager
             _tokenHandler.ValidateToken(token, _validationParameters, out var validatedToken);
             if (validatedToken is not JwtSecurityToken jwt)
             {
+                _logger.LogWarning("JWT validation failed: validated token is not JwtSecurityToken.");
                 return false;
             }
 
@@ -220,6 +228,7 @@ public sealed class JwtTokenManager
 
                 if (!isRefreshToken)
                 {
+                    _logger.LogWarning("JWT validation failed: token type mismatch (expected refresh token). JTI={Jti}", jwt.Id);
                     return false;
                 }
             }
@@ -239,6 +248,12 @@ public sealed class JwtTokenManager
 
                 if (tokenVersion < currentVersion)
                 {
+                    _logger.LogWarning(
+                        "JWT validation failed: security version mismatch. UserId={UserId}, TokenVersion={TokenVersion}, CurrentVersion={CurrentVersion}, JTI={Jti}",
+                        uid,
+                        tokenVersion,
+                        currentVersion,
+                        jwt.Id);
                     return false;
                 }
             }
@@ -250,14 +265,16 @@ public sealed class JwtTokenManager
                 var blacklistKey = string.Format(RedisKeyConstants.Auth.BlacklistToken, jti);
                 if (db.KeyExists(blacklistKey))
                 {
+                    _logger.LogWarning("JWT validation failed: token is blacklisted. JTI={Jti}", jti);
                     return false;
                 }
             }
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "JWT validation failed: token validation threw exception.");
             return false;
         }
     }
