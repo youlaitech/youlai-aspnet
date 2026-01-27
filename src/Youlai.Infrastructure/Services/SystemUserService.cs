@@ -113,6 +113,7 @@ internal sealed class SystemUserService : ISystemUserService
 
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
 
+        // 排除超级管理员，避免列表误操作
         var rootUserIds =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
@@ -121,6 +122,7 @@ internal sealed class SystemUserService : ISystemUserService
 
         users = users.Where(u => !rootUserIds.Contains(u.Id));
 
+        // 数据权限过滤，确保用户只能看到授权范围内的数据
         users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.Id);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
@@ -197,6 +199,7 @@ internal sealed class SystemUserService : ISystemUserService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // 角色名称需要单独聚合，避免在主查询里引入过多 join
         var userIds = pageRows.Select(x => x.Id).ToArray();
         var roleNamesMap = await GetRoleNamesMapAsync(userIds, cancellationToken).ConfigureAwait(false);
 
@@ -364,6 +367,7 @@ internal sealed class SystemUserService : ISystemUserService
         user.UpdateBy = _currentUser.UserId;
         user.UpdateTime = DateTime.UtcNow;
 
+        // 角色关系更新与用户更新放在同一事务内
         await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -394,6 +398,7 @@ internal sealed class SystemUserService : ISystemUserService
             return true;
         }
 
+        // 软删除并统一更新时间
         var now = DateTime.UtcNow;
         var updateBy = _currentUser.UserId;
         foreach (var u in users)
@@ -403,6 +408,7 @@ internal sealed class SystemUserService : ISystemUserService
             u.UpdateTime = now;
         }
 
+        // 清理用户角色关联
         var roles = await _dbContext.SysUserRoles
             .Where(ur => idList.Contains(ur.UserId))
             .ToListAsync(cancellationToken)
@@ -553,6 +559,7 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
 
+        // 排除超级管理员，避免导出误操作
         var rootUserIds =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
@@ -560,6 +567,7 @@ internal sealed class SystemUserService : ISystemUserService
             select ur.UserId;
 
         users = users.Where(u => !rootUserIds.Contains(u.Id));
+        // 数据权限过滤，和列表保持一致
         users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.Id);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
@@ -622,10 +630,12 @@ internal sealed class SystemUserService : ISystemUserService
             };
 
         var rows = await rowsQuery
+            // 导出行数做上限保护
             .Take(5000)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // 角色名称单独聚合，避免查询过重
         var userIds = rows.Select(r => r.Id).ToArray();
         var roleNamesMap = await GetRoleNamesMapAsync(userIds, cancellationToken).ConfigureAwait(false);
 
@@ -660,6 +670,7 @@ internal sealed class SystemUserService : ISystemUserService
         var db = _redis.GetDatabase();
         _ = db;
 
+        // CSV 按行读取，逐条校验并累积错误信息
         using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
 
         var messages = new List<string>();
@@ -699,6 +710,7 @@ internal sealed class SystemUserService : ISystemUserService
             var gender = TryParseInt(parts.ElementAtOrDefault(4));
             var status = TryParseInt(parts.ElementAtOrDefault(5)) ?? 1;
 
+            // 账号名必填，且不能重复
             if (string.IsNullOrWhiteSpace(username))
             {
                 invalid++;

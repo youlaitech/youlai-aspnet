@@ -18,16 +18,16 @@ namespace Youlai.Infrastructure.Services;
 internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {
     private readonly YoulaiDbContext _dbContext;
-{{ if hasCreateBy || hasUpdateBy }}
+{{~ if hasCreateBy || hasUpdateBy ~}}
     private readonly ICurrentUser _currentUser;
-{{ end }}
+{{~ end ~}}
 
     public {{ entityName }}Service(YoulaiDbContext dbContext{{ if hasCreateBy || hasUpdateBy }}, ICurrentUser currentUser{{ end }})
     {
         _dbContext = dbContext;
-{{ if hasCreateBy || hasUpdateBy }}
+{{~ if hasCreateBy || hasUpdateBy ~}}
         _currentUser = currentUser;
-{{ end }}
+{{~ end ~}}
     }
 
     /// <summary>
@@ -45,13 +45,13 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 
         var q = _dbContext.Set<{{ entityName }}>()
             .AsNoTracking();
-{{ if hasIsDeleted }}
+{{~ if hasIsDeleted ~}}
         q = q.Where(x => x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }});
-{{ end }}
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInQuery == 1 }}
-{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
-{{ if field.QueryType == "BETWEEN" }}
+{{~ end ~}}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInQuery == 1 ~}}
+{{~ if field.FormType == "DATE" || field.FormType == "DATE_TIME" ~}}
+{{~ if field.QueryType == "BETWEEN" ~}}
         if (query.{{ field.PropertyName }} is { Length: 2 })
         {
             var startOk = DateTime.TryParse(query.{{ field.PropertyName }}[0], out var start);
@@ -61,7 +61,7 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
                 q = q.Where(x => x.{{ field.PropertyName }} >= start && x.{{ field.PropertyName }} <= end);
             }
         }
-{{ else }}
+{{~ else ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             var value = query.{{ field.PropertyName }}!.Trim();
@@ -70,44 +70,44 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
                 q = q.Where(x => x.{{ field.PropertyName }} == dateValue);
             }
         }
-{{ end }}
-{{ else }}
-{{ if field.QueryType == "LIKE" }}
+{{~ end ~}}
+{{~ else ~}}
+{{~ if field.QueryType == "LIKE" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             var keyword = query.{{ field.PropertyName }}!.Trim();
             q = q.Where(x => x.{{ field.PropertyName }} != null && x.{{ field.PropertyName }}.Contains(keyword));
         }
-{{ else if field.QueryType == "IN" }}
+{{~ else if field.QueryType == "IN" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             var values = query.{{ field.PropertyName }}!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             q = q.Where(x => values.Contains(x.{{ field.PropertyName }}!.ToString()));
         }
-{{ else }}
-{{ if field.CsType == "string" }}
+{{~ else ~}}
+{{~ if field.CsType == "string" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             q = q.Where(x => x.{{ field.PropertyName }} == query.{{ field.PropertyName }}!.Trim());
         }
-{{ else }}
+{{~ else ~}}
         if (query.{{ field.PropertyName }} != null)
         {
             q = q.Where(x => x.{{ field.PropertyName }} == query.{{ field.PropertyName }});
         }
-{{ end }}
-{{ end }}
-{{ end }}
-{{ end }}
-{{ end }}
+{{~ end ~}}
+{{~ end ~}}
+{{~ end ~}}
+{{~ end ~}}
+{{~ end ~}}
 
-{{ if hasUpdateTime }}
+{{~ if hasUpdateTime ~}}
         q = q.OrderByDescending(x => x.UpdateTime ?? x.CreateTime);
-{{ else if hasCreateTime }}
+{{~ else if hasCreateTime ~}}
         q = q.OrderByDescending(x => x.CreateTime);
-{{ else if hasId }}
+{{~ else if hasId ~}}
         q = q.OrderByDescending(x => x.Id);
-{{ end }}
+{{~ end ~}}
 
         var total = await q.LongCountAsync(cancellationToken).ConfigureAwait(false);
         if (total == 0)
@@ -120,16 +120,14 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
             .Take(pageSize)
             .Select(x => new {{ entityName }}PageVo
             {
-{{ if hasId }}
+{{~ if hasId ~}}
                 Id = x.Id,
-{{ end }}
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInList == 1 }}
-{{ if field.FieldName != "id" }}
+{{~ end ~}}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInList == 1 && field.FieldName != "id" ~}}
                 {{ field.PropertyName }} = x.{{ field.PropertyName }},
-{{ end }}
-{{ end }}
-{{ end }}
+{{~ end ~}}
+{{~ end ~}}
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -144,11 +142,11 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     {
         var entity = await _dbContext.Set<{{ entityName }}>()
             .AsNoTracking()
-{{ if hasIsDeleted }}
+{{~ if hasIsDeleted ~}}
             .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
-{{ else }}
+{{~ else ~}}
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-{{ end }}
+{{~ end ~}}
             .ConfigureAwait(false);
 
         if (entity is null)
@@ -158,16 +156,14 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 
         return new {{ entityName }}Form
         {
-{{ if hasId }}
+{{~ if hasId ~}}
             Id = entity.Id,
-{{ end }}
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 }}
-{{ if field.FieldName != "id" }}
+{{~ end ~}}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInForm == 1 && field.FieldName != "id" ~}}
             {{ field.PropertyName }} = entity.{{ field.PropertyName }},
-{{ end }}
-{{ end }}
-{{ end }}
+{{~ end ~}}
+{{~ end ~}}
         };
     }
 
@@ -178,28 +174,26 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     {
         var entity = new {{ entityName }}
         {
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 }}
-{{ if field.FieldName != "id" }}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInForm == 1 && field.FieldName != "id" ~}}
             {{ field.PropertyName }} = formData.{{ field.PropertyName }},
-{{ end }}
-{{ end }}
-{{ end }}
-{{ if hasCreateTime }}
+{{~ end ~}}
+{{~ end ~}}
+{{~ if hasCreateTime ~}}
             CreateTime = DateTime.Now,
-{{ end }}
-{{ if hasUpdateTime }}
+{{~ end ~}}
+{{~ if hasUpdateTime ~}}
             UpdateTime = DateTime.Now,
-{{ end }}
-{{ if hasCreateBy }}
+{{~ end ~}}
+{{~ if hasCreateBy ~}}
             CreateBy = _currentUser.UserId,
-{{ end }}
-{{ if hasUpdateBy }}
+{{~ end ~}}
+{{~ if hasUpdateBy ~}}
             UpdateBy = _currentUser.UserId,
-{{ end }}
-{{ if hasIsDeleted }}
+{{~ end ~}}
+{{~ if hasIsDeleted ~}}
             IsDeleted = {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}
-{{ end }}
+{{~ end ~}}
         };
 
         _dbContext.Set<{{ entityName }}>().Add(entity);
@@ -213,30 +207,28 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     public async Task<bool> UpdateAsync(long id, {{ entityName }}Form formData, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.Set<{{ entityName }}>()
-{{ if hasIsDeleted }}
+{{~ if hasIsDeleted ~}}
             .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
-{{ else }}
+{{~ else ~}}
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-{{ end }}
+{{~ end ~}}
             .ConfigureAwait(false);
 
         if (entity is null)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "{{ businessName }}不存在");
         }
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 }}
-{{ if field.FieldName != "id" }}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInForm == 1 && field.FieldName != "id" ~}}
         entity.{{ field.PropertyName }} = formData.{{ field.PropertyName }};
-{{ end }}
-{{ end }}
-{{ end }}
-{{ if hasUpdateTime }}
+{{~ end ~}}
+{{~ end ~}}
+{{~ if hasUpdateTime ~}}
         entity.UpdateTime = DateTime.Now;
-{{ end }}
-{{ if hasUpdateBy }}
+{{~ end ~}}
+{{~ if hasUpdateBy ~}}
         entity.UpdateBy = _currentUser.UserId;
-{{ end }}
+{{~ end ~}}
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
@@ -267,20 +259,20 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
         {
             return true;
         }
-{{ if hasIsDeleted }}
+{{~ if hasIsDeleted ~}}
         foreach (var item in list)
         {
             item.IsDeleted = {{ if isDeletedType == "bool" }}true{{ else }}1{{ end }};
-{{ if hasUpdateTime }}
+{{~ if hasUpdateTime ~}}
             item.UpdateTime = DateTime.Now;
-{{ end }}
-{{ if hasUpdateBy }}
+{{~ end ~}}
+{{~ if hasUpdateBy ~}}
             item.UpdateBy = _currentUser.UserId;
-{{ end }}
+{{~ end ~}}
         }
-{{ else }}
+{{~ else ~}}
         _dbContext.Set<{{ entityName }}>().RemoveRange(list);
-{{ end }}
+{{~ end ~}}
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;

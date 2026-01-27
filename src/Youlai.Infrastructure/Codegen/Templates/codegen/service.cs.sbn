@@ -8,13 +8,44 @@ namespace Youlai.Application.{{ moduleNamePascal }}.Services;
 /// </summary>
 public interface I{{ entityName }}Service
 {
+    /// <summary>
+    /// {{ businessName }}分页
+    /// </summary>
+    /// <param name="query">查询条件</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>分页结果</returns>
     Task<PageResult<{{ entityName }}PageVo>> GetPageAsync({{ entityName }}Query query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// {{ businessName }}表单
+    /// </summary>
+    /// <param name="id">主键ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表单数据</returns>
     Task<{{ entityName }}Form> GetFormAsync(long id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 新增{{ businessName }}
+    /// </summary>
+    /// <param name="formData">表单数据</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功</returns>
     Task<bool> CreateAsync({{ entityName }}Form formData, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 更新{{ businessName }}
+    /// </summary>
+    /// <param name="id">主键ID</param>
+    /// <param name="formData">表单数据</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功</returns>
     Task<bool> UpdateAsync(long id, {{ entityName }}Form formData, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 删除{{ businessName }}
+    /// </summary>
+    /// <param name="ids">主键ID集合(逗号分隔)</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功</returns>
     Task<bool> DeleteAsync(string ids, CancellationToken cancellationToken = default);
 }

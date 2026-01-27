@@ -92,6 +92,10 @@ dotnet restore
 dotnet run --project src/Youlai.Api
 ```
 
+> 💡 **Tip**: 开发环境默认以 `Debug` 模式运行。如需以 `Release` 模式运行，请添加 `-c Release` 参数。
+
+````
+
 启动成功后，访问 [http://localhost:8000/swagger](http://localhost:8000/swagger) 验证项目是否成功。
 
 ## 🤝 前端整合
@@ -111,7 +115,7 @@ VITE_APP_API_URL=http://localhost:8000
 
 # 4. 启动前端
 pnpm run dev
-```
+````
 
 - **访问地址**: [http://localhost:3000](http://localhost:3000)
 - **登录账号**: `admin` / `123456`

@@ -171,6 +171,7 @@ public sealed class JwtTokenManager
         var db = _redis.GetDatabase();
         var versionKey = string.Format(RedisKeyConstants.Auth.UserSecurityVersion, subject.UserId);
         var currentVersionValue = db.StringGet(versionKey);
+        // 账号安全版本号，用于整体失效历史令牌
         var securityVersion = currentVersionValue.HasValue && int.TryParse(currentVersionValue.ToString(), out var v) ? v : 0;
 
         var secretKey = Encoding.UTF8.GetBytes(_securityOptions.Session.Jwt.SecretKey);
@@ -192,6 +193,7 @@ public sealed class JwtTokenManager
 
         if (ttlSeconds != -1)
         {
+            // ttlSeconds = -1 时表示不设置过期时间
             payload.Add(JwtRegisteredClaimNames.Exp, now.AddSeconds(ttlSeconds).ToUnixTimeSeconds());
         }
 
@@ -239,6 +241,7 @@ public sealed class JwtTokenManager
                 var tokenVersionObj = payload.TryGetValue(JwtClaimConstants.SecurityVersion, out var tv) ? tv : null;
                 var tokenVersion = TryParseInt32(tokenVersionObj);
 
+                // 只要用户安全版本号递增，旧 token 统一失效
                 var db = _redis.GetDatabase();
                 var versionKey = string.Format(RedisKeyConstants.Auth.UserSecurityVersion, uid);
                 var currentVersionValue = db.StringGet(versionKey);
@@ -263,6 +266,7 @@ public sealed class JwtTokenManager
             {
                 var db = _redis.GetDatabase();
                 var blacklistKey = string.Format(RedisKeyConstants.Auth.BlacklistToken, jti);
+                // 登出时会把 JTI 写入黑名单
                 if (db.KeyExists(blacklistKey))
                 {
                     _logger.LogWarning("JWT validation failed: token is blacklisted. JTI={Jti}", jti);

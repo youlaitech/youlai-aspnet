@@ -8,21 +8,25 @@ namespace Youlai.Application.{{ moduleNamePascal }}.Dtos;
 /// </summary>
 public sealed class {{ entityName }}Form
 {
-{{ if hasId }}
+{{~ if hasId ~}}
+    /// <summary>
+    /// 主键ID
+    /// </summary>
     [JsonPropertyName("id")]
     public long? Id { get; init; }
 
-{{ end }}
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 }}
-{{ if field.FieldName != "id" }}
+{{ end ~}}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInForm == 1 && field.FieldName != "id" ~}}
+    /// <summary>
+    /// {{ if field.FieldComment != "" }}{{ field.FieldComment }}{{ else }}{{ field.PropertyName }}{{ end }}
+    /// </summary>
     [JsonPropertyName("{{ field.FieldName }}")]
-{{ if field.IsRequired == 1 }}
-    [Required(ErrorMessage = "{{ field.FieldComment }}不能为空")]
-{{ end }}
+{{~ if field.IsRequired == 1 ~}}
+    [Required(ErrorMessage = "{{ if field.FieldComment != "" }}{{ field.FieldComment }}{{ else }}{{ field.PropertyName }}{{ end }}不能为空")]
+{{~ end ~}}
     public {{ if field.IsRequired == 1 && field.CsType == "string" }}string?{{ else if field.IsRequired == 1 }}{{ field.CsType }}{{ else }}{{ field.CsTypeNullable }}{{ end }} {{ field.PropertyName }} { get; init; }
 
-{{ end }}
-{{ end }}
-{{ end }}
+{{ end ~}}
+{{~ end ~}}
 }

@@ -46,6 +46,7 @@ internal sealed class RolePermissionService : IRolePermissionService
             return Array.Empty<string>();
         }
 
+        // 先从 Redis 批量取缓存，缺失的再回源 DB
         var db = _redis.GetDatabase();
         var roleValues = distinctRoles.Select(r => (RedisValue)r).ToArray();
         var cachedValues = await db.HashGetAsync(RedisKeyConstants.System.RolePerms, roleValues).ConfigureAwait(false);
@@ -82,6 +83,7 @@ internal sealed class RolePermissionService : IRolePermissionService
             return perms.ToArray();
         }
 
+        // 缓存未命中的角色走数据库聚合
         var dbPerms = await GetRolePermsFromDatabaseAsync(missingRoleCodes, cancellationToken).ConfigureAwait(false);
         foreach (var p in dbPerms.Values.SelectMany(v => v))
         {
@@ -90,6 +92,7 @@ internal sealed class RolePermissionService : IRolePermissionService
 
         if (dbPerms.Count > 0)
         {
+            // 回写缓存，减少后续查询压力
             var entries = dbPerms
                 .Select(kvp => new HashEntry(kvp.Key, JsonSerializer.Serialize(kvp.Value)))
                 .ToArray();

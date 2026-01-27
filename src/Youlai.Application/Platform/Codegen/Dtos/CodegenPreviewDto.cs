@@ -24,4 +24,16 @@ public sealed class CodegenPreviewDto
     /// </summary>
     [JsonPropertyName("content")]
     public string Content { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 文件范围(frontend/backend)
+    /// </summary>
+    [JsonPropertyName("scope")]
+    public string Scope { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 文件语言(扩展名)
+    /// </summary>
+    [JsonPropertyName("language")]
+    public string Language { get; init; } = string.Empty;
 }

@@ -7,18 +7,22 @@ namespace Youlai.Application.{{ moduleNamePascal }}.Dtos;
 /// </summary>
 public sealed class {{ entityName }}PageVo
 {
-{{ if hasId }}
+{{~ if hasId ~}}
+    /// <summary>
+    /// 主键ID
+    /// </summary>
     [JsonPropertyName("id")]
     public long Id { get; init; }
 
-{{ end }}
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInList == 1 }}
-{{ if field.FieldName != "id" }}
+{{ end ~}}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInList == 1 && field.FieldName != "id" ~}}
+    /// <summary>
+    /// {{ if field.FieldComment != "" }}{{ field.FieldComment }}{{ else }}{{ field.PropertyName }}{{ end }}
+    /// </summary>
     [JsonPropertyName("{{ field.FieldName }}")]
     public {{ field.CsTypeNullable }} {{ field.PropertyName }} { get; init; }
 
-{{ end }}
-{{ end }}
-{{ end }}
+{{ end ~}}
+{{~ end ~}}
 }

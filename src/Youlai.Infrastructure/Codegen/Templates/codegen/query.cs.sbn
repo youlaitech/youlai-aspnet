@@ -8,22 +8,24 @@ namespace Youlai.Application.{{ moduleNamePascal }}.Dtos;
 /// </summary>
 public sealed class {{ entityName }}Query : BaseQuery
 {
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInQuery == 1 }}
-{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
-{{ if field.QueryType == "BETWEEN" }}
+{{~ for field in fieldConfigs ~}}
+{{~ if field.IsShowInQuery == 1 ~}}
+    /// <summary>
+    /// {{ if field.FieldComment != "" }}{{ field.FieldComment }}{{ else }}{{ field.PropertyName }}{{ end }}
+    /// </summary>
+{{~ if field.FormType == "DATE" || field.FormType == "DATE_TIME" ~}}
+{{~ if field.QueryType == "BETWEEN" ~}}
     public string[]? {{ field.PropertyName }} { get; init; }
-{{ else }}
+{{~ else ~}}
     public string? {{ field.PropertyName }} { get; init; }
-{{ end }}
-{{ else }}
-{{ if field.CsType == "string" }}
+{{~ end ~}}
+{{~ else ~}}
+{{~ if field.CsType == "string" ~}}
     public string? {{ field.PropertyName }} { get; init; }
-{{ else }}
+{{~ else ~}}
     public {{ field.CsTypeNullable }} {{ field.PropertyName }} { get; init; }
-{{ end }}
-{{ end }}
-
-{{ end }}
-{{ end }}
+{{~ end ~}}
+{{~ end ~}}
+{{~ end ~}}
+{{~ end ~}}
 }

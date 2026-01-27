@@ -81,24 +81,6 @@ internal sealed class SystemMenuService : ISystemMenuService
                 .OrderBy(m => m.Sort ?? 0)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-
-            // 非超级管理员不展示平台管理菜单（/platform）及其子级
-            var platformMenu = await _dbContext.SysMenus
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.ParentId == 0
-                    && m.Type == CatalogMenuType
-                    && m.RoutePath == "/platform", cancellationToken)
-                .ConfigureAwait(false);
-
-            if (platformMenu != null)
-            {
-                var platformTreePathPrefix = string.Concat("0,", platformMenu.Id);
-                menus = menus
-                    .Where(m => string.IsNullOrWhiteSpace(m.TreePath)
-                        || (!string.Equals(m.TreePath, platformTreePathPrefix, StringComparison.Ordinal)
-                            && !m.TreePath.StartsWith(platformTreePathPrefix + ",", StringComparison.Ordinal)))
-                    .ToList();
-            }
         }
 
         return BuildRoutes(parentId: 0, menus).ToArray();
@@ -238,6 +220,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         var menuType = formData.Type;
+        // 外链菜单不挂载组件，仅保留跳转地址
         var isExternalLink = string.Equals(menuType, MenuType, StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(formData.RoutePath)
             && (formData.RoutePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
@@ -263,6 +246,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         if (string.Equals(menuType, MenuType, StringComparison.Ordinal) && !isExternalLink)
         {
+            // 仅菜单类型且非外链时校验路由名唯一
             if (string.IsNullOrWhiteSpace(routeName))
             {
                 throw new BusinessException(ResultCode.InvalidUserInput, "路由名称不能为空");
@@ -286,6 +270,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             routeName = null;
         }
 
+        // 生成树路径，后续用于更新子节点
         var treePath = await GenerateMenuTreePathAsync(formData.ParentId, cancellationToken).ConfigureAwait(false);
         var paramsJson = SerializeParams(formData.Params);
 
@@ -358,6 +343,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
+        // 一次性拿到自身及所有子级菜单
         var menuIds = await _dbContext.SysMenus
             .AsNoTracking()
             .Where(m => m.Id == menuId
@@ -375,6 +361,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             return true;
         }
 
+        // 先收集受影响的角色编码，便于刷新权限缓存
         var roleCodes = await (
                 from rm in _dbContext.SysRoleMenus.AsNoTracking()
                 join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
@@ -385,6 +372,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // 先删关联表，再删菜单本体
         _dbContext.SysRoleMenus.RemoveRange(_dbContext.SysRoleMenus.Where(x => menuIds.Contains(x.MenuId)));
         _dbContext.SysMenus.RemoveRange(_dbContext.SysMenus.Where(x => menuIds.Contains(x.Id)));
 

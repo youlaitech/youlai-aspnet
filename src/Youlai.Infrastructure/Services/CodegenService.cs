@@ -434,7 +434,9 @@ VALUES
             {
                 Path = filePath,
                 FileName = fileName,
-                Content = content
+                Content = content,
+                Scope = ResolveScope(templateName),
+                Language = ResolveLanguage(fileName)
             });
         }
 
@@ -922,6 +924,27 @@ ORDER BY ORDINAL_POSITION ASC";
         }
 
         return Path.Combine(backendRoot, "Youlai.Application", moduleNamePascal);
+    }
+
+    private static string ResolveScope(string templateName)
+    {
+        return templateName switch
+        {
+            "API" => "frontend",
+            "API_TYPES" => "frontend",
+            "VIEW" => "frontend",
+            _ => "backend"
+        };
+    }
+
+    private static string ResolveLanguage(string fileName)
+    {
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return string.Empty;
+        }
+        return extension.TrimStart('.').ToLowerInvariant();
     }
 
     private static string GetFormTypeName(int formType)
