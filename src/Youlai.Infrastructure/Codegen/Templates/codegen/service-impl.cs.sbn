@@ -99,6 +99,7 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{ end }}
 {{ end }}
 {{ end }}
+{{ end }}
 
 {{ if hasUpdateTime }}
         q = q.OrderByDescending(x => x.UpdateTime ?? x.CreateTime);

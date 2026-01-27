@@ -185,7 +185,7 @@ LIMIT @limit OFFSET @offset";
 
         var fieldConfigs = formData.FieldConfigs?.ToList() ?? new List<FieldConfigDto>();
 
-        await using var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -305,6 +305,10 @@ VALUES
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
         }
+        finally
+        {
+            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task<bool> DeleteConfigAsync(string tableName, CancellationToken cancellationToken = default)
@@ -315,7 +319,7 @@ VALUES
             return true;
         }
 
-        await using var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -335,6 +339,10 @@ VALUES
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
+        }
+        finally
+        {
+            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
         }
     }
 
@@ -483,16 +491,23 @@ VALUES
         IReadOnlyCollection<DbParameter> parameters,
         CancellationToken cancellationToken)
     {
-        await using var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        foreach (var param in parameters)
+        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            command.Parameters.Add(param);
-        }
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            foreach (var param in parameters)
+            {
+                command.Parameters.Add(param);
+            }
 
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is null || result == DBNull.Value ? 0L : Convert.ToInt64(result);
+            var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            return result is null || result == DBNull.Value ? 0L : Convert.ToInt64(result);
+        }
+        finally
+        {
+            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+        }
     }
 
     private async Task<List<T>> ExecuteQueryAsync<T>(
@@ -502,21 +517,28 @@ VALUES
         CancellationToken cancellationToken)
     {
         var list = new List<T>();
-        await using var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        foreach (var param in parameters)
+        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            command.Parameters.Add(param);
-        }
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            foreach (var param in parameters)
+            {
+                command.Parameters.Add(param);
+            }
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                list.Add(mapper(reader));
+            }
+
+            return list;
+        }
+        finally
         {
-            list.Add(mapper(reader));
+            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
         }
-
-        return list;
     }
 
     private async Task ExecuteNonQueryAsync(
@@ -789,7 +811,9 @@ ORDER BY ORDINAL_POSITION ASC";
         var template = Template.Parse(content);
         if (template.HasErrors)
         {
-            throw new BusinessException(ResultCode.SystemError, template.Messages.FirstOrDefault()?.Message ?? "模板解析失败");
+            var details = string.Join("; ", template.Messages
+                .Select(message => $"{message.Message} (line {message.Span.Start.Line + 1}, col {message.Span.Start.Column + 1})"));
+            throw new BusinessException(ResultCode.SystemError, $"模板解析失败: {tplPath}. {details}");
         }
 
         var ctx = new TemplateContext
