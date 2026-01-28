@@ -10,35 +10,35 @@ public sealed class UserQuery : BaseQuery
     /// <summary>
     /// 关键字
     /// </summary>
-    public string? Keywords { get; init; }
+    public string? Keywords { get; set; }
 
     /// <summary>
     /// 用户状态
     /// </summary>
-    public int? Status { get; init; }
+    public int? Status { get; set; }
 
     /// <summary>
     /// 部门ID
     /// </summary>
-    public long? DeptId { get; init; }
+    public long? DeptId { get; set; }
 
     /// <summary>
     /// 角色ID集合（逗号分隔）
     /// </summary>
-    public string? RoleIds { get; init; }
+    public string? RoleIds { get; set; }
 
     /// <summary>
     /// 创建时间区间
     /// </summary>
-    public string? CreateTime { get; init; }
+    public string[]? CreateTime { get; set; }
 
     /// <summary>
     /// 排序字段
     /// </summary>
-    public string? Field { get; init; }
+    public string? Field { get; set; }
 
     /// <summary>
     /// 排序方向
     /// </summary>
-    public string? Direction { get; init; }
+    public string? Direction { get; set; }
 }

@@ -120,7 +120,10 @@ public sealed class UsersController : ControllerBase
     public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
     {
         var bytes = await _userService.DownloadUserImportTemplateAsync(cancellationToken);
-        return File(bytes.ToArray(), "text/csv", "用户导入模板.csv");
+        return File(
+            bytes.ToArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "用户导入模板.xlsx");
     }
 
     /// <summary>
@@ -131,7 +134,10 @@ public sealed class UsersController : ControllerBase
     public async Task<IActionResult> ExportUsers([FromQuery] UserQuery query, CancellationToken cancellationToken)
     {
         var bytes = await _userService.ExportUsersAsync(query, cancellationToken);
-        return File(bytes.ToArray(), "text/csv", "用户列表.csv");
+        return File(
+            bytes.ToArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "用户列表.xlsx");
     }
 
     /// <summary>
