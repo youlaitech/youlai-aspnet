@@ -1,14 +1,17 @@
 <div align="center">
-   <img alt="logo" width="100" height="100" src="https://foruda.gitee.com/images/1733417239320800627/3c5290fe_716974.png">
-   <h2>youlai-aspnet</h2>
-   <img alt=".NET" src="https://img.shields.io/badge/.NET-8-blueviolet.svg"/>
-   <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET Core-8-blue.svg"/>
-   <a href="https://gitee.com/youlaiorg/youlai-aspnet" target="_blank">
-     <img alt="Gitee star" src="https://gitee.com/youlaiorg/youlai-aspnet/badge/star.svg"/>
-   </a>     
-   <a href="https://github.com/youlaitech/youlai-aspnet" target="_blank">
-     <img alt="Github star" src="https://img.shields.io/github/stars/youlaitech/youlai-aspnet.svg?style=social&label=Stars"/>
-   </a>
+  <img alt="logo" width="100" height="100" src="https://foruda.gitee.com/images/1733417239320800627/3c5290fe_716974.png">
+  <h2>youlai-aspnet</h2>
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-8-blueviolet.svg"/>
+  <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET Core-8-blue.svg"/>
+  <a href="https://gitcode.com/youlai/youlai-aspnet" target="_blank">
+    <img alt="GitCode star" src="https://gitcode.com/youlai/youlai-aspnet/star/badge.svg"/>
+  </a>
+  <a href="https://gitee.com/youlaiorg/youlai-aspnet" target="_blank">
+    <img alt="Gitee star" src="https://gitee.com/youlaiorg/youlai-aspnet/badge/star.svg"/>
+  </a>
+  <a href="https://github.com/youlaitech/youlai-aspnet" target="_blank">
+    <img alt="Github star" src="https://img.shields.io/github/stars/youlaitech/youlai-aspnet.svg?style=social&label=Stars"/>
+  </a>
 </div>
 
 <p align="center">
@@ -21,19 +24,19 @@
 
 ## 📢 项目简介
 
-`youlai-aspnet` 是 `vue3-element-admin` 配套的 .NET 后端实现，基于 .NET 8, ASP.NET Core 8, EF Core, JWT, Redis, MySQL 构建，是 **youlai 全家桶** 的重要组成部分。
+`youlai-aspnet` 是 `vue3-element-admin` 的 ASP.NET Core 8（.NET 8）后端实现，接口路径与返回结构完全对齐，可直接为前端提供后端服务。
 
-- **🚀 最新技术栈**: 基于 .NET 8 长期支持版（LTS），享受最新的性能优化和语言特性。
-- **🔐 企业级安全**: 深度整合 ASP.NET Core Identity，提供 JWT 无状态认证和 Redis 会话管理双重机制。
-- **🔑 精细化权限**: 内置经典的 RBAC 模型，权限控制可精确到菜单、按钮及后端 API 接口。
-- **🛠️ 完善的功能模块**: 提供用户、角色、菜单、部门、字典等开箱即用的核心功能。
+- **🚀 最新技术栈**：.NET 8 + ASP.NET Core 8，性能与生态同步升级。
+- **🔐 安全认证**：JWT 无状态认证 + Redis 会话双模式。
+- **🔑 权限管理**：RBAC 权限模型，菜单/按钮/接口统一治理。
+- **🛠️ 模块能力**：用户、角色、菜单、部门、字典等核心模块开箱即用。
 
 ## 🌈 项目源码
 
-| 项目类型 | Gitee | Github | GitCode |
+| 项目类型 | Gitee | GitHub | GitCode |
 | --- | --- | --- | --- |
 | ✅ .NET 后端 | [youlai-aspnet](https://gitee.com/youlaiorg/youlai-aspnet) | [youlai-aspnet](https://github.com/youlaitech/youlai-aspnet) | [youlai-aspnet](https://gitcode.com/youlai/youlai-aspnet) |
-| vue3 前端 | [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) | [vue3-element-admin](https://github.com/youlaitech/vue3-element-admin) | [vue3-element-admin](https://gitcode.com/youlai/vue3-element-admin) |
+| Vue3 管理端 | [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) | [vue3-element-admin](https://github.com/youlaitech/vue3-element-admin) | [vue3-element-admin](https://gitcode.com/youlai/vue3-element-admin) |
 | uni-app 移动端 | [vue-uniapp-template](https://gitee.com/youlaiorg/vue-uniapp-template) | [vue-uniapp-template](https://github.com/youlaitech/vue-uniapp-template) | [vue-uniapp-template](https://gitcode.com/youlai/vue-uniapp-template) |
 
 ## 📚 项目文档
@@ -45,16 +48,17 @@
 ## 📁 项目目录
 
 <details>
-<summary> 目录结构 </summary>
+<summary>目录结构</summary>
 
 ```text
 youlai-aspnet/
 ├─ src/                             # 源码目录
-│  ├─ Youlai.Api/                   # Web API层
-│  ├─ Youlai.Application/           # 应用层
-│  ├─ Youlai.Domain/                # 领域层
-│  └─ Youlai.Infrastructure/        # 基础设施层
+│  ├─ Youlai.Api/                   # Web API层（控制器、中间件、认证授权）
+│  ├─ Youlai.Application/           # 应用层（服务接口定义、DTO、业务逻辑）
+│  ├─ Youlai.Domain/                # 领域层（实体模型、领域对象、枚举）
+│  └─ Youlai.Infrastructure/        # 基础设施层（EF Core、仓储、缓存）
 ├─ sql/                             # 数据库脚本
+│  └─ mysql/                        # MySQL 脚本
 ├─ tests/                           # 测试项目
 ├─ youlai-aspnet.sln                # 解决方案文件
 └─ global.json                      # .NET SDK版本锁定
@@ -64,43 +68,29 @@ youlai-aspnet/
 
 ## 🚀 快速启动
 
-### 1. 环境准备
+1. **基础环境**
+   - .NET SDK 8（建议 8.0.416+）
+   - MySQL 5.7+ / 8.x（必需）
+   - Redis 7.x（必需）
 
-| 要求           | 说明        |
-| -------------- | ----------- |
-| **.NET SDK 8** | 8.0+ LTS    |
-| **MySQL**      | 5.7+ 或 8.x |
-| **Redis**      | 7.x 稳定版  |
+2. **初始化数据库**
 
-> ⚠️ **重要提示**：MySQL 与 Redis 为项目启动必需依赖，请确保服务已启动。
+   执行 `sql/mysql/youlai_admin.sql` 脚本，完成库表与基础数据初始化。
 
-### 2. 数据库初始化
+3. **配置应用**
 
-推荐使用 **Navicat**、**DBeaver** 或 **MySQL Workbench** 执行 `sql/mysql/youlai_admin.sql` 脚本，完成数据库和基础数据的初始化。
+   编辑 `src/Youlai.Api/appsettings.Development.json`，配置 MySQL 与 Redis。
 
-### 3. 修改配置
+4. **启动后端**
 
-编辑 `src/Youlai.Api/appsettings.Development.json` 文件，根据实际情况修改 MySQL 和 Redis 的连接字符串。
+   ```bash
+   dotnet restore
+   dotnet run --project src/Youlai.Api -c Release
+   ```
 
-### 4. 启动项目
-
-```bash
-# 还原依赖
-dotnet restore
-
-# 启动项目
-dotnet run --project src/Youlai.Api
-```
-
-> 💡 **Tip**: 开发环境默认以 `Debug` 模式运行。如需以 `Release` 模式运行，请添加 `-c Release` 参数。
-
-````
-
-启动成功后，访问 [http://localhost:8000/swagger](http://localhost:8000/swagger) 验证项目是否成功。
+   启动成功后访问 [http://localhost:8000/swagger](http://localhost:8000/swagger)。
 
 ## 🤝 前端整合
-
-`youlai-aspnet` 与 `vue3-element-admin` 前后端协议完全兼容，可无缝对接。
 
 ```bash
 # 1. 获取前端项目
@@ -110,40 +100,34 @@ cd vue3-element-admin
 # 2. 安装依赖
 pnpm install
 
-# 3. 配置后端地址 (编辑 .env.development)
+# 3. 配置后端地址（.env.development）
 VITE_APP_API_URL=http://localhost:8000
 
 # 4. 启动前端
 pnpm run dev
-````
-
-- **访问地址**: [http://localhost:3000](http://localhost:3000)
-- **登录账号**: `admin` / `123456`
-
-## 🐳 项目部署
-
-### 1. Kestrel + Nginx
-
-```bash
-# 发布项目
-dotnet publish src/Youlai.Api -c Release -o ./publish
-
-# 运行
-./publish/Youlai.Api
 ```
 
-### 2. Docker 部署
+- **访问地址**：[http://localhost:3000](http://localhost:3000)
+- **登录账号**：`admin` / `123456`
 
-```bash
-# 构建镜像
-docker build -t youlai-aspnet:latest .
+## 🚀 项目部署
 
-# 运行容器
-docker run -d -p 8000:80 --name youlai-aspnet youlai-aspnet:latest
-```
+**Windows 部署（IIS + Kestrel）**
+
+1. 安装 IIS（控制面板 → 启用或关闭 Windows 功能 → 勾选 Internet Information Services）。
+2. 安装 ASP.NET Core Hosting Bundle（官网下载安装后重启 IIS）。
+3. 发布项目：
+
+   ```bash
+   dotnet publish src/Youlai.Api -c Release -r win-x64 --self-contained true -o ./publish
+   ```
+
+4. IIS 新建站点：物理路径指向 `publish`，端口设置为可用端口（如 8000），应用程序池选择“无托管代码”。
+
+访问 `http://服务器IP:端口` 即可。
 
 ## 💖 技术交流
 
-- **问题反馈**：[Gitee Issues](https://gitee.com/youlaiorg/youlai-aspnet/issues)
-- **技术交流群**：[QQ 群：950387562](https://qm.qq.com/cgi-bin/qm/qr?k=U57IDw7ufwuzMA4qQ7BomwZ44hpHGkLg)
-- **博客教程**：[https://www.youlai.tech](https://www.youlai.tech)
+① 关注「有来技术」公众号，点击菜单 **交流群** 获取加群二维码。
+
+② 直接添加微信 **`haoxianrui`** 备注「前端/后端/全栈」。
