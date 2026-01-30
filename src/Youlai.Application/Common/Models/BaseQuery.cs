@@ -5,7 +5,7 @@ namespace Youlai.Application.Common.Models;
 /// </summary>
 public abstract class BaseQuery
 {
-    public int PageNum { get; init; } = 1;
+    public int PageNum { get; set; } = 1;
 
-    public int PageSize { get; init; } = 10;
+    public int PageSize { get; set; } = 10;
 }

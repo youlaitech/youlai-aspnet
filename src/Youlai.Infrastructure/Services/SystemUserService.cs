@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
@@ -547,9 +549,23 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public Task<IReadOnlyCollection<byte>> DownloadUserImportTemplateAsync(CancellationToken cancellationToken = default)
     {
-        var csv = "username,nickname,mobile,email,gender,status\r\n";
-        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
-        return Task.FromResult<IReadOnlyCollection<byte>>(bytes);
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("用户导入模板");
+        var headers = new[]
+        {
+            "用户名", "昵称", "手机号", "邮箱", "性别", "状态"
+        };
+
+        for (var i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = headers[i];
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return Task.FromResult<IReadOnlyCollection<byte>>(stream.ToArray());
     }
 
     /// <summary>
@@ -618,13 +634,11 @@ internal sealed class SystemUserService : ISystemUserService
             from d in deptJoin.DefaultIfEmpty()
             select new
             {
-                u.Id,
                 u.Username,
                 u.Nickname,
                 u.Mobile,
                 u.Email,
                 u.Gender,
-                u.Status,
                 DeptName = d != null ? d.Name : null,
                 u.CreateTime,
             };
@@ -635,31 +649,49 @@ internal sealed class SystemUserService : ISystemUserService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // 角色名称单独聚合，避免查询过重
-        var userIds = rows.Select(r => r.Id).ToArray();
-        var roleNamesMap = await GetRoleNamesMapAsync(userIds, cancellationToken).ConfigureAwait(false);
+        var genderMap = await _dbContext.SysDictItems
+            .AsNoTracking()
+            .Where(i => i.DictCode == "gender" && i.Status == 1)
+            .OrderBy(i => i.Sort)
+            .ThenBy(i => i.Id)
+            .ToDictionaryAsync(i => i.Value ?? string.Empty, i => i.Label ?? string.Empty, cancellationToken)
+            .ConfigureAwait(false);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("id,username,nickname,mobile,email,gender,status,deptName,roleNames,createTime");
-        foreach (var r in rows)
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("用户列表");
+        var headers = new[]
         {
-            sb
-                .Append(r.Id).Append(',')
-                .Append(EscapeCsv(r.Username)).Append(',')
-                .Append(EscapeCsv(r.Nickname)).Append(',')
-                .Append(EscapeCsv(r.Mobile)).Append(',')
-                .Append(EscapeCsv(r.Email)).Append(',')
-                .Append(r.Gender?.ToString() ?? string.Empty).Append(',')
-                .Append(r.Status).Append(',')
-                .Append(EscapeCsv(r.DeptName)).Append(',')
-                .Append(EscapeCsv(roleNamesMap.TryGetValue(r.Id, out var rn) ? rn : null)).Append(',')
-                .Append(r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy/MM/dd HH:mm") : string.Empty)
-                .AppendLine();
+            "用户名", "用户昵称", "部门", "性别", "手机号码", "邮箱", "创建时间"
+        };
+
+        for (var i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = headers[i];
         }
 
-        var csvBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        var bytes = Encoding.UTF8.GetPreamble().Concat(csvBytes).ToArray();
-        return bytes;
+        var rowIndex = 2;
+        foreach (var r in rows)
+        {
+            worksheet.Cell(rowIndex, 1).Value = r.Username ?? string.Empty;
+            worksheet.Cell(rowIndex, 2).Value = r.Nickname ?? string.Empty;
+            worksheet.Cell(rowIndex, 3).Value = r.DeptName ?? string.Empty;
+            worksheet.Cell(rowIndex, 4).Value = r.Gender.HasValue
+                && genderMap.TryGetValue(r.Gender.Value.ToString(), out var genderLabel)
+                    ? genderLabel
+                    : string.Empty;
+            worksheet.Cell(rowIndex, 5).Value = r.Mobile ?? string.Empty;
+            worksheet.Cell(rowIndex, 6).Value = r.Email ?? string.Empty;
+            worksheet.Cell(rowIndex, 7).Value = r.CreateTime.HasValue
+                ? r.CreateTime.Value.ToString("yyyy/MM/dd HH:mm")
+                : string.Empty;
+            rowIndex++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     /// <summary>
@@ -670,15 +702,13 @@ internal sealed class SystemUserService : ISystemUserService
         var db = _redis.GetDatabase();
         _ = db;
 
-        // CSV 按行读取，逐条校验并累积错误信息
-        using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
-
         var messages = new List<string>();
         var valid = 0;
         var invalid = 0;
 
-        var header = await reader.ReadLineAsync().ConfigureAwait(false);
-        if (header is null)
+        using var workbook = new XLWorkbook(content);
+        var worksheet = workbook.Worksheets.FirstOrDefault();
+        if (worksheet is null)
         {
             return new ExcelResult
             {
@@ -689,26 +719,23 @@ internal sealed class SystemUserService : ISystemUserService
             };
         }
 
-        while (true)
+        var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
+        for (var row = 2; row <= lastRow; row++)
         {
-            var line = await reader.ReadLineAsync().ConfigureAwait(false);
-            if (line is null)
-            {
-                break;
-            }
+            var username = worksheet.Cell(row, 1).GetValue<string>()?.Trim();
+            var nickname = worksheet.Cell(row, 2).GetValue<string>()?.Trim();
+            var mobile = worksheet.Cell(row, 3).GetValue<string>()?.Trim();
+            var email = worksheet.Cell(row, 4).GetValue<string>()?.Trim();
+            var gender = TryParseInt(worksheet.Cell(row, 5).GetValue<string>());
+            var status = TryParseInt(worksheet.Cell(row, 6).GetValue<string>()) ?? 1;
 
-            if (string.IsNullOrWhiteSpace(line))
+            if (string.IsNullOrWhiteSpace(username)
+                && string.IsNullOrWhiteSpace(nickname)
+                && string.IsNullOrWhiteSpace(mobile)
+                && string.IsNullOrWhiteSpace(email))
             {
                 continue;
             }
-
-            var parts = line.Split(',', StringSplitOptions.None);
-            var username = parts.ElementAtOrDefault(0)?.Trim();
-            var nickname = parts.ElementAtOrDefault(1)?.Trim();
-            var mobile = parts.ElementAtOrDefault(2)?.Trim();
-            var email = parts.ElementAtOrDefault(3)?.Trim();
-            var gender = TryParseInt(parts.ElementAtOrDefault(4));
-            var status = TryParseInt(parts.ElementAtOrDefault(5)) ?? 1;
 
             // 账号名必填，且不能重复
             if (string.IsNullOrWhiteSpace(username))
@@ -1172,19 +1199,19 @@ internal sealed class SystemUserService : ISystemUserService
         return set;
     }
 
-    private static (DateTime? Start, DateTime? End) ParseTimeRange(string? input)
+    private static (DateTime? Start, DateTime? End) ParseTimeRange(IReadOnlyCollection<string>? input)
     {
-        if (string.IsNullOrWhiteSpace(input))
+        if (input is null || input.Count == 0)
         {
             return (null, null);
         }
 
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 2)
+        if (input.Count != 2)
         {
             return (null, null);
         }
 
+        var parts = input.ToArray();
         return (TryParseDateTime(parts[0]), TryParseDateTime(parts[1]));
     }
 
