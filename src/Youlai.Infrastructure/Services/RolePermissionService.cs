@@ -128,49 +128,16 @@ internal sealed class RolePermissionService : IRolePermissionService
                 return ParseArrayPerms(doc.RootElement);
             }
 
-            if (doc.RootElement.ValueKind == JsonValueKind.String)
-            {
-                var s = doc.RootElement.GetString();
-                return string.IsNullOrWhiteSpace(s) ? Array.Empty<string>() : new[] { s };
-            }
-
-            if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                // 兼容 Spring GenericJackson2JsonRedisSerializer 输出的带类型包装 JSON
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
-                    if (prop.Value.ValueKind == JsonValueKind.Array)
-                    {
-                        var list = ParseArrayPerms(prop.Value);
-                        if (list.Count > 0)
-                        {
-                            return list;
-                        }
-                    }
-                }
-            }
-
             return Array.Empty<string>();
         }
         catch
         {
-            // 不是合法 JSON 时，按单个权限码字符串处理
-            var s = value.ToString();
-            return string.IsNullOrWhiteSpace(s) ? Array.Empty<string>() : new[] { s };
+            return Array.Empty<string>();
         }
     }
 
     private static IReadOnlyCollection<string> ParseArrayPerms(JsonElement arrayElement)
     {
-        // 兼容 Spring GenericJackson2JsonRedisSerializer 可能输出的包装数组，例如：
-        // ["java.util.HashSet", ["sys:user:list", ...]]
-        if (arrayElement.GetArrayLength() == 2
-            && arrayElement[0].ValueKind == JsonValueKind.String
-            && arrayElement[1].ValueKind == JsonValueKind.Array)
-        {
-            arrayElement = arrayElement[1];
-        }
-
         var list = new List<string>();
         foreach (var item in arrayElement.EnumerateArray())
         {
