@@ -53,6 +53,7 @@ internal sealed class DataPermissionService : IDataPermissionService
             DataScope.Dept => query.Where(BuildEquals(deptIdSelector, deptId.Value)),
             DataScope.Self => query.Where(BuildEquals(userIdSelector, userId.Value)),
             DataScope.DeptAndSub => ApplyDeptAndSub(query, deptIdSelector, deptId.Value),
+            DataScope.Custom => ApplyCustom(query, deptIdSelector),
             _ => query.Where(BuildEquals(userIdSelector, userId.Value)),
         };
     }
@@ -71,6 +72,26 @@ internal sealed class DataPermissionService : IDataPermissionService
                 || EF.Functions.Like(d.TreePath, likeMiddle)
                 || EF.Functions.Like(d.TreePath, likeHead)
                 || EF.Functions.Like(d.TreePath, likeTail)))
+            .Select(d => d.Id);
+
+        return query.Where(BuildContains(deptIdsQuery, deptIdSelector));
+    }
+
+    /// <summary>
+    /// 应用自定义部门数据权限
+    /// </summary>
+    private IQueryable<TEntity> ApplyCustom<TEntity>(IQueryable<TEntity> query, Expression<Func<TEntity, long>> deptIdSelector)
+    {
+        var customDeptIds = _currentUser.CustomDeptIds;
+        if (customDeptIds == null || customDeptIds.Count == 0)
+        {
+            // 没有自定义部门配置，不返回任何数据
+            return query.Where(e => false);
+        }
+
+        var deptIdsQuery = _dbContext.SysDepts
+            .AsNoTracking()
+            .Where(d => !d.IsDeleted && customDeptIds.Contains(d.Id))
             .Select(d => d.Id);
 
         return query.Where(BuildContains(deptIdsQuery, deptIdSelector));

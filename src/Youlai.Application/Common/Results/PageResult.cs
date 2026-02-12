@@ -11,11 +11,7 @@ public sealed class PageResult<T>
     public string Code { get; init; } = ResultCode.Success.Code();
 
     [JsonPropertyName("data")]
-    public IReadOnlyCollection<T> Data { get; init; } = Array.Empty<T>();
-
-    [JsonPropertyName("page")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public PageMeta? Page { get; init; }
+    public PageData<T> Data { get; init; } = new();
 
     [JsonPropertyName("msg")]
     public string Msg { get; init; } = ResultCode.Success.Msg();
@@ -26,11 +22,9 @@ public sealed class PageResult<T>
         {
             Code = ResultCode.Success.Code(),
             Msg = ResultCode.Success.Msg(),
-            Data = list ?? Array.Empty<T>(),
-            Page = new PageMeta
+            Data = new PageData<T>
             {
-                PageNum = pageNum,
-                PageSize = pageSize,
+                List = list ?? Array.Empty<T>(),
                 Total = total,
             },
         };
@@ -39,13 +33,10 @@ public sealed class PageResult<T>
     /// <summary>
     /// 分页数据
     /// </summary>
-    public sealed class PageMeta
+    public sealed class PageData<TItem>
     {
-        [JsonPropertyName("pageNum")]
-        public int PageNum { get; init; }
-
-        [JsonPropertyName("pageSize")]
-        public int PageSize { get; init; }
+        [JsonPropertyName("list")]
+        public IReadOnlyCollection<TItem> List { get; init; } = Array.Empty<TItem>();
 
         [JsonPropertyName("total")]
         public long Total { get; init; }

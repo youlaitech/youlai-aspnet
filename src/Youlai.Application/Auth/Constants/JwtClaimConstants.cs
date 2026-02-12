@@ -31,7 +31,7 @@ public static class JwtClaimConstants
     public const string Authorities = "authorities";
 
     /// <summary>
-    /// 安全版本号
+    /// Token 版本号
     /// </summary>
-    public const string SecurityVersion = "securityVersion";
+    public const string TokenVersion = "tokenVersion";
 }

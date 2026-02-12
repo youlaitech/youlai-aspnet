@@ -120,7 +120,7 @@ public sealed class RolesController : ControllerBase
     /// <summary>
     /// 角色已分配的菜单ID
     /// </summary>
-    [HttpGet("{roleId:long}/menuIds")]
+    [HttpGet("{roleId:long}/menu-ids")]
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleMenuIds([FromRoute] long roleId, CancellationToken cancellationToken)
     {
         var ids = await _roleService.GetRoleMenuIdsAsync(roleId, cancellationToken);

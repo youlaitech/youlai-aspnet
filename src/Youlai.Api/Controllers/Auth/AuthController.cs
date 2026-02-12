@@ -50,6 +50,28 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// 发送登录短信验证码
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("sms/code")]
+    public async Task<Result> SendSmsLoginCode([FromQuery] string mobile, CancellationToken cancellationToken)
+    {
+        await _authService.SendSmsLoginCodeAsync(mobile, cancellationToken);
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// 短信验证码登录
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("login/sms")]
+    public async Task<Result<AuthenticationTokenDto>> LoginBySms([FromQuery] string mobile, [FromQuery] string code, CancellationToken cancellationToken)
+    {
+        var token = await _authService.LoginBySmsAsync(mobile, code, cancellationToken);
+        return Result.Success(token);
+    }
+
+    /// <summary>
     /// 刷新令牌
     /// </summary>
     [AllowAnonymous]

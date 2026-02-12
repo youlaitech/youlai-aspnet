@@ -34,8 +34,6 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 
     public DbSet<SysLog> SysLogs => Set<SysLog>();
 
-    public DbSet<AiAssistantRecord> AiAssistantRecords => Set<AiAssistantRecord>();
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<SysUser>(entity =>
@@ -252,34 +250,6 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.Os).HasColumnName("os");
             entity.Property(e => e.CreateBy).HasColumnName("create_by");
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
-        });
-
-        modelBuilder.Entity<AiAssistantRecord>(entity =>
-        {
-            entity.ToTable("ai_assistant_record");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
-            entity.Property(e => e.Username).HasColumnName("username");
-            entity.Property(e => e.OriginalCommand).HasColumnName("original_command");
-            entity.Property(e => e.AiProvider).HasColumnName("ai_provider");
-            entity.Property(e => e.AiModel).HasColumnName("ai_model");
-            entity.Property(e => e.ParseStatus).HasColumnName("parse_status");
-            entity.Property(e => e.FunctionCalls).HasColumnName("function_calls");
-            entity.Property(e => e.Explanation).HasColumnName("explanation");
-            entity.Property(e => e.Confidence).HasColumnName("confidence");
-            entity.Property(e => e.ParseErrorMessage).HasColumnName("parse_error_message");
-            entity.Property(e => e.InputTokens).HasColumnName("input_tokens");
-            entity.Property(e => e.OutputTokens).HasColumnName("output_tokens");
-            entity.Property(e => e.ParseDurationMs).HasColumnName("parse_duration_ms");
-            entity.Property(e => e.FunctionName).HasColumnName("function_name");
-            entity.Property(e => e.FunctionArguments).HasColumnName("function_arguments");
-            entity.Property(e => e.ExecuteStatus).HasColumnName("execute_status");
-            entity.Property(e => e.ExecuteErrorMessage).HasColumnName("execute_error_message");
-            entity.Property(e => e.IpAddress).HasColumnName("ip_address");
-            entity.Property(e => e.CreateTime).HasColumnName("create_time");
-            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
         });
     }
 }

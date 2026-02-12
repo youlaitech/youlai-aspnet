@@ -12,7 +12,7 @@ internal static class RedisKeyConstants
     internal static class Auth
     {
         internal const string BlacklistToken = "auth:token:blacklist:{0}";
-        internal const string UserSecurityVersion = "auth:user:security_version:{0}";
+        internal const string UserTokenVersion = "auth:user:token_version:{0}";
     }
 
     internal static class Captcha

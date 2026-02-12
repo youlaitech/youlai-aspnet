@@ -159,7 +159,7 @@ public sealed class JwtTokenManager
         }
 
         var db = _redis.GetDatabase();
-        var versionKey = string.Format(RedisKeyConstants.Auth.UserSecurityVersion, userId);
+        var versionKey = string.Format(RedisKeyConstants.Auth.UserTokenVersion, userId);
         await db.StringIncrementAsync(versionKey).ConfigureAwait(false);
     }
 
@@ -169,10 +169,10 @@ public sealed class JwtTokenManager
         var jti = Guid.NewGuid().ToString("N");
 
         var db = _redis.GetDatabase();
-        var versionKey = string.Format(RedisKeyConstants.Auth.UserSecurityVersion, subject.UserId);
+        var versionKey = string.Format(RedisKeyConstants.Auth.UserTokenVersion, subject.UserId);
         var currentVersionValue = db.StringGet(versionKey);
-        // 账号安全版本号，用于整体失效历史令牌
-        var securityVersion = currentVersionValue.HasValue && int.TryParse(currentVersionValue.ToString(), out var v) ? v : 0;
+        // Token 版本号，用于整体失效历史令牌
+        var tokenVersion = currentVersionValue.HasValue && int.TryParse(currentVersionValue.ToString(), out var v) ? v : 0;
 
         var secretKey = Encoding.UTF8.GetBytes(_securityOptions.Session.Jwt.SecretKey);
         var signingCredentials = new SigningCredentials(new SymmetricSecurityKey(secretKey), SecurityAlgorithms.HmacSha256);
@@ -183,7 +183,7 @@ public sealed class JwtTokenManager
             { JwtClaimConstants.DeptId, subject.DeptId },
             { JwtClaimConstants.DataScope, subject.DataScope },
             { JwtClaimConstants.TokenType, isRefreshToken },
-            { JwtClaimConstants.SecurityVersion, securityVersion },
+            { JwtClaimConstants.TokenVersion, tokenVersion },
             { JwtRegisteredClaimNames.Sub, subject.Username },
             { JwtRegisteredClaimNames.Jti, jti },
             { JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds() },
@@ -238,12 +238,12 @@ public sealed class JwtTokenManager
             var uid = payload.TryGetValue(JwtClaimConstants.UserId, out var uidObj) ? TryParseInt64(uidObj) : 0;
             if (uid != 0)
             {
-                var tokenVersionObj = payload.TryGetValue(JwtClaimConstants.SecurityVersion, out var tv) ? tv : null;
+                var tokenVersionObj = payload.TryGetValue(JwtClaimConstants.TokenVersion, out var tv) ? tv : null;
                 var tokenVersion = TryParseInt32(tokenVersionObj);
 
-                // 只要用户安全版本号递增，旧 token 统一失效
+                // 只要用户 Token 版本号递增，旧 token 统一失效
                 var db = _redis.GetDatabase();
-                var versionKey = string.Format(RedisKeyConstants.Auth.UserSecurityVersion, uid);
+                var versionKey = string.Format(RedisKeyConstants.Auth.UserTokenVersion, uid);
                 var currentVersionValue = db.StringGet(versionKey);
                 var currentVersion = currentVersionValue.HasValue && int.TryParse(currentVersionValue.ToString(), out var cv)
                     ? cv
@@ -252,7 +252,7 @@ public sealed class JwtTokenManager
                 if (tokenVersion < currentVersion)
                 {
                     _logger.LogWarning(
-                        "JWT validation failed: security version mismatch. UserId={UserId}, TokenVersion={TokenVersion}, CurrentVersion={CurrentVersion}, JTI={Jti}",
+                        "JWT validation failed: token version mismatch. UserId={UserId}, TokenVersion={TokenVersion}, CurrentVersion={CurrentVersion}, JTI={Jti}",
                         uid,
                         tokenVersion,
                         currentVersion,
