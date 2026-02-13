@@ -152,14 +152,16 @@ internal sealed class AuthService : IAuthService
             throw new BusinessException(ResultCode.UserLoginException, "用户不存在");
         }
 
+        // 查询用户的所有角色及其数据权限
         var rolesQuery =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
             where ur.UserId == user.Id && !r.IsDeleted && r.Status == 1
-            select new { r.Code, r.DataScope };
+            select new { r.Id, r.Code, r.DataScope };
 
         var roles = await rolesQuery.ToListAsync(cancellationToken).ConfigureAwait(false);
 
+        // 构建角色权限集合
         var authorities = roles
             .Select(r => r.Code)
             .Where(c => !string.IsNullOrWhiteSpace(c))
@@ -167,17 +169,36 @@ internal sealed class AuthService : IAuthService
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        var dataScope = roles
-            .Select(r => r.DataScope)
-            .Where(v => v.HasValue)
-            .Select(v => v!.Value)
-            .DefaultIfEmpty(4)
-            .Min();
+        // 构建数据权限列表（支持多角色）
+        var dataScopes = new List<RoleDataScope>();
+        foreach (var role in roles)
+        {
+            var roleDataScope = new RoleDataScope
+            {
+                RoleCode = role.Code ?? string.Empty,
+                DataScope = role.DataScope ?? 4
+            };
+
+            // 如果是自定义部门权限，查询该角色的自定义部门列表
+            if (role.DataScope == 5 && role.Id != 0)
+            {
+                var customDeptIds = await _dbContext.SysRoleDepts
+                    .AsNoTracking()
+                    .Where(rd => rd.RoleId == role.Id)
+                    .Select(rd => rd.DeptId)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                roleDataScope.CustomDeptIds = customDeptIds;
+            }
+
+            dataScopes.Add(roleDataScope);
+        }
 
         var subject = new JwtTokenManager.AuthTokenSubject(
             UserId: user.Id,
             DeptId: user.DeptId ?? 0,
-            DataScope: dataScope,
+            DataScopes: dataScopes,
             Username: user.Username ?? string.Empty,
             Authorities: authorities
         );

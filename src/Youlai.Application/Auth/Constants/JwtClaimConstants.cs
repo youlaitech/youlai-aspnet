@@ -21,9 +21,9 @@ public static class JwtClaimConstants
     public const string DeptId = "deptId";
 
     /// <summary>
-    /// 数据权限范围
+    /// 数据权限列表（支持多角色）
     /// </summary>
-    public const string DataScope = "dataScope";
+    public const string DataScopes = "dataScopes";
 
     /// <summary>
     /// 权限标识集合
