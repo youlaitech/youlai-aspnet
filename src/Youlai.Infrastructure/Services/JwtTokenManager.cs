@@ -181,7 +181,7 @@ public sealed class JwtTokenManager
         {
             { JwtClaimConstants.UserId, subject.UserId },
             { JwtClaimConstants.DeptId, subject.DeptId },
-            { JwtClaimConstants.DataScope, subject.DataScope },
+            { JwtClaimConstants.DataScopes, System.Text.Json.JsonSerializer.Serialize(subject.DataScopes) },
             { JwtClaimConstants.TokenType, isRefreshToken },
             { JwtClaimConstants.TokenVersion, tokenVersion },
             { JwtRegisteredClaimNames.Sub, subject.Username },
@@ -323,14 +323,36 @@ public sealed class JwtTokenManager
         return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
     }
 
-    public sealed record AuthTokenSubject(long UserId, long DeptId, int DataScope, string Username, IReadOnlyCollection<string> Authorities)
+    public sealed record AuthTokenSubject(
+        long UserId,
+        long DeptId,
+        IReadOnlyList<RoleDataScope> DataScopes,
+        string Username,
+        IReadOnlyCollection<string> Authorities)
     {
         public static AuthTokenSubject FromPayload(JwtPayload payload)
         {
             var userId = TryGetInt64(payload, JwtClaimConstants.UserId);
             var deptId = TryGetInt64(payload, JwtClaimConstants.DeptId);
-            var dataScope = TryGetInt32(payload, JwtClaimConstants.DataScope) ?? 4;
             var username = payload.TryGetValue(JwtRegisteredClaimNames.Sub, out var sub) ? sub?.ToString() ?? string.Empty : string.Empty;
+
+            // 解析数据权限列表
+            List<RoleDataScope> dataScopes = new();
+            if (payload.TryGetValue(JwtClaimConstants.DataScopes, out var dataScopesObj))
+            {
+                try
+                {
+                    var json = dataScopesObj?.ToString();
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        dataScopes = System.Text.Json.JsonSerializer.Deserialize<List<RoleDataScope>>(json) ?? new();
+                    }
+                }
+                catch
+                {
+                    // 解析失败，返回空列表
+                }
+            }
 
             var authorities = new List<string>();
             if (payload.TryGetValue(JwtClaimConstants.Authorities, out var authObj))
@@ -356,7 +378,7 @@ public sealed class JwtTokenManager
                 }
             }
 
-            return new AuthTokenSubject(userId, deptId, dataScope, username, authorities);
+            return new AuthTokenSubject(userId, deptId, dataScopes, username, authorities);
         }
 
         private static long TryGetInt64(JwtPayload payload, string key)

@@ -13,7 +13,10 @@ public interface ICurrentUser
 
     long? DeptId { get; }
 
-    DataScope? DataScope { get; }
+    /// <summary>
+    /// 数据权限列表（支持多角色）
+    /// </summary>
+    IReadOnlyList<RoleDataScope>? DataScopes { get; }
 
     IReadOnlyCollection<string> Roles { get; }
 

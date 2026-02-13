@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Youlai.Application.Auth.Constants;
 using Youlai.Application.Common.Security;
@@ -23,12 +24,28 @@ public sealed class CurrentUser : ICurrentUser
 
     public long? DeptId => TryGetInt64(JwtClaimConstants.DeptId);
 
-    public DataScope? DataScope
+    /// <summary>
+    /// 数据权限列表（支持多角色）
+    /// </summary>
+    public IReadOnlyList<RoleDataScope>? DataScopes
     {
         get
         {
-            var v = TryGetInt32(JwtClaimConstants.DataScope);
-            return v.HasValue ? (Application.Common.Security.DataScope)v.Value : null;
+            var dataScopesClaim = Principal?.FindFirst(JwtClaimConstants.DataScopes);
+            if (string.IsNullOrWhiteSpace(dataScopesClaim?.Value))
+            {
+                return null;
+            }
+
+            try
+            {
+                var scopes = JsonSerializer.Deserialize<List<RoleDataScope>>(dataScopesClaim.Value);
+                return scopes?.AsReadOnly();
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 
