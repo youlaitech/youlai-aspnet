@@ -22,6 +22,8 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 
     public DbSet<SysRoleMenu> SysRoleMenus => Set<SysRoleMenu>();
 
+    public DbSet<SysRoleDept> SysRoleDepts => Set<SysRoleDept>();
+
     public DbSet<SysDict> SysDicts => Set<SysDict>();
 
     public DbSet<SysDictItem> SysDictItems => Set<SysDictItem>();
@@ -135,6 +137,15 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 
             entity.Property(e => e.RoleId).HasColumnName("role_id");
             entity.Property(e => e.MenuId).HasColumnName("menu_id");
+        });
+
+        modelBuilder.Entity<SysRoleDept>(entity =>
+        {
+            entity.ToTable("sys_role_dept");
+            entity.HasKey(e => new { e.RoleId, e.DeptId });
+
+            entity.Property(e => e.RoleId).HasColumnName("role_id");
+            entity.Property(e => e.DeptId).HasColumnName("dept_id");
         });
 
         modelBuilder.Entity<SysDict>(entity =>

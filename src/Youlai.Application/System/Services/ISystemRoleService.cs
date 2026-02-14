@@ -48,4 +48,8 @@ public interface ISystemRoleService
     /// 分配菜单
     /// </summary>
     Task AssignMenusToRoleAsync(long roleId, IReadOnlyCollection<long> menuIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default);
+
+    Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default);
 }

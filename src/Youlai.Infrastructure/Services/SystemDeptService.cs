@@ -24,11 +24,13 @@ internal sealed class SystemDeptService : ISystemDeptService
 
     private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
+    private readonly IDataPermissionService _dataPermissionService;
 
-    public SystemDeptService(YoulaiDbContext dbContext, ICurrentUser currentUser)
+    public SystemDeptService(YoulaiDbContext dbContext, ICurrentUser currentUser, IDataPermissionService dataPermissionService)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
+        _dataPermissionService = dataPermissionService;
     }
 
     /// <summary>
@@ -39,6 +41,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         var q = _dbContext.SysDepts
             .AsNoTracking()
             .Where(d => !d.IsDeleted);
+
+        // 数据权限过滤：按部门ID过滤，并使用 CreateBy 实现 SELF(本人) 口径与 boot 对齐
+        q = _dataPermissionService.Apply(q, d => d.Id, d => d.CreateBy ?? 0);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -82,6 +87,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         var q = _dbContext.SysDepts
             .AsNoTracking()
             .Where(d => !d.IsDeleted && d.Status == 1);
+
+        // 数据权限过滤：下拉选项也需要过滤，避免越权拿到部门树
+        q = _dataPermissionService.Apply(q, d => d.Id, d => d.CreateBy ?? 0);
 
         var list = await q
             .OrderBy(d => d.Sort ?? 0)

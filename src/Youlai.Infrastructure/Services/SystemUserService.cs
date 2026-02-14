@@ -125,7 +125,7 @@ internal sealed class SystemUserService : ISystemUserService
         users = users.Where(u => !rootUserIds.Contains(u.Id));
 
         // 数据权限过滤，确保用户只能看到授权范围内的数据
-        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.Id);
+        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -584,7 +584,7 @@ internal sealed class SystemUserService : ISystemUserService
 
         users = users.Where(u => !rootUserIds.Contains(u.Id));
         // 数据权限过滤，和列表保持一致
-        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.Id);
+        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {

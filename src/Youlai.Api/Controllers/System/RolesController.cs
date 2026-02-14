@@ -137,4 +137,19 @@ public sealed class RolesController : ControllerBase
         await _roleService.AssignMenusToRoleAsync(roleId, menuIds, cancellationToken);
         return Result.Success();
     }
+
+    [HttpGet("{roleId:long}/dept-ids")]
+    public async Task<Result<IReadOnlyCollection<long>>> GetRoleDeptIds([FromRoute] long roleId, CancellationToken cancellationToken)
+    {
+        var ids = await _roleService.GetRoleDeptIdsAsync(roleId, cancellationToken);
+        return Result.Success(ids);
+    }
+
+    [HttpPut("{roleId:long}/depts")]
+    [HasPerm("sys:role:assign")]
+    public async Task<Result<object?>> AssignDeptsToRole([FromRoute] long roleId, [FromBody] List<long> deptIds, CancellationToken cancellationToken)
+    {
+        await _roleService.AssignDeptsToRoleAsync(roleId, deptIds, cancellationToken);
+        return Result.Success();
+    }
 }

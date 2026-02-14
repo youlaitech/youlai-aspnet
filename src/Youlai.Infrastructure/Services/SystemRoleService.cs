@@ -21,12 +21,14 @@ internal sealed class SystemRoleService : ISystemRoleService
     private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
+    private readonly JwtTokenManager _jwtTokenManager;
 
-    public SystemRoleService(YoulaiDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
+    public SystemRoleService(YoulaiDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator, JwtTokenManager jwtTokenManager)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
         _rolePermsCacheInvalidator = rolePermsCacheInvalidator;
+        _jwtTokenManager = jwtTokenManager;
     }
 
     /// <summary>
@@ -169,6 +171,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
         var oldCode = oldRole.Code;
         var oldStatus = oldRole.Status;
+        var oldDataScope = oldRole.DataScope;
 
         oldRole.Name = name;
         oldRole.Code = code;
@@ -193,6 +196,23 @@ internal sealed class SystemRoleService : ISystemRoleService
 
             invalidCodes.Add(code);
             await _rolePermsCacheInvalidator.InvalidateAsync(invalidCodes, cancellationToken).ConfigureAwait(false);
+        }
+
+        // 数据权限发生变化时，失效该角色关联用户的登录态（JWT tokenVersion）
+        if (oldDataScope != oldRole.DataScope)
+        {
+            var userIds = await _dbContext.SysUserRoles
+                .AsNoTracking()
+                .Where(ur => ur.RoleId == oldRole.Id)
+                .Select(ur => ur.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var userId in userIds)
+            {
+                await _jwtTokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return true;
@@ -370,6 +390,69 @@ internal sealed class SystemRoleService : ISystemRoleService
         if (!string.IsNullOrWhiteSpace(role.Code))
         {
             await _rolePermsCacheInvalidator.InvalidateAsync(new[] { role.Code }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
+    {
+        var list = await _dbContext.SysRoleDepts
+            .AsNoTracking()
+            .Where(rd => rd.RoleId == roleId)
+            .Select(rd => rd.DeptId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return list;
+    }
+
+    public async Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default)
+    {
+        var role = await _dbContext.SysRoles
+            .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (role is null)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
+        }
+
+        var existing = await _dbContext.SysRoleDepts
+            .Where(rd => rd.RoleId == roleId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing.Count > 0)
+        {
+            _dbContext.SysRoleDepts.RemoveRange(existing);
+        }
+
+        var distinctDeptIds = deptIds
+            .Where(id => id > 0)
+            .Distinct()
+            .ToArray();
+
+        foreach (var deptId in distinctDeptIds)
+        {
+            _dbContext.SysRoleDepts.Add(new SysRoleDept
+            {
+                RoleId = roleId,
+                DeptId = deptId,
+            });
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var userIds = await _dbContext.SysUserRoles
+            .AsNoTracking()
+            .Where(ur => ur.RoleId == roleId)
+            .Select(ur => ur.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var userId in userIds)
+        {
+            await _jwtTokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
         }
     }
 
