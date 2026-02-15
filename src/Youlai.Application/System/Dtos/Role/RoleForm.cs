@@ -52,4 +52,7 @@ public sealed class RoleForm
     /// </summary>
     [JsonPropertyName("remark")]
     public string? Remark { get; init; }
+
+    [JsonPropertyName("deptIds")]
+    public List<long>? DeptIds { get; init; }
 }

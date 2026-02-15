@@ -58,7 +58,7 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.UpdateTime).HasColumnName("update_time");
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
-            entity.Property(e => e.OpenId).HasColumnName("openid");
+            entity.Ignore(e => e.OpenId);
         });
 
         modelBuilder.Entity<SysRole>(entity =>

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Youlai.Application.Common.Security;
 
 namespace Youlai.Infrastructure.WebSockets;
 
@@ -7,21 +8,21 @@ namespace Youlai.Infrastructure.WebSockets;
 /// 维护WebSocket连接的用户会话信息，支持多设备同时登录。
 /// 采用双Dictionary结构实现高效查询。
 /// </summary>
-public class UserSessionRegistry
+public sealed class UserSessionRegistry
 {
     /// <summary>
     /// 用户会话映射表
     /// Key: 用户名
     /// Value: 该用户所有WebSocket会话ID集合（支持多设备登录）
     /// </summary>
-    private readonly ConcurrentDictionary<string, HashSet<string>> _userSessionsMap = new();
+    private readonly ConcurrentDictionary<string, HashSet<string>> _userSessionsMap = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 会话详情映射表
     /// Key: WebSocket会话ID
     /// Value: 会话详情（包含用户名、连接时间等）
     /// </summary>
-    private readonly ConcurrentDictionary<string, SessionInfo> _sessionDetailsMap = new();
+    private readonly ConcurrentDictionary<string, SessionInfo> _sessionDetailsMap = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 用户上线（建立WebSocket连接）

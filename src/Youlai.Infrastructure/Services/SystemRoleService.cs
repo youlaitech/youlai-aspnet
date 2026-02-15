@@ -78,6 +78,7 @@ internal sealed class SystemRoleService : ISystemRoleService
                 Code = r.Code ?? string.Empty,
                 Status = r.Status,
                 Sort = r.Sort,
+                DataScope = r.DataScope,
                 CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
                 UpdateTime = r.UpdateTime.HasValue ? r.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
             })
@@ -166,6 +167,9 @@ internal sealed class SystemRoleService : ISystemRoleService
 
             _dbContext.SysRoles.Add(entity);
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            await SaveRoleDeptsAsync(entity.Id, entity.DataScope, formData.DeptIds, cancellationToken)
+                .ConfigureAwait(false);
             return true;
         }
 
@@ -182,6 +186,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         oldRole.UpdateTime = DateTime.Now;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        await SaveRoleDeptsAsync(oldRole.Id, oldRole.DataScope, formData.DeptIds, cancellationToken)
+            .ConfigureAwait(false);
 
         var changedCode = !string.Equals(oldCode, code, StringComparison.Ordinal);
         var changedStatus = oldStatus != oldRole.Status;
@@ -233,6 +240,17 @@ internal sealed class SystemRoleService : ISystemRoleService
             throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
         }
 
+        List<long>? deptIds = null;
+        if (role.DataScope == (int)DataScope.Custom)
+        {
+            deptIds = await _dbContext.SysRoleDepts
+                .AsNoTracking()
+                .Where(rd => rd.RoleId == roleId)
+                .Select(rd => rd.DeptId)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         return new RoleForm
         {
             Id = role.Id,
@@ -242,7 +260,44 @@ internal sealed class SystemRoleService : ISystemRoleService
             Status = role.Status,
             DataScope = role.DataScope,
             Remark = null,
+            DeptIds = deptIds,
         };
+    }
+
+    private async Task SaveRoleDeptsAsync(
+        long roleId,
+        int? dataScope,
+        IReadOnlyCollection<long>? deptIds,
+        CancellationToken cancellationToken)
+    {
+        var existing = await _dbContext.SysRoleDepts
+            .Where(rd => rd.RoleId == roleId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing.Count > 0)
+        {
+            _dbContext.SysRoleDepts.RemoveRange(existing);
+        }
+
+        if (dataScope == (int)DataScope.Custom)
+        {
+            var distinctDeptIds = (deptIds ?? Array.Empty<long>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToArray();
+
+            foreach (var deptId in distinctDeptIds)
+            {
+                _dbContext.SysRoleDepts.Add(new SysRoleDept
+                {
+                    RoleId = roleId,
+                    DeptId = deptId,
+                });
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

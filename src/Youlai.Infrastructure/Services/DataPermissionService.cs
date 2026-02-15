@@ -26,7 +26,7 @@ internal sealed class DataPermissionService : IDataPermissionService
     /// <summary>
     /// 追加数据权限过滤
     /// </summary>
-    public IQueryable<TEntity> Apply(
+    public IQueryable<TEntity> Apply<TEntity>(
         IQueryable<TEntity> query,
         Expression<Func<TEntity, long>> deptIdSelector,
         Expression<Func<TEntity, long>> userIdSelector)

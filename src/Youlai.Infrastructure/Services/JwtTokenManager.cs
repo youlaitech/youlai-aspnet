@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using Youlai.Application.Auth.Constants;
 using Youlai.Application.Auth.Dtos;
+using Youlai.Application.Common.Security;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Results;
 using Youlai.Infrastructure.Constants;

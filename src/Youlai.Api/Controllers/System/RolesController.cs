@@ -91,6 +91,7 @@ public sealed class RolesController : ControllerBase
             Status = formData.Status,
             DataScope = formData.DataScope,
             Remark = formData.Remark,
+            DeptIds = formData.DeptIds,
         }, cancellationToken);
         return Result.Judge(ok);
     }

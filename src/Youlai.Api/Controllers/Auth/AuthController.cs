@@ -54,7 +54,7 @@ public sealed class AuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("sms/code")]
-    public async Task<Result> SendSmsLoginCode([FromQuery] string mobile, CancellationToken cancellationToken)
+    public async Task<Result<object?>> SendSmsLoginCode([FromQuery] string mobile, CancellationToken cancellationToken)
     {
         await _authService.SendSmsLoginCodeAsync(mobile, cancellationToken);
         return Result.Success();
