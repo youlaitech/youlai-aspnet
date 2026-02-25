@@ -706,6 +706,33 @@ internal sealed class SystemUserService : ISystemUserService
         var valid = 0;
         var invalid = 0;
 
+        // 预加载角色和部门数据（支持编码或名称匹配）
+        var roles = await _dbContext.SysRoles
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted && r.Status == 1)
+            .Select(r => new { r.Id, r.Code, r.Name })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var roleMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in roles)
+        {
+            if (!string.IsNullOrEmpty(r.Code)) roleMap[r.Code] = r.Id;
+            if (!string.IsNullOrEmpty(r.Name)) roleMap[r.Name] = r.Id;
+        }
+
+        var depts = await _dbContext.SysDepts
+            .AsNoTracking()
+            .Where(d => !d.IsDeleted)
+            .Select(d => new { d.Id, d.Code, d.Name })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var deptMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in depts)
+        {
+            if (!string.IsNullOrEmpty(d.Code)) deptMap[d.Code] = d.Id;
+            if (!string.IsNullOrEmpty(d.Name)) deptMap[d.Name] = d.Id;
+        }
+
         using var workbook = new XLWorkbook(content);
         var worksheet = workbook.Worksheets.FirstOrDefault();
         if (worksheet is null)
@@ -727,7 +754,8 @@ internal sealed class SystemUserService : ISystemUserService
             var mobile = worksheet.Cell(row, 3).GetValue<string>()?.Trim();
             var email = worksheet.Cell(row, 4).GetValue<string>()?.Trim();
             var gender = TryParseInt(worksheet.Cell(row, 5).GetValue<string>());
-            var status = TryParseInt(worksheet.Cell(row, 6).GetValue<string>()) ?? 1;
+            var roleStr = worksheet.Cell(row, 6).GetValue<string>()?.Trim(); // 角色列（编码或名称，逗号分隔）
+            var deptStr = worksheet.Cell(row, 7).GetValue<string>()?.Trim(); // 部门列（编码或名称）
 
             if (string.IsNullOrWhiteSpace(username)
                 && string.IsNullOrWhiteSpace(nickname)
@@ -741,7 +769,7 @@ internal sealed class SystemUserService : ISystemUserService
             if (string.IsNullOrWhiteSpace(username))
             {
                 invalid++;
-                messages.Add("用户名不能为空");
+                messages.Add($"第{row}行：用户名不能为空");
                 continue;
             }
 
@@ -753,8 +781,47 @@ internal sealed class SystemUserService : ISystemUserService
             if (exists)
             {
                 invalid++;
-                messages.Add($"用户名已存在: {username}");
+                messages.Add($"第{row}行：用户名已存在: {username}");
                 continue;
+            }
+
+            // 解析角色
+            var roleIds = new List<long>();
+            if (!string.IsNullOrEmpty(roleStr))
+            {
+                var roleParts = roleStr.Split(',', '，');
+                foreach (var part in roleParts)
+                {
+                    var trimmed = part.Trim();
+                    if (string.IsNullOrEmpty(trimmed)) continue;
+                    if (roleMap.TryGetValue(trimmed, out var roleId))
+                    {
+                        roleIds.Add(roleId);
+                    }
+                }
+            }
+
+            if (roleIds.Count == 0)
+            {
+                invalid++;
+                messages.Add($"第{row}行：角色不存在或为空");
+                continue;
+            }
+
+            // 解析部门
+            long? userDeptId = deptId > 0 ? deptId : null;
+            if (!string.IsNullOrEmpty(deptStr))
+            {
+                if (deptMap.TryGetValue(deptStr, out var parsedDeptId))
+                {
+                    userDeptId = parsedDeptId;
+                }
+                else
+                {
+                    invalid++;
+                    messages.Add($"第{row}行：部门不存在: {deptStr}");
+                    continue;
+                }
             }
 
             var now = DateTime.UtcNow;
@@ -767,8 +834,8 @@ internal sealed class SystemUserService : ISystemUserService
                 Mobile = mobile,
                 Email = email,
                 Gender = gender,
-                Status = status is 0 or 1 ? status : 1,
-                DeptId = deptId,
+                Status = 1,
+                DeptId = userDeptId,
                 Password = BCrypt.Net.BCrypt.HashPassword(DefaultPassword),
                 CreateBy = createBy,
                 CreateTime = now,
@@ -778,10 +845,17 @@ internal sealed class SystemUserService : ISystemUserService
             };
 
             _dbContext.SysUsers.Add(user);
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            // 保存用户角色关联
+            foreach (var roleId in roleIds.Distinct())
+            {
+                _dbContext.SysUserRoles.Add(new SysUserRole { UserId = user.Id, RoleId = roleId });
+            }
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
             valid++;
         }
-
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return new ExcelResult
         {

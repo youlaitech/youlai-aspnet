@@ -5,7 +5,7 @@ using Youlai.Application.Common.Results;
 using Youlai.Application.Platform.Codegen.Dtos;
 using Youlai.Application.Platform.Codegen.Services;
 
-namespace Youlai.Api.Controllers.Platform;
+namespace Youlai.Api.Controllers.Infra;
 
 /// <summary>
 /// 代码生成接口

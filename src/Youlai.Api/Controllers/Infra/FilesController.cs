@@ -6,7 +6,7 @@ using Youlai.Application.Common.Results;
 using Youlai.Application.Platform.File.Dtos;
 using Youlai.Application.Platform.File.Services;
 
-namespace Youlai.Api.Controllers.Platform;
+namespace Youlai.Api.Controllers.Infra;
 
 /// <summary>
 /// 文件接口
