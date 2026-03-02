@@ -1,0 +1,26 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# C# files
+*.cs text eol=lf diff=csharp
+
+# Project files
+*.csproj text eol=lf
+*.proj text eol=lf
+*.shproj text eol=lf
+
+# Solution files
+*.sln text eol=lf
+
+# Config files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.config text eol=lf
+
+# Documentation
+*.md text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
