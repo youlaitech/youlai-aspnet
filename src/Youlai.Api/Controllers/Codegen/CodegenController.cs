@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Platform.Codegen.Dtos;
 using Youlai.Application.Platform.Codegen.Services;
 
-namespace Youlai.Api.Controllers.Infra;
+namespace Youlai.Api.Controllers.Codegen;
 
 /// <summary>
 /// 代码生成接口

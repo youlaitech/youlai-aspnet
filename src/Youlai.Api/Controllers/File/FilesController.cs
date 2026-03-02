@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Application.Common.Exceptions;
@@ -6,7 +6,7 @@ using Youlai.Application.Common.Results;
 using Youlai.Application.Platform.File.Dtos;
 using Youlai.Application.Platform.File.Services;
 
-namespace Youlai.Api.Controllers.Infra;
+namespace Youlai.Api.Controllers.File;
 
 /// <summary>
 /// 文件接口

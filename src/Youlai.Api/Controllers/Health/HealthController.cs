@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Youlai.Application.Common.Results;
 
-namespace Youlai.Api.Controllers.Common;
+namespace Youlai.Api.Controllers.Health;
 
 /// <summary>
 /// 健康检查接口
