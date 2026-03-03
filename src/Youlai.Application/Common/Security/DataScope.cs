@@ -2,7 +2,6 @@ namespace Youlai.Application.Common.Security;
 
 /// <summary>
 /// 数据权限范围
-/// value 越小，数据权限范围越大。
 /// 多角色数据权限合并策略：取并集（OR），即用户能看到所有角色权限范围内的数据。
 /// 如果任一角色是 ALL，则直接跳过数据权限过滤。
 /// </summary>

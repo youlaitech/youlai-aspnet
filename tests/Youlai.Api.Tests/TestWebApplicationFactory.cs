@@ -161,7 +161,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult<IReadOnlyCollection<byte>>(Array.Empty<byte>());
         }
 
-        public Task<ExcelResult> ImportUsersAsync(long deptId, Stream content, CancellationToken cancellationToken = default)
+        public Task<ExcelResult> ImportUsersAsync(Stream content, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new ExcelResult
             {

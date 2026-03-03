@@ -62,7 +62,7 @@ public interface ISystemUserService
     /// <summary>
     /// 导入用户
     /// </summary>
-    Task<ExcelResult> ImportUsersAsync(long deptId, Stream content, CancellationToken cancellationToken = default);
+    Task<ExcelResult> ImportUsersAsync(Stream content, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取个人资料

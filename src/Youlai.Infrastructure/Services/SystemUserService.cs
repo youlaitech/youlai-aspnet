@@ -697,7 +697,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// <summary>
     /// 导入用户
     /// </summary>
-    public async Task<ExcelResult> ImportUsersAsync(long deptId, Stream content, CancellationToken cancellationToken = default)
+    public async Task<ExcelResult> ImportUsersAsync(Stream content, CancellationToken cancellationToken = default)
     {
         var db = _redis.GetDatabase();
         _ = db;
@@ -809,7 +809,7 @@ internal sealed class SystemUserService : ISystemUserService
             }
 
             // 解析部门
-            long? userDeptId = deptId > 0 ? deptId : null;
+            long? userDeptId = null;
             if (!string.IsNullOrEmpty(deptStr))
             {
                 if (deptMap.TryGetValue(deptStr, out var parsedDeptId))

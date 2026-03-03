@@ -36,8 +36,9 @@ public sealed class ExceptionHandlingMiddleware
         catch (BusinessException ex)
         {
             _logger.LogWarning(ex, "Business exception: {Message}", ex.Message);
-            // RefreshTokenInvalid 返回 401
+            // AccessTokenInvalid 和 RefreshTokenInvalid 返回 401
             var statusCode = ex.ResultCode == ResultCode.RefreshTokenInvalid
+                            || ex.ResultCode == ResultCode.AccessTokenInvalid
                 ? HttpStatusCode.Unauthorized
                 : HttpStatusCode.BadRequest;
             await WriteErrorAsync(context, statusCode, ex.ResultCode, ex.Message);

@@ -147,12 +147,11 @@ public sealed class UsersController : ControllerBase
     [Consumes("multipart/form-data")]
     [HasPerm("sys:user:import")]
     public async Task<Result<Application.Common.Models.ExcelResult>> ImportUsers(
-        [FromQuery] long deptId,
         IFormFile file,
         CancellationToken cancellationToken)
     {
         await using var stream = file.OpenReadStream();
-        var result = await _userService.ImportUsersAsync(deptId, stream, cancellationToken);
+        var result = await _userService.ImportUsersAsync(stream, cancellationToken);
         return Result.Success(result);
     }
 
