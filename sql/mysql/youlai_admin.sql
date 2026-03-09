@@ -189,6 +189,8 @@ INSERT INTO `sys_menu` VALUES (2514, 251, '0,1,251', '字典项删除', 'B', NUL
 
 INSERT INTO `sys_menu` VALUES (260, 1, '0,1', '系统日志', 'M', 'Log', 'log', 'system/log/index', NULL, 0, 1, 1, 7, 'document', NULL, now(), now(), NULL);
 
+INSERT INTO `sys_menu` VALUES (2601, 260, '0,1,260', '系统日志查询', 'B', NULL, '', NULL, 'sys:log:list', 0, 1, 1, 1, '', NULL, now(), now(), NULL);
+
 INSERT INTO `sys_menu` VALUES (270, 1, '0,1', '系统配置', 'M', 'Config', 'config', 'system/config/index', NULL, 0, 1, 1, 8, 'setting', NULL, now(), now(), NULL);
 INSERT INTO `sys_menu` VALUES (2701, 270, '0,1,270', '系统配置查询', 'B', NULL, '', NULL, 'sys:config:list', 0, 1, 1, 1, '', NULL, now(), now(), NULL);
 INSERT INTO `sys_menu` VALUES (2702, 270, '0,1,270', '系统配置新增', 'B', NULL, '', NULL, 'sys:config:create', 0, 1, 1, 2, '', NULL, now(), now(), NULL);
