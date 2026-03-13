@@ -1,5 +1,7 @@
 namespace Youlai.Domain.Entities;
 
+using System.Text.Json;
+
 /// <summary>
 /// 菜单
 /// </summary>
@@ -83,5 +85,5 @@ public sealed class SysMenu
     /// <summary>
     /// 路由参数
     /// </summary>
-    public string? Params { get; set; }
+    public JsonElement? Params { get; set; }
 }

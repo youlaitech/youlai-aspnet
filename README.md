@@ -1,8 +1,8 @@
 <div align="center">
   <img alt="logo" width="100" height="100" src="https://foruda.gitee.com/images/1733417239320800627/3c5290fe_716974.png">
   <h2>youlai-aspnet</h2>
-  <img alt=".NET" src="https://img.shields.io/badge/.NET-8-blueviolet.svg"/>
-  <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET Core-8-blue.svg"/>
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-10-blueviolet.svg"/>
+  <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET Core-10-blue.svg"/>
   <a href="https://gitcode.com/youlai/youlai-aspnet" target="_blank">
     <img alt="GitCode star" src="https://gitcode.com/youlai/youlai-aspnet/star/badge.svg"/>
   </a>
@@ -24,9 +24,9 @@
 
 ## 📢 项目简介
 
-`youlai-aspnet` 是 `vue3-element-admin` 的 ASP.NET Core 8（.NET 8）后端实现，接口路径与返回结构完全对齐，可直接为前端提供后端服务。
+`youlai-aspnet` 是 `vue3-element-admin` 的 ASP.NET Core 10（.NET 10）后端实现，接口路径与返回结构完全对齐，可直接为前端提供后端服务。
 
-- **🚀 最新技术栈**：.NET 8 + ASP.NET Core 8，性能与生态同步升级。
+- **🚀 最新技术栈**：.NET 10 + ASP.NET Core 10，LTS 版本支持至 2028 年 11 月。
 - **🔐 安全认证**：JWT 无状态认证 + Redis 会话双模式。
 - **🔑 权限管理**：RBAC 权限模型，菜单/按钮/接口统一治理。
 - **🛠️ 模块能力**：用户、角色、菜单、部门、字典等核心模块开箱即用。
@@ -69,7 +69,7 @@ youlai-aspnet/
 ## 🚀 快速启动
 
 1. **基础环境**
-   - .NET SDK 8（建议 8.0.416+）
+   - .NET SDK 10（建议 10.0.100+）
    - MySQL 5.7+ / 8.x（必需）
    - Redis 7.x（必需）
 
@@ -79,7 +79,9 @@ youlai-aspnet/
 
 3. **配置应用**
 
-   编辑 `src/Youlai.Api/appsettings.Development.json`，配置 MySQL 与 Redis。
+   `appsettings.json` 默认配置线上环境 `www.youlai.tech`，可直接启动。
+
+   本地开发请修改 Database 和 Redis 连接地址为本地环境。
 
 4. **启动后端**
 
@@ -128,6 +130,14 @@ pnpm run dev
 
 ## 💖 技术交流
 
-① 关注「有来技术」公众号，点击菜单 **交流群** 获取加群二维码。
+① 关注「有来技术」公众号，点击菜单 **交流群** 获取加群二维码（此举防止广告进群，感谢理解和支持）。
 
 ② 直接添加微信 **`haoxianrui`** 备注「前端/后端/全栈」。
+
+![有来技术公众号](https://foruda.gitee.com/images/1737108820762592766/3390ed0d_716974.png)
+
+**博客**：[CSDN](https://youlai.blog.csdn.net/) | [稀土掘金](https://juejin.cn/user/4187394044331261) | [博客园](https://www.cnblogs.com/haoxianrui) | [51CTO](https://blog.51cto.com/youlai) | [阿里云](https://developer.aliyun.com/profile/r6wxjk6qzasuy) | [腾讯云社区](https://cloud.tencent.com/developer/user/10500752) | [知乎](https://www.zhihu.com/people/haoxr)
+
+**官网**：https://www.youlai.tech/
+
+**代码仓库**：[Gitee](https://gitee.com/youlaiorg) | [AtomGit](https://atomgit.com/youlai) | [GitHub](https://github.com/youlaitech)

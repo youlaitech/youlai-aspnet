@@ -45,6 +45,10 @@ public static class DependencyInjection
             .Validate(o => !string.IsNullOrWhiteSpace(o.Type), "Oss:Type is required")
             .ValidateOnStart();
 
+        services.AddOptions<WechatMiniappOptions>()
+            .Bind(configuration.GetSection(WechatMiniappOptions.SectionName))
+            .ValidateOnStart();
+
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);
 
         services.AddDbContext<YoulaiDbContext>((sp, options) =>
@@ -63,6 +67,8 @@ public static class DependencyInjection
 
         services.AddScoped<JwtTokenManager>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddHttpClient("Wechat");
+        services.AddScoped<IWechatMiniappAuthService, WechatMiniappAuthService>();
 
         services.AddScoped<ISystemUserService, SystemUserService>();
         services.AddScoped<ISystemMenuService, SystemMenuService>();

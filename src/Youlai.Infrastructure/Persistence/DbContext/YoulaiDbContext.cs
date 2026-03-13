@@ -36,6 +36,8 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 
     public DbSet<SysLog> SysLogs => Set<SysLog>();
 
+    public DbSet<SysUserSocial> SysUserSocials => Set<SysUserSocial>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<SysUser>(entity =>
@@ -261,6 +263,28 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.Os).HasColumnName("os");
             entity.Property(e => e.CreateBy).HasColumnName("create_by");
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
+        });
+
+        modelBuilder.Entity<SysUserSocial>(entity =>
+        {
+            entity.ToTable("sys_user_social");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Platform).HasColumnName("platform");
+            entity.Property(e => e.OpenId).HasColumnName("openid");
+            entity.Property(e => e.UnionId).HasColumnName("unionid");
+            entity.Property(e => e.Nickname).HasColumnName("nickname");
+            entity.Property(e => e.Avatar).HasColumnName("avatar");
+            entity.Property(e => e.SessionKey).HasColumnName("session_key");
+            entity.Property(e => e.Verified).HasColumnName("verified");
+            entity.Property(e => e.CreateTime).HasColumnName("create_time");
+            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+
+            entity.HasIndex(e => new { e.Platform, e.OpenId }).HasDatabaseName("uk_platform_openid").IsUnique();
+            entity.HasIndex(e => e.UserId).HasDatabaseName("idx_user_id");
+            entity.HasIndex(e => e.UnionId).HasDatabaseName("idx_unionid");
         });
     }
 }

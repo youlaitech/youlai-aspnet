@@ -479,16 +479,16 @@ internal sealed class SystemMenuService : ISystemMenuService
         return list;
     }
 
-    private static IReadOnlyCollection<KeyValue>? ParseKeyValueList(string? json)
+    private static IReadOnlyCollection<KeyValue>? ParseKeyValueList(JsonElement? element)
     {
-        if (string.IsNullOrWhiteSpace(json))
+        if (element is null || element.Value.ValueKind == JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return null;
         }
 
         try
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(element.Value.GetRawText());
             if (dict is not { Count: > 0 })
             {
                 return null;
@@ -502,7 +502,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
     }
 
-    private static string? SerializeParams(IReadOnlyCollection<KeyValue>? list)
+    private static JsonElement? SerializeParams(IReadOnlyCollection<KeyValue>? list)
     {
         if (list == null || list.Count == 0)
         {
@@ -520,7 +520,13 @@ internal sealed class SystemMenuService : ISystemMenuService
             dict[kv.Key.Trim()] = kv.Value?.Trim() ?? string.Empty;
         }
 
-        return dict.Count == 0 ? null : JsonSerializer.Serialize(dict);
+        if (dict.Count == 0)
+        {
+            return null;
+        }
+
+        var json = JsonSerializer.Serialize(dict);
+        return JsonDocument.Parse(json).RootElement.Clone();
     }
 
     private async Task<string?> GenerateMenuTreePathAsync(long parentId, CancellationToken cancellationToken)
@@ -624,16 +630,16 @@ internal sealed class SystemMenuService : ISystemMenuService
         };
     }
 
-    private static IReadOnlyDictionary<string, string>? TryParseParams(string? json)
+    private static IReadOnlyDictionary<string, string>? TryParseParams(JsonElement? jsonElement)
     {
-        if (string.IsNullOrWhiteSpace(json))
+        if (jsonElement is not { } element)
         {
             return null;
         }
 
         try
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(element.GetRawText());
             return dict is { Count: > 0 } ? dict : null;
         }
         catch

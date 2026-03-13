@@ -1286,7 +1286,16 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var parts = input.ToArray();
-        return (TryParseDateTime(parts[0]), TryParseDateTime(parts[1]));
+        var start = TryParseDateTime(parts[0]);
+        var end = TryParseDateTime(parts[1]);
+
+        // 结束日期拼接 23:59:59，包含当天所有数据
+        if (end.HasValue && parts[1].Length == 10)
+        {
+            end = end.Value.Date.AddDays(1).AddSeconds(-1);
+        }
+
+        return (start, end);
     }
 
     private static DateTime? TryParseDateTime(string input)

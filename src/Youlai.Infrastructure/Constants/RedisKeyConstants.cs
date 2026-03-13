@@ -23,4 +23,9 @@ internal static class RedisKeyConstants
 
         internal const string EmailCode = "captcha:email:{0}";
     }
+
+    internal static class Wechat
+    {
+        internal const string AccessToken = "wechat:access_token:{0}";
+    }
 }
