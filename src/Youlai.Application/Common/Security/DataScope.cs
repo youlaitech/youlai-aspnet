@@ -39,6 +39,32 @@ public enum DataScope
 /// </summary>
 public static class DataScopeExtensions
 {
+    private static readonly Dictionary<DataScope, string> Labels = new()
+    {
+        [DataScope.All] = "所有数据",
+        [DataScope.DeptAndSub] = "部门及子部门数据",
+        [DataScope.Dept] = "本部门数据",
+        [DataScope.Self] = "本人数据",
+        [DataScope.Custom] = "自定义部门数据",
+    };
+
+    /// <summary>
+    /// 获取数据权限显示名称
+    /// </summary>
+    public static string? GetLabel(this DataScope dataScope)
+    {
+        return Labels.TryGetValue(dataScope, out var label) ? label : null;
+    }
+
+    /// <summary>
+    /// 根据值获取数据权限显示名称
+    /// </summary>
+    public static string? GetLabel(int? value)
+    {
+        var dataScope = GetByValue(value);
+        return dataScope?.GetLabel();
+    }
+
     /// <summary>
     /// 判断是否为全部数据权限
     /// </summary>

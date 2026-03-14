@@ -481,7 +481,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
     private static IReadOnlyCollection<KeyValue>? ParseKeyValueList(JsonElement? element)
     {
-        if (element is null || element.Value.ValueKind == JsonValueKind.Null or JsonValueKind.Undefined)
+        if (element is null || element.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return null;
         }

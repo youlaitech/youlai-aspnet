@@ -47,7 +47,7 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "youlai-aspnet",
-        Description = "youlai 全家桶（ASP.NET Core 8）权限管理后台接口文档",
+        Description = "youlai 全家桶（ASP.NET Core 10）权限管理后台接口文档",
         Version = "1.0",
     });
 
@@ -259,7 +259,7 @@ app.UseWebSockets();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.Map("/ws", StompWebSocketEndpoint.HandleAsync);
+app.Map("/ws", StompWebSocketEndpoint.HandleAsync).AllowAnonymous();
 
 app.MapControllers();
 

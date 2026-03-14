@@ -14,7 +14,7 @@ namespace Youlai.Api.Controllers.System;
 /// </remarks>
 [ApiController]
 [Route("api/v1/statistics")]
-[Authorize]
+[AllowAnonymous]
 [Tags("12.统计接口")]
 public sealed class StatisticsController : ControllerBase
 {

@@ -11,11 +11,6 @@ public sealed class WechatMiniappOptions
     public const string SectionName = "WechatMiniapp";
 
     /// <summary>
-    /// 是否启用
-    /// </summary>
-    public bool Enabled { get; set; }
-
-    /// <summary>
     /// 小程序AppId
     /// </summary>
     public string AppId { get; set; } = string.Empty;

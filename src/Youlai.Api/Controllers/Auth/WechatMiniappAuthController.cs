@@ -22,14 +22,7 @@ public sealed class WechatMiniappAuthController : ControllerBase
     }
 
     /// <summary>
-    /// 静默登录
-    /// <para>
-    /// 适用场景：个人小程序、无需手机号的登录场景
-    /// <list type="bullet">
-    ///   <item>已绑定手机号的用户：直接返回 token，登录成功</item>
-    ///   <item>未绑定手机号的用户：返回 openid，需调用绑定手机号接口</item>
-    /// </list>
-    /// </para>
+    /// 静默登录（已绑定用户返回 token，未绑定用户返回 openId）
     /// </summary>
     /// <param name="code">微信登录凭证（wx.login 获取）</param>
     /// <param name="cancellationToken">取消令牌</param>
@@ -44,12 +37,7 @@ public sealed class WechatMiniappAuthController : ControllerBase
     }
 
     /// <summary>
-    /// 手机号快捷登录
-    /// <para>
-    /// 适用场景：企业认证小程序（已开通手机号快捷登录权限）
-    /// <para>
-    /// 一步完成登录，无需绑定流程，自动创建新用户
-    /// </para>
+    /// 手机号快捷登录（企业小程序：一步完成登录并自动创建新用户）
     /// </summary>
     /// <param name="loginCode">微信登录凭证（wx.login 获取）</param>
     /// <param name="phoneCode">手机号授权凭证（getPhoneNumber 事件获取）</param>
@@ -66,12 +54,7 @@ public sealed class WechatMiniappAuthController : ControllerBase
     }
 
     /// <summary>
-    /// 绑定手机号
-    /// <para>
-    /// 适用场景：静默登录后未绑定手机号的用户
-    /// <para>
-    /// 绑定成功后自动完成登录
-    /// </para>
+    /// 绑定手机号（用于静默登录后未绑定手机号的用户；成功后自动登录）
     /// </summary>
     /// <param name="openId">微信用户唯一标识（静默登录返回）</param>
     /// <param name="mobile">手机号码</param>

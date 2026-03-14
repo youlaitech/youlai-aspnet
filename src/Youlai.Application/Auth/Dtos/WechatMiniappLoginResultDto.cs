@@ -43,7 +43,7 @@ public sealed class WechatMiniappLoginResultDto
     /// <summary>
     /// 创建需要绑定手机号的结果
     /// </summary>
-    public static WechatMiniappLoginResultDto NeedBindMobile(string openId) => new()
+    public static WechatMiniappLoginResultDto RequireBindMobile(string openId) => new()
     {
         IsNewUser = true,
         NeedBindMobile = true,

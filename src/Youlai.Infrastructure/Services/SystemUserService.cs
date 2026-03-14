@@ -1234,10 +1234,13 @@ internal sealed class SystemUserService : ISystemUserService
             return new Dictionary<long, string>();
         }
 
+        // 使用 List 替代数组避免 EF Core 9.0 查询编译问题
+        var userIdList = userIds.ToList();
+
         var query =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where userIds.Contains(ur.UserId)
+            where userIdList.Contains(ur.UserId)
                 && !r.IsDeleted
                 && r.Status == 1
             select new { ur.UserId, r.Name };

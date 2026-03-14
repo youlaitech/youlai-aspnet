@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Youlai.Domain.Entities;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Youlai.Infrastructure.Persistence.DbContext;
 
@@ -129,7 +131,17 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.Property(e => e.Sort).HasColumnName("sort");
             entity.Property(e => e.Icon).HasColumnName("icon");
             entity.Property(e => e.Redirect).HasColumnName("redirect");
-            entity.Property(e => e.Params).HasColumnName("params");
+            entity.Property(e => e.Params)
+                .HasColumnName("params")
+                .HasConversion(
+                    v => v.HasValue ? v.Value.GetRawText() : null,
+                    v => string.IsNullOrWhiteSpace(v)
+                        ? (JsonElement?)null
+                        : JsonDocument.Parse(v).RootElement.Clone())
+                .Metadata.SetValueComparer(new ValueComparer<JsonElement?>(
+                    (l, r) => string.Equals(GetJsonRawText(l), GetJsonRawText(r), StringComparison.Ordinal),
+                    v => (GetJsonRawText(v) ?? string.Empty).GetHashCode(StringComparison.Ordinal),
+                    v => v.HasValue ? JsonDocument.Parse(v.Value.GetRawText()).RootElement.Clone() : (JsonElement?)null));
         });
 
         modelBuilder.Entity<SysRoleMenu>(entity =>
@@ -286,5 +298,10 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasIndex(e => e.UserId).HasDatabaseName("idx_user_id");
             entity.HasIndex(e => e.UnionId).HasDatabaseName("idx_unionid");
         });
+    }
+
+    private static string? GetJsonRawText(JsonElement? value)
+    {
+        return value.HasValue ? value.Value.GetRawText() : null;
     }
 }

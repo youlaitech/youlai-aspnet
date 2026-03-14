@@ -54,6 +54,8 @@
 youlai-aspnet/
 ├─ src/                             # 源码目录
 │  ├─ Youlai.Api/                   # Web API层（控制器、中间件、认证授权）
+│  │  ├─ appsettings.json           # 生产环境配置
+│  │  └─ appsettings.Development.json # 开发环境配置
 │  ├─ Youlai.Application/           # 应用层（服务接口定义、DTO、业务逻辑）
 │  ├─ Youlai.Domain/                # 领域层（实体模型、领域对象、枚举）
 │  └─ Youlai.Infrastructure/        # 基础设施层（EF Core、仓储、缓存）
@@ -69,9 +71,12 @@ youlai-aspnet/
 ## 🚀 快速启动
 
 1. **基础环境**
-   - .NET SDK 10（建议 10.0.100+）
-   - MySQL 5.7+ / 8.x（必需）
-   - Redis 7.x（必需）
+
+   | 依赖 | 版本要求 | 说明 |
+   |------|----------|------|
+   | .NET SDK | 10.0.100+ | 开发框架 |
+   | MySQL | 5.7+ / 8.x | 数据库（必需） |
+   | Redis | 7.x | 缓存（必需） |
 
 2. **初始化数据库**
 
@@ -79,15 +84,14 @@ youlai-aspnet/
 
 3. **配置应用**
 
-   `appsettings.json` 默认配置线上环境 `www.youlai.tech`，可直接启动。
-
-   本地开发请修改 Database 和 Redis 连接地址为本地环境。
+   - `appsettings.json` - 默认配置（连接线上演示环境 `www.youlai.tech`）
+   - `appsettings.Development.json` - 开发环境配置（默认连接线上演示环境，本地开发需修改 Database 和 Redis 连接地址）
 
 4. **启动后端**
 
    ```bash
    dotnet restore
-   dotnet run --project src/Youlai.Api -c Release
+   dotnet run --project src/Youlai.Api
    ```
 
    启动成功后访问 [http://localhost:8000/swagger](http://localhost:8000/swagger)。

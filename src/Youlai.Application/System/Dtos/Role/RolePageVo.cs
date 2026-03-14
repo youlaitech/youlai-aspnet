@@ -44,6 +44,12 @@ public sealed class RolePageVo
     public int? DataScope { get; init; }
 
     /// <summary>
+    /// 数据权限名称
+    /// </summary>
+    [JsonPropertyName("dataScopeLabel")]
+    public string? DataScopeLabel { get; init; }
+
+    /// <summary>
     /// 创建时间
     /// </summary>
     [JsonPropertyName("createTime")]

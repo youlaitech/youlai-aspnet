@@ -80,7 +80,7 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
 
         // 未绑定用户，返回需要绑定手机号
         _logger.LogInformation("微信小程序静默登录：用户未绑定手机号，openId={OpenId}", openId);
-        return WechatMiniappLoginResultDto.NeedBindMobile(openId);
+        return WechatMiniappLoginResultDto.RequireBindMobile(openId);
     }
 
     /// <summary>
@@ -92,6 +92,13 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
         var session = await GetSessionAsync(loginCode, cancellationToken);
         var openId = session.OpenId;
 
+        if (string.IsNullOrWhiteSpace(openId))
+        {
+            throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
+        }
+
+        var nonNullOpenId = openId;
+
         // 2. 获取手机号
         var mobile = await GetPhoneNumberAsync(phoneCode, cancellationToken);
 
@@ -101,7 +108,7 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
         // 4. 绑定微信 openid
-        await BindWechatOpenIdAsync(user.Id, openId, session.UnionId, session.SessionKey, cancellationToken);
+        await BindWechatOpenIdAsync(user.Id, nonNullOpenId, session.UnionId, session.SessionKey, cancellationToken);
 
         // 5. 生成认证令牌
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);

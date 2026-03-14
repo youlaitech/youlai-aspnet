@@ -79,6 +79,7 @@ internal sealed class SystemRoleService : ISystemRoleService
                 Status = r.Status,
                 Sort = r.Sort,
                 DataScope = r.DataScope,
+                DataScopeLabel = DataScopeExtensions.GetLabel(r.DataScope),
                 CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
                 UpdateTime = r.UpdateTime.HasValue ? r.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
             })
