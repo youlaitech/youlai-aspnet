@@ -13,7 +13,6 @@ using Youlai.Infrastructure.Persistence.DbContext;
 using Youlai.Infrastructure.Options;
 using Youlai.Infrastructure.Services;
 using Youlai.Infrastructure.Services.File;
-using Youlai.Infrastructure.WebSockets;
 
 namespace Youlai.Infrastructure;
 
@@ -68,7 +67,7 @@ public static class DependencyInjection
         services.AddScoped<JwtTokenManager>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddHttpClient("Wechat");
-        services.AddScoped<IWechatMiniappAuthService, WechatMiniappAuthService>();
+        services.AddScoped<IWxMaAuthService, WxMaAuthService>();
 
         services.AddScoped<ISystemUserService, SystemUserService>();
         services.AddScoped<ISystemMenuService, SystemMenuService>();
@@ -88,8 +87,7 @@ public static class DependencyInjection
         services.AddScoped<IRolePermissionService, RolePermissionService>();
         services.AddScoped<IRolePermsCacheInvalidator, RolePermsCacheInvalidator>();
         services.AddScoped<IDataPermissionService, DataPermissionService>();
-        services.AddSingleton<StompBroker>();
-        services.AddScoped<IWebSocketService, StompWebSocketService>();
+        services.AddSingleton<ISseService, SseService>();
 
         return services;
     }

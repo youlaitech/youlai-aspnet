@@ -10,15 +10,15 @@ namespace Youlai.Api.Controllers.Auth;
 /// 微信小程序认证接口
 /// </summary>
 [ApiController]
-[Route("api/v1/wechat/miniapp/auth")]
-[Tags("13.微信小程序认证")]
-public sealed class WechatMiniappAuthController : ControllerBase
+[Route("api/v1/wxma/auth")]
+[Tags("12.微信小程序认证")]
+public sealed class WxMaAuthController : ControllerBase
 {
-    private readonly IWechatMiniappAuthService _wechatMiniappAuthService;
+    private readonly IWxMaAuthService _wxMaAuthService;
 
-    public WechatMiniappAuthController(IWechatMiniappAuthService wechatMiniappAuthService)
+    public WxMaAuthController(IWxMaAuthService wxMaAuthService)
     {
-        _wechatMiniappAuthService = wechatMiniappAuthService;
+        _wxMaAuthService = wxMaAuthService;
     }
 
     /// <summary>
@@ -28,11 +28,11 @@ public sealed class WechatMiniappAuthController : ControllerBase
     /// <param name="cancellationToken">取消令牌</param>
     [AllowAnonymous]
     [HttpPost("silent-login")]
-    public async Task<Result<WechatMiniappLoginResultDto>> SilentLogin(
+    public async Task<Result<WxMaLoginResultDto>> SilentLogin(
         [FromQuery] string code,
         CancellationToken cancellationToken)
     {
-        var result = await _wechatMiniappAuthService.SilentLoginAsync(code, cancellationToken);
+        var result = await _wxMaAuthService.SilentLoginAsync(code, cancellationToken);
         return Result.Success(result);
     }
 
@@ -49,7 +49,7 @@ public sealed class WechatMiniappAuthController : ControllerBase
         [FromQuery] string phoneCode,
         CancellationToken cancellationToken)
     {
-        var result = await _wechatMiniappAuthService.PhoneLoginAsync(loginCode, phoneCode, cancellationToken);
+        var result = await _wxMaAuthService.PhoneLoginAsync(loginCode, phoneCode, cancellationToken);
         return Result.Success(result);
     }
 
@@ -68,7 +68,7 @@ public sealed class WechatMiniappAuthController : ControllerBase
         [FromQuery] string smsCode,
         CancellationToken cancellationToken)
     {
-        var result = await _wechatMiniappAuthService.BindMobileAsync(openId, mobile, smsCode, cancellationToken);
+        var result = await _wxMaAuthService.BindMobileAsync(openId, mobile, smsCode, cancellationToken);
         return Result.Success(result);
     }
 }

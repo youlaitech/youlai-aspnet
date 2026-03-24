@@ -36,11 +36,16 @@ public sealed class ExceptionHandlingMiddleware
         catch (BusinessException ex)
         {
             _logger.LogWarning(ex, "Business exception: {Message}", ex.Message);
-            // AccessTokenInvalid 和 RefreshTokenInvalid 返回 401
-            var statusCode = ex.ResultCode == ResultCode.RefreshTokenInvalid
-                            || ex.ResultCode == ResultCode.AccessTokenInvalid
-                ? HttpStatusCode.Unauthorized
-                : HttpStatusCode.BadRequest;
+            // 401: 未认证（token无效/过期）
+            // 403: 权限不足
+            // 429: 请求并发数超限
+            var statusCode = ex.ResultCode switch
+            {
+                ResultCode.AccessTokenInvalid or ResultCode.RefreshTokenInvalid => HttpStatusCode.Unauthorized,
+                ResultCode.AccessPermissionException => HttpStatusCode.Forbidden,
+                ResultCode.RequestConcurrencyLimitExceeded => (HttpStatusCode)429,
+                _ => HttpStatusCode.BadRequest
+            };
             await WriteErrorAsync(context, statusCode, ex.ResultCode, ex.Message);
         }
         catch (Exception ex)

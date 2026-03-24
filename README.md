@@ -37,7 +37,7 @@
 | --- | --- | --- | --- |
 | ✅ .NET 后端 | [youlai-aspnet](https://gitee.com/youlaiorg/youlai-aspnet) | [youlai-aspnet](https://github.com/youlaitech/youlai-aspnet) | [youlai-aspnet](https://gitcode.com/youlai/youlai-aspnet) |
 | Vue3 管理端 | [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) | [vue3-element-admin](https://github.com/youlaitech/vue3-element-admin) | [vue3-element-admin](https://gitcode.com/youlai/vue3-element-admin) |
-| uni-app 移动端 | [vue-uniapp-template](https://gitee.com/youlaiorg/vue-uniapp-template) | [vue-uniapp-template](https://github.com/youlaitech/vue-uniapp-template) | [vue-uniapp-template](https://gitcode.com/youlai/vue-uniapp-template) |
+| uni-app 移动端 | [youlai-app](https://gitee.com/youlaiorg/youlai-app) | [youlai-app](https://github.com/youlaitech/youlai-app) | [youlai-app](https://gitcode.com/youlai/youlai-app) |
 
 ## 📚 项目文档
 
@@ -72,18 +72,17 @@ youlai-aspnet/
 
 1. **基础环境**
 
-   | 依赖 | 版本要求 | 说明 |
-   |------|----------|------|
-   | .NET SDK | 10.0.100+ | 开发框架 |
-   | MySQL | 5.7+ / 8.x | 数据库（必需） |
-   | Redis | 7.x | 缓存（必需） |
+   | 依赖     | 版本要求   | 说明           |
+   | -------- | ---------- | -------------- |
+   | .NET SDK | 10.0.100+  | 开发框架       |
+   | MySQL    | 5.7+ / 8.x | 数据库（必需） |
+   | Redis    | 7.x        | 缓存（必需）   |
 
 2. **初始化数据库**
 
    执行 `sql/mysql/youlai_admin.sql` 脚本，完成库表与基础数据初始化。
 
 3. **配置应用**
-
    - `appsettings.json` - 默认配置（连接线上演示环境 `www.youlai.tech`）
    - `appsettings.Development.json` - 开发环境配置（默认连接线上演示环境，本地开发需修改 Database 和 Redis 连接地址）
 
@@ -95,26 +94,6 @@ youlai-aspnet/
    ```
 
    启动成功后访问 [http://localhost:8000/swagger](http://localhost:8000/swagger)。
-
-## 🤝 前端整合
-
-```bash
-# 1. 获取前端项目
-git clone https://gitee.com/youlaiorg/vue3-element-admin.git
-cd vue3-element-admin
-
-# 2. 安装依赖
-pnpm install
-
-# 3. 配置后端地址（.env.development）
-VITE_APP_API_URL=http://localhost:8000
-
-# 4. 启动前端
-pnpm run dev
-```
-
-- **访问地址**：[http://localhost:3000](http://localhost:3000)
-- **登录账号**：`admin` / `123456`
 
 ## 🚀 项目部署
 
@@ -132,16 +111,14 @@ pnpm run dev
 
 访问 `http://服务器IP:端口` 即可。
 
+---
+
 ## 💖 技术交流
 
-① 关注「有来技术」公众号，点击菜单 **交流群** 获取加群二维码（此举防止广告进群，感谢理解和支持）。
+关注「有来技术」公众号，点击菜单【交流群】获取微信群二维码（为防营销广告，实属无奈，望理解）：
 
-② 直接添加微信 **`haoxianrui`** 备注「前端/后端/全栈」。
+<div align="center">
+  <img src="https://foruda.gitee.com/images/1737108820762592766/3390ed0d_716974.png" width="280">
+</div>
 
-![有来技术公众号](https://foruda.gitee.com/images/1737108820762592766/3390ed0d_716974.png)
-
-**博客**：[CSDN](https://youlai.blog.csdn.net/) | [稀土掘金](https://juejin.cn/user/4187394044331261) | [博客园](https://www.cnblogs.com/haoxianrui) | [51CTO](https://blog.51cto.com/youlai) | [阿里云](https://developer.aliyun.com/profile/r6wxjk6qzasuy) | [腾讯云社区](https://cloud.tencent.com/developer/user/10500752) | [知乎](https://www.zhihu.com/people/haoxr)
-
-**官网**：https://www.youlai.tech/
-
-**代码仓库**：[Gitee](https://gitee.com/youlaiorg) | [AtomGit](https://atomgit.com/youlai) | [GitHub](https://github.com/youlaitech)
+> 二维码过期？添加微信 **`haoxianrui`**，备注「前端/后端/全栈」即可拉你入群。

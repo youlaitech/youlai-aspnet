@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.Dict;
@@ -61,6 +63,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:dict:create")]
+    [Log(LogModule.DICT, ActionType.INSERT)]
     public async Task<Result<object?>> CreateDict([FromBody] DictForm formData, CancellationToken cancellationToken)
     {
         var ok = await _dictService.CreateDictAsync(formData, cancellationToken);
@@ -72,6 +75,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:dict:update")]
+    [Log(LogModule.DICT, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateDict([FromRoute] long id, [FromBody] DictForm formData, CancellationToken cancellationToken)
     {
         var ok = await _dictService.UpdateDictAsync(id, formData, cancellationToken);
@@ -83,6 +87,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:dict:delete")]
+    [Log(LogModule.DICT, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteDicts([FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _dictService.DeleteDictsAsync(ids, cancellationToken);
@@ -113,6 +118,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpPost("{dictCode}/items")]
     [HasPerm("sys:dict-item:create")]
+    [Log(LogModule.DICT, ActionType.INSERT)]
     public async Task<Result<object?>> CreateDictItem([FromRoute] string dictCode, [FromBody] DictItemForm formData, CancellationToken cancellationToken)
     {
         var ok = await _dictService.CreateDictItemAsync(dictCode, formData, cancellationToken);
@@ -134,6 +140,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpPut("{dictCode}/items/{id:long}")]
     [HasPerm("sys:dict-item:update")]
+    [Log(LogModule.DICT, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateDictItem([FromRoute] string dictCode, [FromRoute] long id, [FromBody] DictItemForm formData, CancellationToken cancellationToken)
     {
         var ok = await _dictService.UpdateDictItemAsync(dictCode, id, formData, cancellationToken);
@@ -145,6 +152,7 @@ public sealed class DictsController : ControllerBase
     /// </summary>
     [HttpDelete("{dictCode}/items/{ids}")]
     [HasPerm("sys:dict-item:delete")]
+    [Log(LogModule.DICT, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteDictItems([FromRoute] string dictCode, [FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _dictService.DeleteDictItemsAsync(dictCode, ids, cancellationToken);

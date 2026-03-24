@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.System.Dtos.Role;
 using Youlai.Application.System.Services;
@@ -53,6 +55,7 @@ public sealed class RolesController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:role:create")]
+    [Log(LogModule.ROLE, ActionType.INSERT)]
     public async Task<Result<object?>> AddRole([FromBody] RoleForm formData, CancellationToken cancellationToken)
     {
         var ok = await _roleService.SaveRoleAsync(formData, cancellationToken);
@@ -75,6 +78,7 @@ public sealed class RolesController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:role:update")]
+    [Log(LogModule.ROLE, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateRole([FromRoute] long id, [FromBody] RoleForm formData, CancellationToken cancellationToken)
     {
         if (formData.Id.HasValue && formData.Id.Value != id)
@@ -101,6 +105,7 @@ public sealed class RolesController : ControllerBase
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:role:delete")]
+    [Log(LogModule.ROLE, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteRoles([FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _roleService.DeleteByIdsAsync(ids, cancellationToken);
@@ -112,6 +117,7 @@ public sealed class RolesController : ControllerBase
     /// </summary>
     [HttpPut("{roleId:long}/status")]
     [HasPerm("sys:role:update")]
+    [Log(LogModule.ROLE, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateRoleStatus([FromRoute] long roleId, [FromQuery] int status, CancellationToken cancellationToken)
     {
         var ok = await _roleService.UpdateRoleStatusAsync(roleId, status, cancellationToken);
@@ -133,6 +139,7 @@ public sealed class RolesController : ControllerBase
     /// </summary>
     [HttpPut("{roleId:long}/menus")]
     [HasPerm("sys:role:assign")]
+    [Log(LogModule.ROLE, ActionType.GRANT)]
     public async Task<Result<object?>> AssignMenusToRole([FromRoute] long roleId, [FromBody] List<long> menuIds, CancellationToken cancellationToken)
     {
         await _roleService.AssignMenusToRoleAsync(roleId, menuIds, cancellationToken);
@@ -148,6 +155,7 @@ public sealed class RolesController : ControllerBase
 
     [HttpPut("{roleId:long}/depts")]
     [HasPerm("sys:role:assign")]
+    [Log(LogModule.ROLE, ActionType.GRANT)]
     public async Task<Result<object?>> AssignDeptsToRole([FromRoute] long roleId, [FromBody] List<long> deptIds, CancellationToken cancellationToken)
     {
         await _roleService.AssignDeptsToRoleAsync(roleId, deptIds, cancellationToken);

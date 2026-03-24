@@ -14,7 +14,7 @@ namespace Youlai.Api.Controllers.File;
 [ApiController]
 [Route("api/v1/files")]
 [Authorize]
-[Tags("11.文件接口")]
+[Tags("10.文件接口")]
 public sealed class FilesController : ControllerBase
 {
     private readonly IFileService _fileService;

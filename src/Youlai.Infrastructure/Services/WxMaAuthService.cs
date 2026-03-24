@@ -20,7 +20,7 @@ namespace Youlai.Infrastructure.Services;
 /// <summary>
 /// 微信小程序认证服务实现
 /// </summary>
-internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
+internal sealed class WxMaAuthService : IWxMaAuthService
 {
     private const string JsCode2SessionUrl = "https://api.weixin.qq.com/sns/jscode2session?appid={0}&secret={1}&js_code={2}&grant_type=authorization_code";
     private const string GetPhoneNumberUrl = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={0}&code={1}";
@@ -34,15 +34,15 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
     private readonly WechatMiniappOptions _options;
     private readonly IConnectionMultiplexer _redis;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<WechatMiniappAuthService> _logger;
+    private readonly ILogger<WxMaAuthService> _logger;
 
-    public WechatMiniappAuthService(
+    public WxMaAuthService(
         YoulaiDbContext dbContext,
         JwtTokenManager tokenManager,
         IOptions<WechatMiniappOptions> options,
         IConnectionMultiplexer redis,
         IHttpClientFactory httpClientFactory,
-        ILogger<WechatMiniappAuthService> logger)
+        ILogger<WxMaAuthService> logger)
     {
         _dbContext = dbContext;
         _tokenManager = tokenManager;
@@ -55,7 +55,7 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
     /// <summary>
     /// 静默登录
     /// </summary>
-    public async Task<WechatMiniappLoginResultDto> SilentLoginAsync(string code, CancellationToken cancellationToken = default)
+    public async Task<WxMaLoginResultDto> SilentLoginAsync(string code, CancellationToken cancellationToken = default)
     {
         // 1. 获取微信会话信息
         var session = await GetSessionAsync(code, cancellationToken);
@@ -75,12 +75,12 @@ internal sealed class WechatMiniappAuthService : IWechatMiniappAuthService
         {
             // 已绑定用户，直接登录
             var token = await GenerateTokenByUserIdAsync(social.UserId, cancellationToken);
-            return WechatMiniappLoginResultDto.Success(token);
+            return WxMaLoginResultDto.Success(token);
         }
 
         // 未绑定用户，返回需要绑定手机号
         _logger.LogInformation("微信小程序静默登录：用户未绑定手机号，openId={OpenId}", openId);
-        return WechatMiniappLoginResultDto.RequireBindMobile(openId);
+        return WxMaLoginResultDto.RequireBindMobile(openId);
     }
 
     /// <summary>

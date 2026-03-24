@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Youlai.Infrastructure.Persistence.DbContext;
 
-internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
+public sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
 {
     public YoulaiDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<YoulaiDbContext> options)
         : base(options)
@@ -259,21 +259,14 @@ internal sealed class YoulaiDbContext : Microsoft.EntityFrameworkCore.DbContext
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Module).HasColumnName("module");
             entity.Property(e => e.RequestMethod).HasColumnName("request_method");
-            entity.Property(e => e.RequestParams).HasColumnName("request_params");
-            entity.Property(e => e.ResponseContent).HasColumnName("response_content");
-            entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.RequestUri).HasColumnName("request_uri");
-            entity.Property(e => e.Method).HasColumnName("method");
             entity.Property(e => e.Ip).HasColumnName("ip");
             entity.Property(e => e.Province).HasColumnName("province");
             entity.Property(e => e.City).HasColumnName("city");
             entity.Property(e => e.ExecutionTime).HasColumnName("execution_time");
             entity.Property(e => e.Browser).HasColumnName("browser");
-            entity.Property(e => e.BrowserVersion).HasColumnName("browser_version");
             entity.Property(e => e.Os).HasColumnName("os");
-            entity.Property(e => e.CreateBy).HasColumnName("create_by");
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
         });
 

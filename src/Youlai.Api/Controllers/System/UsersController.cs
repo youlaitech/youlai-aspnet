@@ -2,18 +2,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.User;
 using Youlai.Application.System.Services;
 
 namespace Youlai.Api.Controllers.System;
 
-/// <summary>
-/// 用户管理接口
-/// </summary>
-/// <remarks>
-/// 提供用户的分页查询、详情、创建、修改、删除与状态变更等能力
-/// </remarks>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize]
@@ -63,6 +59,7 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:user:create")]
+    [Log(LogModule.USER, ActionType.INSERT)]
     public async Task<Result<object?>> CreateUser([FromBody] UserForm formData, CancellationToken cancellationToken)
     {
         var ok = await _userService.CreateUserAsync(formData, cancellationToken);
@@ -74,6 +71,7 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:user:update")]
+    [Log(LogModule.USER, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateUser([FromRoute] long id, [FromBody] UserForm formData, CancellationToken cancellationToken)
     {
         var ok = await _userService.UpdateUserAsync(id, formData, cancellationToken);
@@ -85,6 +83,7 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:user:delete")]
+    [Log(LogModule.USER, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteUsers([FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _userService.DeleteUsersAsync(ids, cancellationToken);
@@ -96,6 +95,7 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpPatch("{id:long}/status")]
     [HasPerm("sys:user:update")]
+    [Log(LogModule.USER, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateUserStatus([FromRoute] long id, [FromQuery] int status, CancellationToken cancellationToken)
     {
         var ok = await _userService.UpdateUserStatusAsync(id, status, cancellationToken);
@@ -107,6 +107,7 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}/password/reset")]
     [HasPerm("sys:user:reset-password")]
+    [Log(LogModule.USER, ActionType.CHANGE_PASSWORD)]
     public async Task<Result<object?>> ResetPassword([FromRoute] long id, [FromQuery] string password, CancellationToken cancellationToken)
     {
         var ok = await _userService.ResetUserPasswordAsync(id, password, cancellationToken);
@@ -146,6 +147,7 @@ public sealed class UsersController : ControllerBase
     [HttpPost("import")]
     [Consumes("multipart/form-data")]
     [HasPerm("sys:user:import")]
+    [Log(LogModule.USER, ActionType.INSERT)]
     public async Task<Result<Application.Common.Models.ExcelResult>> ImportUsers(
         IFormFile file,
         CancellationToken cancellationToken)
@@ -169,6 +171,7 @@ public sealed class UsersController : ControllerBase
     /// 更新个人资料
     /// </summary>
     [HttpPut("profile")]
+    [Log(LogModule.USER, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateProfile([FromBody] UserProfileForm formData, CancellationToken cancellationToken)
     {
         var ok = await _userService.UpdateProfileAsync(formData, cancellationToken);
@@ -179,6 +182,7 @@ public sealed class UsersController : ControllerBase
     /// 修改密码
     /// </summary>
     [HttpPut("password")]
+    [Log(LogModule.USER, ActionType.CHANGE_PASSWORD)]
     public async Task<Result<object?>> ChangePassword([FromBody] PasswordChangeForm formData, CancellationToken cancellationToken)
     {
         var ok = await _userService.ChangePasswordAsync(formData, cancellationToken);

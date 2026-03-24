@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.Config;
 using Youlai.Application.System.Services;
@@ -16,7 +18,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/configs")]
 [Authorize]
-[Tags("08.系统配置")]
+[Tags("07.系统配置")]
 public sealed class ConfigsController : ControllerBase
 {
     private readonly ISystemConfigService _configService;
@@ -51,6 +53,7 @@ public sealed class ConfigsController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:config:create")]
+    [Log(LogModule.CONFIG, ActionType.INSERT)]
     public async Task<Result<object?>> AddConfig([FromBody] ConfigForm formData, CancellationToken cancellationToken)
     {
         var ok = await _configService.SaveConfigAsync(formData, cancellationToken);
@@ -62,6 +65,7 @@ public sealed class ConfigsController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:config:update")]
+    [Log(LogModule.CONFIG, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateConfig([FromRoute] long id, [FromBody] ConfigForm formData, CancellationToken cancellationToken)
     {
         var ok = await _configService.UpdateConfigAsync(id, formData, cancellationToken);
@@ -73,6 +77,7 @@ public sealed class ConfigsController : ControllerBase
     /// </summary>
     [HttpDelete("{id:long}")]
     [HasPerm("sys:config:delete")]
+    [Log(LogModule.CONFIG, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteConfig([FromRoute] long id, CancellationToken cancellationToken)
     {
         var ok = await _configService.DeleteConfigAsync(id, cancellationToken);

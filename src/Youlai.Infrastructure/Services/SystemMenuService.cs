@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
@@ -18,9 +19,6 @@ namespace Youlai.Infrastructure.Services;
 /// </remarks>
 internal sealed class SystemMenuService : ISystemMenuService
 {
-    private const string ButtonMenuType = "B";
-    private const string MenuType = "M";
-    private const string CatalogMenuType = "C";
     private const string LayoutComponent = "Layout";
 
     private sealed record MenuOptionRow(long Id, long ParentId, string Name);
@@ -42,12 +40,8 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<IReadOnlyCollection<RouteVo>> GetCurrentUserRoutesAsync(CancellationToken cancellationToken = default)
     {
-        var roleCodes = _currentUser.Roles
-            .Where(r => !string.IsNullOrWhiteSpace(r))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
-        if (roleCodes.Length == 0)
+        var roleCodes = GetRoleCodes();
+        if (roleCodes.Count == 0)
         {
             return Array.Empty<RouteVo>();
         }
@@ -58,32 +52,47 @@ internal sealed class SystemMenuService : ISystemMenuService
         {
             menus = await _dbContext.SysMenus
                 .AsNoTracking()
-                .Where(m => m.Type != ButtonMenuType)
+                .Where(m => m.Type != MenuType.Button.GetCode())
                 .OrderBy(m => m.Sort ?? 0)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
         else
         {
-            var query =
-                from rm in _dbContext.SysRoleMenus.AsNoTracking()
-                join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
-                join m in _dbContext.SysMenus.AsNoTracking() on rm.MenuId equals m.Id
-                where r.Code != null
-                    && roleCodes.Contains(r.Code)
-                    && !r.IsDeleted
-                    && r.Status == 1
-                    && m.Type != ButtonMenuType
-                select m;
+            // 使用原生 SQL 查询，避免 EF Core 表达式树编译问题
+            var roleCodesList = string.Join("','", roleCodes.Select(c => c.Replace("'", "''")));
+            var sql = $@"
+                SELECT DISTINCT t1.id, t1.name, t1.parent_id, t1.route_name, t1.route_path,
+                       t1.component, t1.icon, t1.sort, t1.visible, t1.redirect, t1.type,
+                       t1.always_show, t1.keep_alive, t1.params, t1.perm, t1.tree_path
+                FROM sys_menu t1
+                INNER JOIN sys_role_menu t2 ON t1.id = t2.menu_id
+                INNER JOIN sys_role t3 ON t2.role_id = t3.id AND t3.status = 1 AND t3.is_deleted = 0
+                WHERE t1.type != 'B' AND t3.code IN ('{roleCodesList}')
+                ORDER BY t1.sort";
 
-            menus = await query
-                .Distinct()
-                .OrderBy(m => m.Sort ?? 0)
+            menus = await _dbContext.SysMenus
+                .FromSqlRaw(sql)
+                .AsNoTracking()
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
 
         return BuildRoutes(parentId: 0, menus).ToArray();
+    }
+
+    private List<string> GetRoleCodes()
+    {
+        var roles = _currentUser.Roles;
+        if (roles == null || roles.Count == 0)
+        {
+            return new List<string>();
+        }
+
+        return roles
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
     /// <summary>
@@ -96,7 +105,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         if (onlyParent)
         {
-            q = q.Where(m => m.Type != ButtonMenuType);
+            q = q.Where(m => m.Type != MenuType.Button.GetCode());
         }
 
         var list = await q
@@ -221,7 +230,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         var menuType = formData.Type;
         // 外链菜单不挂载组件，仅保留跳转地址
-        var isExternalLink = string.Equals(menuType, MenuType, StringComparison.Ordinal)
+        var isExternalLink = string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(formData.RoutePath)
             && (formData.RoutePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                 || formData.RoutePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
@@ -230,7 +239,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         var component = formData.Component;
         var routeName = formData.RouteName;
 
-        if (string.Equals(menuType, CatalogMenuType, StringComparison.Ordinal))
+        if (string.Equals(menuType, MenuType.Catalog.GetCode(), StringComparison.Ordinal))
         {
             if (formData.ParentId == 0 && !string.IsNullOrWhiteSpace(routePath) && !routePath.StartsWith("/", StringComparison.Ordinal))
             {
@@ -244,7 +253,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             component = null;
         }
 
-        if (string.Equals(menuType, MenuType, StringComparison.Ordinal) && !isExternalLink)
+        if (string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal) && !isExternalLink)
         {
             // 仅菜单类型且非外链时校验路由名唯一
             if (string.IsNullOrWhiteSpace(routeName))
@@ -598,7 +607,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             {
                 routeName = $"ext-{menu.Id}";
             }
-            else if (string.Equals(menu.Type, CatalogMenuType, StringComparison.Ordinal))
+            else if (string.Equals(menu.Type, MenuType.Catalog.GetCode(), StringComparison.Ordinal))
             {
                 // 目录使用路由路径作为名称，避免与子菜单路由名称冲突
                 routeName = routePath;
@@ -614,7 +623,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             Title = menu.Name,
             Icon = string.IsNullOrWhiteSpace(menu.Icon) ? null : menu.Icon,
             Hidden = menu.Visible.HasValue && menu.Visible.Value == 0 ? true : null,
-            KeepAlive = string.Equals(menu.Type, MenuType, StringComparison.Ordinal) && menu.KeepAlive == 1 ? true : null,
+            KeepAlive = string.Equals(menu.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal) && menu.KeepAlive == 1 ? true : null,
             AlwaysShow = menu.AlwaysShow == 1 ? true : null,
             Params = TryParseParams(menu.Params),
         };

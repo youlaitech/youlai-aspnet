@@ -7,69 +7,57 @@ namespace Youlai.Application.System.Dtos.Log;
 /// </summary>
 public sealed class LogPageVo
 {
-    /// <summary>
-    /// 日志ID
-    /// </summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public string Id { get; init; } = string.Empty;
 
-    /// <summary>
-    /// 模块
-    /// </summary>
     [JsonPropertyName("module")]
-    public string Module { get; init; } = string.Empty;
+    public string? Module { get; init; }
 
-    /// <summary>
-    /// 操作内容
-    /// </summary>
+    [JsonPropertyName("actionType")]
+    public string? ActionType { get; init; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
     [JsonPropertyName("content")]
-    public string Content { get; init; } = string.Empty;
+    public string? Content { get; init; }
 
-    /// <summary>
-    /// 请求地址
-    /// </summary>
+    [JsonPropertyName("operatorId")]
+    public string? OperatorId { get; init; }
+
+    [JsonPropertyName("operatorName")]
+    public string? OperatorName { get; init; }
+
+    [JsonPropertyName("status")]
+    public int Status { get; init; }
+
     [JsonPropertyName("requestUri")]
-    public string RequestUri { get; init; } = string.Empty;
+    public string? RequestUri { get; init; }
 
-    /// <summary>
-    /// 请求方法
-    /// </summary>
-    [JsonPropertyName("method")]
-    public string Method { get; init; } = string.Empty;
+    [JsonPropertyName("requestMethod")]
+    public string? RequestMethod { get; init; }
 
-    /// <summary>
-    /// 客户端IP
-    /// </summary>
     [JsonPropertyName("ip")]
-    public string Ip { get; init; } = string.Empty;
+    public string? Ip { get; init; }
 
-    /// <summary>
-    /// 地区
-    /// </summary>
     [JsonPropertyName("region")]
-    public string Region { get; init; } = string.Empty;
+    public string? Region { get; init; }
 
-    /// <summary>
-    /// 浏览器
-    /// </summary>
+    [JsonPropertyName("device")]
+    public string? Device { get; init; }
+
     [JsonPropertyName("browser")]
-    public string Browser { get; init; } = string.Empty;
+    public string? Browser { get; init; }
 
-    /// <summary>
-    /// 操作系统
-    /// </summary>
     [JsonPropertyName("os")]
-    public string Os { get; init; } = string.Empty;
+    public string? Os { get; init; }
 
-    /// <summary>
-    /// 耗时（毫秒）
-    /// </summary>
     [JsonPropertyName("executionTime")]
-    public long ExecutionTime { get; init; }
+    public int? ExecutionTime { get; init; }
 
-    /// <summary>
-    /// 操作人
-    /// </summary>
-    [JsonPropertyName("operator")]
-    public string Operator { get; init; } = string.Empty;
+    [JsonPropertyName("errorMsg")]
+    public string? ErrorMsg { get; init; }
+
+    [JsonPropertyName("createTime")]
+    public DateTime? CreateTime { get; init; }
 }

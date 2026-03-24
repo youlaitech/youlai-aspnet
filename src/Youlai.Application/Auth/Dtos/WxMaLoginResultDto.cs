@@ -3,7 +3,7 @@ namespace Youlai.Application.Auth.Dtos;
 /// <summary>
 /// 微信小程序登录结果
 /// </summary>
-public sealed class WechatMiniappLoginResultDto
+public sealed class WxMaLoginResultDto
 {
     /// <summary>
     /// 是否新用户
@@ -43,7 +43,7 @@ public sealed class WechatMiniappLoginResultDto
     /// <summary>
     /// 创建需要绑定手机号的结果
     /// </summary>
-    public static WechatMiniappLoginResultDto RequireBindMobile(string openId) => new()
+    public static WxMaLoginResultDto RequireBindMobile(string openId) => new()
     {
         IsNewUser = true,
         NeedBindMobile = true,
@@ -53,7 +53,7 @@ public sealed class WechatMiniappLoginResultDto
     /// <summary>
     /// 创建登录成功的结果
     /// </summary>
-    public static WechatMiniappLoginResultDto Success(AuthenticationTokenDto token) => new()
+    public static WxMaLoginResultDto Success(AuthenticationTokenDto token) => new()
     {
         IsNewUser = false,
         NeedBindMobile = false,

@@ -1,4 +1,5 @@
 using System.Text;
+using StackExchange.Redis;
 using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -7,10 +8,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Youlai.Api.Converters;
-using Youlai.Api.WebSockets;
 using Youlai.Api.Security;
 using Youlai.Api.Middlewares;
 using Youlai.Application;
+using Youlai.Infrastructure.Common.Filters;
 using Youlai.Application.Common.Security;
 using Youlai.Application.Common.Results;
 using Youlai.Infrastructure;
@@ -20,7 +21,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 注册服务
 builder.Services
-    .AddControllers()
+    .AddControllers(options =>
+    {
+        options.Filters.AddService<LogActionFilter>();
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
@@ -207,10 +211,13 @@ if (!string.IsNullOrWhiteSpace(jwtSecret))
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddScoped<LogActionFilter>();
+
 var app = builder.Build();
 
 // 配置 HTTP 请求管道
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<RateLimitMiddleware>();
 
 app.UseStatusCodePages(async statusContext =>
 {
@@ -254,16 +261,45 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseWebSockets();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.Map("/ws", StompWebSocketEndpoint.HandleAsync).AllowAnonymous();
-
 app.MapControllers();
 
-app.Run();
+// 启动成功提示
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var addresses = app.Urls.ToArray();
+if (addresses.Length > 0)
+{
+    var address = addresses[0];
+    logger.LogInformation(
+        "============================================================\n" +
+        "              youlai-aspnet 启动成功\n" +
+        "------------------------------------------------------------\n" +
+        "  应用地址: {Address}\n" +
+        "  API 文档: {Address}/swagger\n" +
+        "============================================================",
+        address, address);
+}
+
+try
+{
+    app.Run();
+}
+catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AccessDenied)
+{
+    logger.LogError(
+        "============================================================\n" +
+        "                    端口绑定失败\n" +
+        "------------------------------------------------------------\n" +
+        "  端口 8000 已被占用或权限不足\n" +
+        "  请检查:\n" +
+        "  1. 是否有其他程序占用该端口\n" +
+        "  2. 使用 netstat -ano | findstr :8000 查看占用进程\n" +
+        "  3. 结束占用进程或更换端口后重试\n" +
+        "============================================================");
+    throw;
+}
 
 public partial class Program
 {

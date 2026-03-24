@@ -18,13 +18,13 @@ internal sealed class SystemDictService : ISystemDictService
 {
     private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
-    private readonly IWebSocketService _webSocketService;
+    private readonly ISseService _sseService;
 
-    public SystemDictService(YoulaiDbContext dbContext, ICurrentUser currentUser, IWebSocketService webSocketService)
+    public SystemDictService(YoulaiDbContext dbContext, ICurrentUser currentUser, ISseService sseService)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
-        _webSocketService = webSocketService;
+        _sseService = sseService;
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ internal sealed class SystemDictService : ISystemDictService
         var saved = await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (saved)
         {
-            await _webSocketService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+            await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return saved;
@@ -228,10 +228,10 @@ internal sealed class SystemDictService : ISystemDictService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        await _webSocketService.BroadcastDictChangeAsync(newDictCode, cancellationToken).ConfigureAwait(false);
+        await _sseService.BroadcastDictChangeAsync(newDictCode, cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(oldDictCode) && !string.Equals(oldDictCode, newDictCode, StringComparison.Ordinal))
         {
-            await _webSocketService.BroadcastDictChangeAsync(oldDictCode, cancellationToken).ConfigureAwait(false);
+            await _sseService.BroadcastDictChangeAsync(oldDictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -284,7 +284,7 @@ internal sealed class SystemDictService : ISystemDictService
             }
 
             var dictCode = code;
-            await _webSocketService.BroadcastDictChangeAsync(dictCode!, cancellationToken).ConfigureAwait(false);
+            await _sseService.BroadcastDictChangeAsync(dictCode!, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -412,7 +412,7 @@ internal sealed class SystemDictService : ISystemDictService
         var ok = await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (ok)
         {
-            await _webSocketService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+            await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return ok;
@@ -441,7 +441,7 @@ internal sealed class SystemDictService : ISystemDictService
         item.UpdateTime = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await _webSocketService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+        await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -461,7 +461,7 @@ internal sealed class SystemDictService : ISystemDictService
             .ExecuteDeleteAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        await _webSocketService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+        await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
 

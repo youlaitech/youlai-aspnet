@@ -1,4 +1,7 @@
+using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.Log;
 using Youlai.Application.System.Dtos.Statistics;
@@ -7,12 +10,6 @@ using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
 
-/// <summary>
-/// 系统日志与统计服务
-/// </summary>
-/// <remarks>
-/// 提供操作日志分页查询，以及访问统计相关数据
-/// </remarks>
 internal sealed class SystemLogService : ISystemLogService
 {
     private readonly YoulaiDbContext _dbContext;
@@ -22,9 +19,6 @@ internal sealed class SystemLogService : ISystemLogService
         _dbContext = dbContext;
     }
 
-    /// <summary>
-    /// 操作日志分页
-    /// </summary>
     public async Task<PageResult<LogPageVo>> GetLogPageAsync(LogQuery query, CancellationToken cancellationToken = default)
     {
         var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
@@ -37,33 +31,26 @@ internal sealed class SystemLogService : ISystemLogService
 
         var logs =
             from l in _dbContext.SysLogs.AsNoTracking()
-            join u in _dbContext.SysUsers.AsNoTracking() on l.CreateBy equals u.Id into uj
-            from u in uj.DefaultIfEmpty()
             select new
             {
                 l.Id,
                 l.Module,
-                l.Content,
+                l.ActionType,
+                l.Status,
                 l.RequestUri,
                 l.RequestMethod,
                 l.Ip,
                 l.Province,
                 l.City,
-                l.ExecutionTime,
+                l.Device,
                 l.Browser,
-                l.BrowserVersion,
                 l.Os,
-                Operator = u != null ? (u.Nickname ?? string.Empty) : string.Empty,
+                l.ExecutionTime,
+                l.ErrorMsg,
+                l.OperatorId,
+                l.OperatorName,
                 l.CreateTime,
             };
-
-        if (!string.IsNullOrWhiteSpace(query.Keywords))
-        {
-            var keywords = query.Keywords.Trim();
-            logs = logs.Where(x => (x.Content != null && x.Content.Contains(keywords))
-                || (x.Ip != null && x.Ip.Contains(keywords))
-                || (x.Operator != null && x.Operator.Contains(keywords)));
-        }
 
         var (start, end) = ParseDateRange(query.CreateTime);
         if (start.HasValue)
@@ -88,48 +75,34 @@ internal sealed class SystemLogService : ISystemLogService
         var rows = await logs
             .Skip(skip)
             .Take(pageSize)
-            .Select(x => new
-            {
-                x.Id,
-                x.Module,
-                x.Content,
-                x.RequestUri,
-                x.RequestMethod,
-                x.Ip,
-                x.Province,
-                x.City,
-                x.Browser,
-                x.BrowserVersion,
-                x.Os,
-                x.ExecutionTime,
-                x.Operator,
-            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
         var list = rows
             .Select(x => new LogPageVo
             {
-                Id = x.Id,
-                Module = x.Module,
-                Content = x.Content,
-                RequestUri = x.RequestUri ?? string.Empty,
-                Method = x.RequestMethod,
-                Ip = x.Ip ?? string.Empty,
+                Id = x.Id.ToString(),
+                Module = GetEnumDisplayName<LogModule>(x.Module),
+                ActionType = GetEnumDisplayName<ActionType>(x.ActionType),
+                Status = x.Status,
+                RequestUri = x.RequestUri,
+                RequestMethod = x.RequestMethod,
+                Ip = x.Ip,
                 Region = string.Join(" ", new[] { x.Province, x.City }.Where(s => !string.IsNullOrWhiteSpace(s))),
-                Browser = string.Join(" ", new[] { x.Browser, x.BrowserVersion }.Where(s => !string.IsNullOrWhiteSpace(s))),
-                Os = x.Os ?? string.Empty,
-                ExecutionTime = x.ExecutionTime ?? 0,
-                Operator = x.Operator ?? string.Empty,
+                Device = x.Device,
+                Browser = x.Browser,
+                Os = x.Os,
+                ExecutionTime = x.ExecutionTime,
+                ErrorMsg = x.ErrorMsg,
+                OperatorId = x.OperatorId?.ToString(),
+                OperatorName = x.OperatorName,
+                CreateTime = x.CreateTime,
             })
             .ToList();
 
         return PageResult<LogPageVo>.Success(list, total, pageNum, pageSize);
     }
 
-    /// <summary>
-    /// 访问趋势
-    /// </summary>
     public async Task<VisitTrendVo> GetVisitTrendAsync(VisitTrendQuery query, CancellationToken cancellationToken = default)
     {
         var startDate = DateOnly.Parse(query.StartDate);
@@ -184,9 +157,6 @@ internal sealed class SystemLogService : ISystemLogService
         };
     }
 
-    /// <summary>
-    /// 访问统计
-    /// </summary>
     public async Task<VisitStatsVo> GetVisitStatsAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
@@ -223,7 +193,7 @@ internal sealed class SystemLogService : ISystemLogService
         };
     }
 
-    private static (DateTime? Start, DateTime? End) ParseDateRange(string[]? createTime)
+    private static (DateTime? Start, DateTime? End) ParseDateRange(string?[]? createTime)
     {
         if (createTime is not { Length: >= 1 })
         {
@@ -265,5 +235,29 @@ internal sealed class SystemLogService : ISystemLogService
 
         var rate = (decimal)(todayCount - yesterdayCount) / yesterdayCount;
         return Math.Round(rate, 2);
+    }
+
+    private static string? GetEnumDisplayName<T>(int? value) where T : Enum
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var enumType = typeof(T);
+        var enumName = Enum.GetName(enumType, value.Value);
+        if (enumName == null)
+        {
+            return "其他";
+        }
+
+        var field = enumType.GetField(enumName);
+        if (field == null)
+        {
+            return "其他";
+        }
+
+        var displayAttr = field.GetCustomAttribute<DisplayAttribute>();
+        return displayAttr?.Name ?? "其他";
     }
 }

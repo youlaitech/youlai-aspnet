@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.Dept;
@@ -52,6 +54,7 @@ public sealed class DeptsController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:dept:create")]
+    [Log(LogModule.DEPT, ActionType.INSERT)]
     public async Task<Result<long>> SaveDept([FromBody] DeptForm formData, CancellationToken cancellationToken)
     {
         var id = await _deptService.SaveDeptAsync(formData, cancellationToken);
@@ -73,6 +76,7 @@ public sealed class DeptsController : ControllerBase
     /// </summary>
     [HttpPut("{deptId:long}")]
     [HasPerm("sys:dept:update")]
+    [Log(LogModule.DEPT, ActionType.UPDATE)]
     public async Task<Result<long>> UpdateDept([FromRoute] long deptId, [FromBody] DeptForm formData, CancellationToken cancellationToken)
     {
         var id = await _deptService.UpdateDeptAsync(deptId, formData, cancellationToken);
@@ -84,6 +88,7 @@ public sealed class DeptsController : ControllerBase
     /// </summary>
     [HttpDelete("{ids}")]
     [HasPerm("sys:dept:delete")]
+    [Log(LogModule.DEPT, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteDepartments([FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _deptService.DeleteByIdsAsync(ids, cancellationToken);

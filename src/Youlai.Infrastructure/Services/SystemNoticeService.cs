@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Youlai.Application.Common.Exceptions;
 using Youlai.Application.Common.Results;
 using Youlai.Application.Common.Security;
@@ -24,13 +25,15 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
     private readonly YoulaiDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
-    private readonly IWebSocketService _webSocketService;
+    private readonly ISseService _sseService;
+    private readonly ILogger<SystemNoticeService> _logger;
 
-    public SystemNoticeService(YoulaiDbContext dbContext, ICurrentUser currentUser, IWebSocketService webSocketService)
+    public SystemNoticeService(YoulaiDbContext dbContext, ICurrentUser currentUser, ISseService sseService, ILogger<SystemNoticeService> logger)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
-        _webSocketService = webSocketService;
+        _sseService = sseService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -318,17 +321,38 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        var payload = new
+        // SSE通知目标用户 - 使用客户端评估
+        var noticeData = new
         {
             id,
             title = notice.Title,
             type = notice.Type,
-            publishTime = notice.PublishTime.HasValue ? notice.PublishTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
+            level = notice.Level,
+            publishStatus = 1,
+            publishTime = notice.PublishTime?.ToString("yyyy-MM-dd HH:mm"),
         };
 
-        foreach (var u in users)
+        var allUsers = await _dbContext.SysUsers
+            .AsNoTracking()
+            .Where(u => !u.IsDeleted && u.Status == 1)
+            .Select(u => new { u.Id, u.Username })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var noticeTargetIds = notice.TargetType == TargetSpecified
+            ? ParseStringIdList(notice.TargetUserIds).ToHashSet()
+            : allUsers.Select(u => u.Id).ToHashSet();
+
+        var noticeTargetIdStrings = allUsers
+            .Where(u => noticeTargetIds.Contains(u.Id))
+            .Select(u => u.Id.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var userIdStr in noticeTargetIdStrings)
         {
-            await _webSocketService.SendUserMessageAsync(u.Id, payload, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("[Notice] Sending SSE to userId: {UserId}, event: notice", userIdStr);
+            await _sseService.SendToUserAsync(userIdStr, "notice", noticeData, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -371,6 +395,30 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             .ConfigureAwait(false);
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        // SSE通知目标用户移除该通知 - 使用客户端评估
+        var allUsernames = await _dbContext.SysUsers
+            .AsNoTracking()
+            .Where(u => !u.IsDeleted && u.Status == 1)
+            .Select(u => new { u.Id, u.Username })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var revokeTargetIds = notice.TargetType == TargetSpecified
+            ? ParseStringIdList(notice.TargetUserIds).ToHashSet()
+            : allUsernames.Select(u => u.Id).ToHashSet();
+
+        var revokeTargetIdStrings = allUsernames
+            .Where(u => revokeTargetIds.Contains(u.Id))
+            .Select(u => u.Id.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var userIdStr in revokeTargetIdStrings)
+        {
+            await _sseService.SendToUserAsync(userIdStr, "notice-revoke", new { id }, cancellationToken).ConfigureAwait(false);
+        }
+
         return true;
     }
 

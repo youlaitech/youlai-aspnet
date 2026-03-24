@@ -5,7 +5,7 @@ namespace Youlai.Application.Auth.Services;
 /// <summary>
 /// 微信小程序认证服务
 /// </summary>
-public interface IWechatMiniappAuthService
+public interface IWxMaAuthService
 {
     /// <summary>
     /// 静默登录
@@ -17,7 +17,7 @@ public interface IWechatMiniappAuthService
     /// <param name="code">微信登录凭证（wx.login 获取）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>登录结果（成功返回 token，需绑定返回 openid）</returns>
-    Task<WechatMiniappLoginResultDto> SilentLoginAsync(string code, CancellationToken cancellationToken = default);
+    Task<WxMaLoginResultDto> SilentLoginAsync(string code, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 手机号快捷登录

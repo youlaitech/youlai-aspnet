@@ -20,6 +20,7 @@ public enum ResultCode
     InvalidUserInput = 9,
     RequestRequiredParameterIsEmpty = 10,
     ParameterFormatMismatch = 11,
+    RequestConcurrencyLimitExceeded = 14,
 
     UploadFileException = 70,
     DeleteFileException = 71,
@@ -58,6 +59,7 @@ public static class ResultCodeExtensions
             ResultCode.InvalidUserInput => "A0402",
             ResultCode.RequestRequiredParameterIsEmpty => "A0410",
             ResultCode.ParameterFormatMismatch => "A0421",
+            ResultCode.RequestConcurrencyLimitExceeded => "A0502",
 
             ResultCode.UploadFileException => "A0700",
             ResultCode.DeleteFileException => "A0710",
@@ -94,6 +96,7 @@ public static class ResultCodeExtensions
             ResultCode.InvalidUserInput => "无效的用户输入",
             ResultCode.RequestRequiredParameterIsEmpty => "请求必填参数为空",
             ResultCode.ParameterFormatMismatch => "参数格式不匹配",
+            ResultCode.RequestConcurrencyLimitExceeded => "请求并发数超出限制",
 
             ResultCode.UploadFileException => "上传文件异常",
             ResultCode.DeleteFileException => "删除文件异常",

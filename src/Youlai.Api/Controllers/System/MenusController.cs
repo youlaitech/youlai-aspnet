@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Common.Attributes;
+using Youlai.Application.Common.Enums;
 using Youlai.Application.Common.Models;
 using Youlai.Application.Common.Results;
 using Youlai.Application.System.Dtos.Menu;
@@ -73,6 +75,7 @@ public sealed class MenusController : ControllerBase
     /// </summary>
     [HttpPost]
     [HasPerm("sys:menu:create")]
+    [Log(LogModule.MENU, ActionType.INSERT)]
     public async Task<Result<object?>> AddMenu([FromBody] MenuForm formData, CancellationToken cancellationToken)
     {
         var ok = await _menuService.SaveMenuAsync(formData, cancellationToken);
@@ -84,6 +87,7 @@ public sealed class MenusController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}")]
     [HasPerm("sys:menu:update")]
+    [Log(LogModule.MENU, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateMenu([FromRoute] long id, [FromBody] MenuForm formData, CancellationToken cancellationToken)
     {
         var ok = await _menuService.SaveMenuAsync(new MenuForm
@@ -112,6 +116,7 @@ public sealed class MenusController : ControllerBase
     /// </summary>
     [HttpDelete("{id:long}")]
     [HasPerm("sys:menu:delete")]
+    [Log(LogModule.MENU, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteMenu([FromRoute] long id, CancellationToken cancellationToken)
     {
         var ok = await _menuService.DeleteMenuAsync(id, cancellationToken);
@@ -123,6 +128,7 @@ public sealed class MenusController : ControllerBase
     /// </summary>
     [HttpPatch("{menuId:long}")]
     [HasPerm("sys:menu:update")]
+    [Log(LogModule.MENU, ActionType.UPDATE)]
     public async Task<Result<object?>> UpdateMenuVisible([FromRoute] long menuId, [FromQuery] int visible, CancellationToken cancellationToken)
     {
         var ok = await _menuService.UpdateMenuVisibleAsync(menuId, visible, cancellationToken);
