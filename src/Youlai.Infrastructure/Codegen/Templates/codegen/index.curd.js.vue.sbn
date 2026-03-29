@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="page-container">
     <!-- 搜索 -->
     <page-search
       ref="searchRef"

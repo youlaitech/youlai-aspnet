@@ -1,6 +1,6 @@
 <template>
-  <div class="app-container">
-    <div class="filter-section">
+  <div class="page-container">
+    <el-card class="page-search" shadow="never">
       <el-form ref="queryFormRef" :model="queryParams" :inline="true">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInQuery == 1 }}
@@ -77,16 +77,16 @@
         </el-form-item>
 {{ end }}
 {{ end }}
-        <el-form-item class="search-buttons">
+        <el-form-item>
           <el-button type="primary" icon="search" @click="handleQuery">搜索</el-button>
           <el-button icon="refresh" @click="handleResetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-    </div>
+    </el-card>
 
-    <el-card shadow="hover" class="table-section">
-      <div class="table-section__toolbar">
-        <div class="table-section__toolbar--actions">
+    <el-card class="page-content" shadow="never">
+      <div class="page-toolbar">
+        <div class="page-toolbar__left">
           <el-button
             v-hasPerm="['{{ moduleName }}:{{ entityKebab }}:create']"
             type="success"
@@ -113,7 +113,6 @@
         :data="pageData"
         highlight-current-row
         border
-        class="table-section__content"
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
@@ -161,13 +160,15 @@
         </el-table-column>
       </el-table>
 
-      <pagination
-        v-if="total > 0"
-        v-model:total="total"
-        v-model:page="queryParams.pageNum"
-        v-model:limit="queryParams.pageSize"
-        @pagination="handleQuery"
-      />
+      <div class="page-pagination">
+        <pagination
+          v-if="total > 0"
+          v-model:total="total"
+          v-model:page="queryParams.pageNum"
+          v-model:limit="queryParams.pageSize"
+          @pagination="handleQuery"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px" @close="handleCloseDialog">
