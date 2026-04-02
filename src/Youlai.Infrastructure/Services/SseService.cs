@@ -9,7 +9,7 @@ namespace Youlai.Infrastructure.Services;
 /// <summary>
 /// SSE 服务实现
 /// </summary>
-internal sealed class SseService : ISseService
+internal sealed class SseService : ISseService, IAsyncDisposable
 {
     private readonly ILogger<SseService> _logger;
     private readonly ConcurrentDictionary<string, ConcurrentBag<SseConnection>> _userConnections = new(StringComparer.Ordinal);
@@ -179,5 +179,23 @@ internal sealed class SseService : ISseService
         public required string Username { get; init; }
         public required Channel<SseMessage> Channel { get; init; }
         public long ConnectTime { get; init; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        var count = _connectionUser.Count;
+        if (count == 0) return;
+
+        _logger.LogInformation("[SSE] 应用关闭，主动断开 {Count} 个SSE连接...", count);
+
+        foreach (var connection in _connectionUser.Keys.ToList())
+        {
+            connection.Channel.Writer.TryComplete();
+        }
+
+        _userConnections.Clear();
+        _connectionUser.Clear();
+
+        _logger.LogInformation("[SSE] 所有SSE连接已断开");
     }
 }
