@@ -38,7 +38,7 @@ public sealed class LogsController : ControllerBase
     /// <summary>
     /// 访问趋势
     /// </summary>
-    [HttpGet("views/trend")]
+    [HttpGet("analytics/trend")]
     [AllowAnonymous]
     public async Task<Result<VisitTrendVo>> GetVisitTrend([FromQuery] VisitTrendQuery queryParams, CancellationToken cancellationToken)
     {
@@ -49,7 +49,7 @@ public sealed class LogsController : ControllerBase
     /// <summary>
     /// 访问统计概览
     /// </summary>
-    [HttpGet("views")]
+    [HttpGet("analytics/overview")]
     [AllowAnonymous]
     public async Task<Result<VisitStatsVo>> GetVisitOverview(CancellationToken cancellationToken)
     {
