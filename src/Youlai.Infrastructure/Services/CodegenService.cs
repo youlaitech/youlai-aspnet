@@ -27,16 +27,16 @@ internal sealed class CodegenService : ICodegenService
     private static readonly IReadOnlyDictionary<string, TemplateConfig> TemplateConfigs =
         new Dictionary<string, TemplateConfig>(StringComparer.OrdinalIgnoreCase)
         {
-            ["API"] = new TemplateConfig("codegen/api.ts.sbn", "api", ".ts"),
-            ["API_TYPES"] = new TemplateConfig("codegen/api-types.ts.sbn", "types", ".ts"),
-            ["VIEW"] = new TemplateConfig("codegen/index.vue.sbn", "views", ".vue"),
-            ["Controller"] = new TemplateConfig("codegen/controller.cs.sbn", "Controllers", ".cs"),
-            ["Service"] = new TemplateConfig("codegen/service.cs.sbn", "Services", ".cs"),
-            ["ServiceImpl"] = new TemplateConfig("codegen/service-impl.cs.sbn", "Services", ".cs"),
-            ["Form"] = new TemplateConfig("codegen/form.cs.sbn", "Dtos", ".cs"),
-            ["Query"] = new TemplateConfig("codegen/query.cs.sbn", "Dtos", ".cs"),
-            ["PageVo"] = new TemplateConfig("codegen/page-vo.cs.sbn", "Dtos", ".cs"),
-            ["Entity"] = new TemplateConfig("codegen/entity.cs.sbn", "Entities", ".cs"),
+            ["API"] = new TemplateConfig("frontend/ts/api.ts.sbn", "api", ".ts"),
+            ["API_TYPES"] = new TemplateConfig("frontend/ts/api-types.ts.sbn", "types", ".ts"),
+            ["VIEW"] = new TemplateConfig("frontend/ts/index.vue.sbn", "views", ".vue"),
+            ["Controller"] = new TemplateConfig("backend/controller.cs.sbn", "Controllers", ".cs"),
+            ["Service"] = new TemplateConfig("backend/service.cs.sbn", "Services", ".cs"),
+            ["ServiceImpl"] = new TemplateConfig("backend/service-impl.cs.sbn", "Services", ".cs"),
+            ["Form"] = new TemplateConfig("backend/form.cs.sbn", "Dtos", ".cs"),
+            ["Query"] = new TemplateConfig("backend/query.cs.sbn", "Dtos", ".cs"),
+            ["PageVo"] = new TemplateConfig("backend/page-vo.cs.sbn", "Dtos", ".cs"),
+            ["Entity"] = new TemplateConfig("backend/entity.cs.sbn", "Entities", ".cs"),
         };
 
     private readonly YoulaiDbContext _dbContext;
@@ -767,8 +767,8 @@ ORDER BY ORDINAL_POSITION ASC";
 
         return templateName switch
         {
-            "API" => "codegen/api.js.sbn",
-            "VIEW" => "codegen/index.js.vue.sbn",
+            "API" => "frontend/js/api.js.sbn",
+            "VIEW" => "frontend/js/index.vue.sbn",
             _ => templateConfig.TemplatePath
         };
     }
@@ -793,13 +793,13 @@ ORDER BY ORDINAL_POSITION ASC";
         var tplPath = templatePath;
         if (string.Equals(templateName, "VIEW", StringComparison.OrdinalIgnoreCase) && pageType == "curd")
         {
-            if (tplPath.EndsWith("index.js.vue.sbn", StringComparison.OrdinalIgnoreCase))
+            if (tplPath.EndsWith("frontend/js/index.vue.sbn", StringComparison.OrdinalIgnoreCase))
             {
-                tplPath = tplPath.Replace("index.js.vue.sbn", "index.curd.js.vue.sbn", StringComparison.OrdinalIgnoreCase);
+                tplPath = tplPath.Replace("frontend/js/index.vue.sbn", "frontend/js/index.curd.vue.sbn", StringComparison.OrdinalIgnoreCase);
             }
-            else if (tplPath.EndsWith("index.vue.sbn", StringComparison.OrdinalIgnoreCase))
+            else if (tplPath.EndsWith("frontend/ts/index.vue.sbn", StringComparison.OrdinalIgnoreCase))
             {
-                tplPath = tplPath.Replace("index.vue.sbn", "index.curd.vue.sbn", StringComparison.OrdinalIgnoreCase);
+                tplPath = tplPath.Replace("frontend/ts/index.vue.sbn", "frontend/ts/index.curd.vue.sbn", StringComparison.OrdinalIgnoreCase);
             }
         }
 
