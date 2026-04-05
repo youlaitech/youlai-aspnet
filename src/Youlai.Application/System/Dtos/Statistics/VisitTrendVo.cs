@@ -20,14 +20,8 @@ public sealed class VisitTrendVo
     public IReadOnlyCollection<int> PvList { get; init; } = Array.Empty<int>();
 
     /// <summary>
-    /// UV 列表
+    /// 访客数(UV)列表
     /// </summary>
     [JsonPropertyName("uvList")]
     public IReadOnlyCollection<int> UvList { get; init; } = Array.Empty<int>();
-
-    /// <summary>
-    /// IP 列表
-    /// </summary>
-    [JsonPropertyName("ipList")]
-    public IReadOnlyCollection<int> IpList { get; init; } = Array.Empty<int>();
 }

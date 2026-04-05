@@ -138,7 +138,6 @@ internal sealed class SystemLogService : ISystemLogService
 
         var dates = new List<string>();
         var pvList = new List<int>();
-        var ipList = new List<int>();
         var uvList = new List<int>();
 
         for (var d = startDate; d <= endDate; d = d.AddDays(1))
@@ -148,7 +147,6 @@ internal sealed class SystemLogService : ISystemLogService
             var pv = pvMap.TryGetValue(dt, out var pvCount) ? pvCount : 0;
             var ip = ipMap.TryGetValue(dt, out var ipCount) ? ipCount : 0;
             pvList.Add(pv);
-            ipList.Add(ip);
             uvList.Add(ip);
         }
 
@@ -156,7 +154,6 @@ internal sealed class SystemLogService : ISystemLogService
         {
             Dates = dates,
             PvList = pvList,
-            IpList = ipList,
             UvList = uvList,
         };
     }

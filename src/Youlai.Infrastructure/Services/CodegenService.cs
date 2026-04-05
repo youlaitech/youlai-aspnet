@@ -835,9 +835,14 @@ ORDER BY ORDINAL_POSITION ASC";
             return $"{entityName}{extension}";
         }
 
-        if (templateName == "API" || templateName == "API_TYPES")
+        if (templateName == "API")
         {
-            return $"{ToKebabCase(entityName)}{extension}";
+            return $"index{extension}";
+        }
+
+        if (templateName == "API_TYPES")
+        {
+            return $"types{extension}";
         }
 
         if (templateName == "VIEW")
@@ -885,12 +890,12 @@ ORDER BY ORDINAL_POSITION ASC";
 
         if (templateName == "API")
         {
-            return Path.Combine(frontendRoot, subpackageName, moduleName);
+            return Path.Combine(frontendRoot, "api", moduleName, ToKebabCase(entityName));
         }
 
         if (templateName == "API_TYPES")
         {
-            return Path.Combine(frontendRoot, "types", "api");
+            return Path.Combine(frontendRoot, "api", moduleName, ToKebabCase(entityName));
         }
 
         if (templateName == "VIEW")
