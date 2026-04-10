@@ -6,12 +6,13 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos.User;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Extensions;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.User;
+using Youlai.Core.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Constants;
 using Youlai.Infrastructure.Persistence.DbContext;
@@ -105,13 +106,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<PageResult<UserPageVo>> GetUserPageAsync(UserQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
 
@@ -145,7 +140,7 @@ internal sealed class SystemUserService : ISystemUserService
             users = users.Where(u => u.DeptId == query.DeptId.Value);
         }
 
-        var roleIdList = ParseLongList(query.RoleIds);
+        var roleIdList = CollectionExtensions.ParsePositiveLongIds(query.RoleIds);
         if (roleIdList.Count > 0)
         {
             var roleUserIds = _dbContext.SysUserRoles
@@ -384,10 +379,10 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> DeleteUsersAsync(string ids, CancellationToken cancellationToken = default)
     {
-        var idList = ParseIdList(ids);
+        var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
-            throw new BusinessException(ResultCode.InvalidUserInput, "删除的用户数据为空");
+            throw new BusinessException(ResultCode.InvalidUserInput, "delete user data is empty");
         }
 
         var users = await _dbContext.SysUsers
@@ -400,7 +395,21 @@ internal sealed class SystemUserService : ISystemUserService
             return true;
         }
 
-        // 软删除并统一更新时间
+        // Exclude ROOT role users from deletion
+        var rootUserIds =
+            from ur in _dbContext.SysUserRoles.AsNoTracking()
+            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
+            select ur.UserId;
+        var rootUserIdSet = await rootUserIds.ToHashSetAsync(cancellationToken).ConfigureAwait(false);
+        users = users.Where(u => !rootUserIdSet.Contains(u.Id)).ToList();
+
+        if (users.Count == 0)
+        {
+            return true;
+        }
+
+        // soft delete
         var now = DateTime.UtcNow;
         var updateBy = _currentUser.UserId;
         foreach (var u in users)
@@ -410,7 +419,7 @@ internal sealed class SystemUserService : ISystemUserService
             u.UpdateTime = now;
         }
 
-        // 清理用户角色关联
+        // clean user role relations
         var roles = await _dbContext.SysUserRoles
             .Where(ur => idList.Contains(ur.UserId))
             .ToListAsync(cancellationToken)
@@ -444,7 +453,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
 
         var user = await _dbContext.SysUsers
             .AsNoTracking()
@@ -482,7 +491,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
 
         var user = await _dbContext.SysUsers
             .AsNoTracking()
@@ -553,7 +562,7 @@ internal sealed class SystemUserService : ISystemUserService
         var worksheet = workbook.Worksheets.Add("用户导入模板");
         var headers = new[]
         {
-            "用户名", "昵称", "手机号", "邮箱", "性别", "状态"
+            "username", "nickname", "mobile", "email", "gender", "role", "dept"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -604,7 +613,7 @@ internal sealed class SystemUserService : ISystemUserService
             users = users.Where(u => u.DeptId == query.DeptId.Value);
         }
 
-        var roleIdList = ParseLongList(query.RoleIds);
+        var roleIdList = CollectionExtensions.ParsePositiveLongIds(query.RoleIds);
         if (roleIdList.Count > 0)
         {
             var roleUserIds = _dbContext.SysUserRoles
@@ -871,7 +880,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<UserProfileVo> GetProfileAsync(CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
 
         var rowQuery =
             from u in _dbContext.SysUsers.AsNoTracking()
@@ -919,7 +928,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> UpdateProfileAsync(UserProfileForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
 
         var user = await _dbContext.SysUsers
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken)
@@ -967,7 +976,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> ChangePasswordAsync(PasswordChangeForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
 
         var user = await _dbContext.SysUsers
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken)
@@ -1019,8 +1028,8 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "手机号不能为空");
         }
 
-        var code = "1234";
-        _logger.LogInformation("[SendMobileCode] mobile={Mobile} code={Code}", mobile, code);
+        var code = DevDefaults.VerifyCode;
+        _logger.LogInformation("[SendMobileCode] mobile={Mobile}", mobile);
 
         var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
@@ -1033,7 +1042,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> BindOrChangeMobileAsync(MobileUpdateForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
         var mobile = formData.Mobile?.Trim();
         if (string.IsNullOrWhiteSpace(mobile))
         {
@@ -1105,8 +1114,8 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "邮箱不能为空");
         }
 
-        var code = "1234";
-        _logger.LogInformation("[SendEmailCode] email={Email} code={Code}", email, code);
+        var code = DevDefaults.VerifyCode;
+        _logger.LogInformation("[SendEmailCode] email={Email}", email);
 
         var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.EmailCode, email.Trim());
@@ -1119,7 +1128,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> BindOrChangeEmailAsync(EmailUpdateForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
         var email = formData.Email?.Trim();
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -1256,26 +1265,6 @@ internal sealed class SystemUserService : ISystemUserService
             );
     }
 
-    private static HashSet<long> ParseLongList(string? input)
-    {
-        var set = new HashSet<long>();
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return set;
-        }
-
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
-        {
-            if (long.TryParse(p, out var v) && v > 0)
-            {
-                set.Add(v);
-            }
-        }
-
-        return set;
-    }
-
     private static (DateTime? Start, DateTime? End) ParseTimeRange(IReadOnlyCollection<string>? input)
     {
         if (input is null || input.Count == 0)
@@ -1316,26 +1305,6 @@ internal sealed class SystemUserService : ISystemUserService
         return int.TryParse(input.Trim(), out var v) ? v : null;
     }
 
-    private static HashSet<long> ParseIdList(string? input)
-    {
-        var set = new HashSet<long>();
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return set;
-        }
-
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
-        {
-            if (long.TryParse(p, out var v) && v > 0)
-            {
-                set.Add(v);
-            }
-        }
-
-        return set;
-    }
-
     private async Task SaveUserRolesAsync(long userId, IReadOnlyCollection<long>? roleIds, CancellationToken cancellationToken)
     {
         var existing = await _dbContext.SysUserRoles
@@ -1366,17 +1335,6 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private long GetRequiredCurrentUserId()
-    {
-        var userId = _currentUser.UserId;
-        if (!userId.HasValue || userId.Value <= 0)
-        {
-            throw new BusinessException(ResultCode.AccessTokenInvalid);
-        }
-
-        return userId.Value;
     }
 
     private static string EscapeCsv(string? input)

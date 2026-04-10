@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Security;
+using Youlai.Core.Security;
 using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
@@ -38,7 +38,7 @@ internal sealed class DataPermissionService : IDataPermissionService
         }
 
         var dataScopes = _currentUser.DataScopes;
-        
+
         // 没有数据权限配置，默认只能查看本人数据
         if (dataScopes == null || dataScopes.Count == 0)
         {
@@ -65,7 +65,7 @@ internal sealed class DataPermissionService : IDataPermissionService
     /// </summary>
     private bool HasAllDataScope(IReadOnlyList<RoleDataScope> dataScopes)
     {
-        return dataScopes.Any(scope => scope.DataScope == (int)Application.Common.Security.DataScope.All);
+        return dataScopes.Any(scope => scope.DataScope == (int)DataScope.All);
     }
 
     /// <summary>
@@ -119,15 +119,15 @@ internal sealed class DataPermissionService : IDataPermissionService
         long? userId,
         long? deptId)
     {
-        var dataScope = (Application.Common.Security.DataScope)roleDataScope.DataScope;
+        var dataScope = (DataScope)roleDataScope.DataScope;
 
         return dataScope switch
         {
-            Application.Common.Security.DataScope.All => null, // 全部数据权限，不添加过滤条件
-            Application.Common.Security.DataScope.Dept when deptId.HasValue => BuildEquals(deptIdSelector, deptId.Value),
-            Application.Common.Security.DataScope.Self when userId.HasValue => BuildEquals(userIdSelector, userId.Value),
-            Application.Common.Security.DataScope.DeptAndSub when deptId.HasValue => BuildDeptAndSubExpression(deptIdSelector, deptId.Value),
-            Application.Common.Security.DataScope.Custom => BuildCustomDeptExpression(deptIdSelector, roleDataScope.CustomDeptIds),
+            DataScope.All => null, // 全部数据权限，不添加过滤条件
+            DataScope.Dept when deptId.HasValue => BuildEquals(deptIdSelector, deptId.Value),
+            DataScope.Self when userId.HasValue => BuildEquals(userIdSelector, userId.Value),
+            DataScope.DeptAndSub when deptId.HasValue => BuildDeptAndSubExpression(deptIdSelector, deptId.Value),
+            DataScope.Custom => BuildCustomDeptExpression(deptIdSelector, roleDataScope.CustomDeptIds),
             _ => userId.HasValue ? BuildEquals(userIdSelector, userId.Value) : null
         };
     }

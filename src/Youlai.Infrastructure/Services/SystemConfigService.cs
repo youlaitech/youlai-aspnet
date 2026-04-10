@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos.Config;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.Config;
+using Youlai.Core.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Constants;
 using Youlai.Infrastructure.Persistence.DbContext;
@@ -35,13 +35,7 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// </summary>
     public async Task<PageResult<ConfigPageVo>> GetConfigPageAsync(ConfigQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var q = _dbContext.SysConfigs
             .AsNoTracking()

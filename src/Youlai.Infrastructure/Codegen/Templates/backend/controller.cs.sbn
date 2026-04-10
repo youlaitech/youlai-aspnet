@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.{{ moduleNamePascal }}.Dtos;
-using Youlai.Application.{{ moduleNamePascal }}.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.{{ moduleNamePascal }}.Dtos;
+using Youlai.Core.{{ moduleNamePascal }}.Services;
 
 namespace Youlai.Api.Controllers;
 

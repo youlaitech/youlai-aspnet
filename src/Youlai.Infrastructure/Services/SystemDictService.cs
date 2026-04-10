@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.Common.Services;
-using Youlai.Application.System.Dtos.Dict;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Extensions;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.Services;
+using Youlai.Core.System.Dtos.Dict;
+using Youlai.Core.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Persistence.DbContext;
 
@@ -32,13 +33,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<PageResult<DictPageVo>> GetDictPageAsync(DictQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var dicts = _dbContext.SysDicts.AsNoTracking().Where(d => !d.IsDeleted);
 
@@ -242,7 +237,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<bool> DeleteDictsAsync(string ids, CancellationToken cancellationToken = default)
     {
-        var idList = ParseIdList(ids);
+        var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典数据为空");
@@ -295,13 +290,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<PageResult<DictItemPageVo>> GetDictItemPageAsync(string dictCode, DictItemQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var items = _dbContext.SysDictItems.AsNoTracking().Where(i => i.DictCode == dictCode);
 
@@ -450,7 +439,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<bool> DeleteDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
     {
-        var idList = ParseIdList(ids);
+        var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典项数据为空");
@@ -465,23 +454,4 @@ internal sealed class SystemDictService : ISystemDictService
         return true;
     }
 
-    private static HashSet<long> ParseIdList(string? input)
-    {
-        var set = new HashSet<long>();
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return set;
-        }
-
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
-        {
-            if (long.TryParse(p, out var v) && v > 0)
-            {
-                set.Add(v);
-            }
-        }
-
-        return set;
-    }
 }

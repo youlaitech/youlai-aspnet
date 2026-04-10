@@ -1,28 +1,13 @@
 namespace Youlai.Domain.Entities;
 
-/// <summary>
-/// 角色
-/// </summary>
 public sealed class SysRole
 {
-    /// <summary>
-    /// 主键
-    /// </summary>
     public long Id { get; set; }
 
-    /// <summary>
-    /// 角色名称
-    /// </summary>
     public string? Name { get; set; }
 
-    /// <summary>
-    /// 角色编码
-    /// </summary>
     public string? Code { get; set; }
 
-    /// <summary>
-    /// 排序
-    /// </summary>
     public int? Sort { get; set; }
 
     /// <summary>
@@ -35,28 +20,16 @@ public sealed class SysRole
     /// </summary>
     public int? DataScope { get; set; }
 
-    /// <summary>
-    /// 创建人
-    /// </summary>
     public long? CreateBy { get; set; }
 
-    /// <summary>
-    /// 创建时间
-    /// </summary>
     public DateTime? CreateTime { get; set; }
 
-    /// <summary>
-    /// 更新人
-    /// </summary>
     public long? UpdateBy { get; set; }
 
-    /// <summary>
-    /// 更新时间
-    /// </summary>
     public DateTime? UpdateTime { get; set; }
 
     /// <summary>
-    /// 软删除标记
+    /// 软删除标记：true=已删除，false=正常
     /// </summary>
     public bool IsDeleted { get; set; }
 }

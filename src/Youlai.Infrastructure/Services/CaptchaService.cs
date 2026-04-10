@@ -7,10 +7,10 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using StackExchange.Redis;
-using Youlai.Application.Auth.Dtos;
-using Youlai.Application.Auth.Services;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
+using Youlai.Core.Auth.Dtos;
+using Youlai.Core.Auth.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
 using Youlai.Infrastructure.Options;
 
 namespace Youlai.Infrastructure.Services;

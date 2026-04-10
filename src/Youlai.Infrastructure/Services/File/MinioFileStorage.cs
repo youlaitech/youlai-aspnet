@@ -2,9 +2,9 @@ using System.Globalization;
 using Minio;
 using Minio.DataModel.Args;
 using Minio.Exceptions;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Platform.File.Dtos;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.Platform.File.Dtos;
 using Youlai.Infrastructure.Options;
 
 namespace Youlai.Infrastructure.Services.File;

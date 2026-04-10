@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.Common.Services;
-using Youlai.Application.System.Dtos.Notice;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Extensions;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.Services;
+using Youlai.Core.System.Dtos.Notice;
+using Youlai.Core.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Persistence.DbContext;
 
@@ -41,13 +42,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var notices = _dbContext.SysNotices.AsNoTracking().Where(n => !n.IsDeleted);
 
@@ -218,7 +213,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<bool> DeleteNoticesAsync(string ids, CancellationToken cancellationToken = default)
     {
-        var idList = ParseIdList(ids);
+        var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的通知公告数据为空");
@@ -287,7 +282,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             .ConfigureAwait(false);
 
         var targetUserIds = notice.TargetType == TargetSpecified
-            ? ParseStringIdList(notice.TargetUserIds)
+            ? CollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds)
             : new HashSet<long>();
 
         var usersQuery = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted && u.Status == 1);
@@ -340,7 +335,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             .ConfigureAwait(false);
 
         var noticeTargetIds = notice.TargetType == TargetSpecified
-            ? ParseStringIdList(notice.TargetUserIds).ToHashSet()
+            ? CollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds).ToHashSet()
             : allUsers.Select(u => u.Id).ToHashSet();
 
         var noticeTargetIdStrings = allUsers
@@ -405,7 +400,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             .ConfigureAwait(false);
 
         var revokeTargetIds = notice.TargetType == TargetSpecified
-            ? ParseStringIdList(notice.TargetUserIds).ToHashSet()
+            ? CollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds).ToHashSet()
             : allUsernames.Select(u => u.Id).ToHashSet();
 
         var revokeTargetIdStrings = allUsernames
@@ -501,15 +496,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
-
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var userId = _currentUser.GetRequiredUserId();
+        var (pageNum, pageSize) = query.Normalize();
 
         var baseQuery =
             from un in _dbContext.SysUserNotices.AsNoTracking()
@@ -577,57 +565,6 @@ internal sealed class SystemNoticeService : ISystemNoticeService
                 throw new BusinessException(ResultCode.InvalidUserInput, "推送指定用户不能为空");
             }
         }
-    }
-
-    private long GetRequiredCurrentUserId()
-    {
-        var userId = _currentUser.UserId;
-        if (!userId.HasValue || userId.Value <= 0)
-        {
-            throw new BusinessException(ResultCode.AccessTokenInvalid);
-        }
-
-        return userId.Value;
-    }
-
-    private static HashSet<long> ParseIdList(string? input)
-    {
-        var set = new HashSet<long>();
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return set;
-        }
-
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
-        {
-            if (long.TryParse(p, out var v) && v > 0)
-            {
-                set.Add(v);
-            }
-        }
-
-        return set;
-    }
-
-    private static HashSet<long> ParseStringIdList(string? input)
-    {
-        var set = new HashSet<long>();
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return set;
-        }
-
-        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
-        {
-            if (long.TryParse(p, out var v) && v > 0)
-            {
-                set.Add(v);
-            }
-        }
-
-        return set;
     }
 
     private static string? JoinIds(IReadOnlyCollection<string>? ids)

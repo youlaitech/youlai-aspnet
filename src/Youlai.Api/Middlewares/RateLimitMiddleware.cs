@@ -3,13 +3,12 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Youlai.Application.Common.Results;
+using Youlai.Core.Results;
 
 namespace Youlai.Api.Middlewares;
 
 /// <summary>
-/// IP 限流中间件
-/// 基于 Redis 固定窗口计数器实现，对齐 youlai-boot RateLimiterFilter
+/// IP 限流中间件（Redis 固定窗口计数器）
 /// 默认限制同一 IP 每秒最多 10 次请求
 /// </summary>
 public sealed class RateLimitMiddleware

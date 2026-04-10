@@ -1,11 +1,11 @@
 using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
-using Youlai.Application.Auth.Dtos;
-using Youlai.Application.Auth.Services;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
+using Youlai.Core.Auth.Dtos;
+using Youlai.Core.Auth.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
 using Youlai.Infrastructure.Constants;
 using Youlai.Infrastructure.Persistence.DbContext;
 
@@ -39,7 +39,7 @@ internal sealed class AuthService : IAuthService
     /// <summary>
     /// 登录
     /// </summary>
-    public async Task<AuthenticationTokenDto> LoginAsync(LoginRequestDto request, CancellationToken cancellationToken = default)
+    public async Task<(AuthenticationTokenDto Token, long UserId)> LoginAsync(LoginRequestDto request, CancellationToken cancellationToken = default)
     {
         await _captchaService.ValidateAsync(request.CaptchaId, request.CaptchaCode, cancellationToken);
 
@@ -64,7 +64,8 @@ internal sealed class AuthService : IAuthService
             throw new BusinessException(ResultCode.UserPasswordError);
         }
 
-        return await GenerateTokenAsync(user.Id, cancellationToken);
+        var token = await GenerateTokenAsync(user.Id, cancellationToken);
+        return (token, user.Id);
     }
 
     public async Task SendSmsLoginCodeAsync(string mobile, CancellationToken cancellationToken = default)
@@ -81,7 +82,7 @@ internal sealed class AuthService : IAuthService
         await db.StringSetAsync(key, code, SmsCodeTtl).ConfigureAwait(false);
     }
 
-    public async Task<AuthenticationTokenDto> LoginBySmsAsync(string mobile, string code, CancellationToken cancellationToken = default)
+    public async Task<(AuthenticationTokenDto Token, long UserId)> LoginBySmsAsync(string mobile, string code, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile) || string.IsNullOrWhiteSpace(code))
         {
@@ -118,7 +119,8 @@ internal sealed class AuthService : IAuthService
             throw new BusinessException(ResultCode.UserLoginException, "账号已禁用");
         }
 
-        return await GenerateTokenAsync(user.Id, cancellationToken);
+        var token = await GenerateTokenAsync(user.Id, cancellationToken);
+        return (token, user.Id);
     }
 
     /// <summary>

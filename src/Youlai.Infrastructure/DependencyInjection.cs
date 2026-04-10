@@ -3,12 +3,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Youlai.Application.Auth.Services;
-using Youlai.Application.Common.Security;
-using Youlai.Application.Common.Services;
-using Youlai.Application.Platform.File.Services;
-using Youlai.Application.Platform.Codegen.Services;
-using Youlai.Application.System.Services;
+using Youlai.Core.Auth.Services;
+using Youlai.Core.Security;
+using Youlai.Core.Services;
+using Youlai.Core.Platform.Codegen.Services;
+using Youlai.Core.Platform.File.Services;
+using Youlai.Core.System.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 using Youlai.Infrastructure.Options;
 using Youlai.Infrastructure.Services;
@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<IRolePermsCacheInvalidator, RolePermsCacheInvalidator>();
         services.AddScoped<IDataPermissionService, DataPermissionService>();
         services.AddSingleton<ISseService, SseService>();
+        services.AddScoped<ILoggingService, LoggingService>();
 
         return services;
     }

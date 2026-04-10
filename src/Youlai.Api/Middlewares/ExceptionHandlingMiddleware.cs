@@ -2,8 +2,8 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
 
 namespace Youlai.Api.Middlewares;
 

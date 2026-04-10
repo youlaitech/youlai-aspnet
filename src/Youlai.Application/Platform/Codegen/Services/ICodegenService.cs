@@ -1,4 +1,4 @@
-using Youlai.Application.Common.Results;
+using Youlai.Core.Results;
 using Youlai.Application.Platform.Codegen.Dtos;
 
 namespace Youlai.Application.Platform.Codegen.Services;

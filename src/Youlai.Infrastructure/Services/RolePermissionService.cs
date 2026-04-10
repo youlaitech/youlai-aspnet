@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
-using Youlai.Application.Common.Security;
+using Youlai.Core.Security;
 using Youlai.Infrastructure.Constants;
 using Youlai.Infrastructure.Persistence.DbContext;
 

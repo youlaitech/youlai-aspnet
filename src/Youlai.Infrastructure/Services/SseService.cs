@@ -2,7 +2,8 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
-using Youlai.Application.Common.Services;
+using Youlai.Core.Security;
+using Youlai.Core.Services;
 
 namespace Youlai.Infrastructure.Services;
 

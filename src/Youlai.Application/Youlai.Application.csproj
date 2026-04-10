@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\Youlai.Core\Youlai.Core.csproj" />
     <ProjectReference Include="..\Youlai.Domain\Youlai.Domain.csproj" />
   </ItemGroup>
 

@@ -3,10 +3,10 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Scriban;
 using Scriban.Runtime;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Platform.Codegen.Dtos;
-using Youlai.Application.Platform.Codegen.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.Platform.Codegen.Dtos;
+using Youlai.Core.Platform.Codegen.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
@@ -52,14 +52,8 @@ internal sealed class CodegenService : ICodegenService
         CodegenTableQuery query,
         CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+        var (pageNum, pageSize) = query.Normalize();
         var keywords = query.Keywords?.Trim();
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
 
         var where = "t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME NOT IN ('gen_table','gen_table_column')";
         var parameters = new List<DbParameter>();

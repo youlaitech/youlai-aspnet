@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos.Role;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Extensions;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.Role;
+using Youlai.Core.System.Services;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Persistence.DbContext;
 
@@ -36,13 +37,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<PageResult<RolePageVo>> GetRolePageAsync(RoleQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var roles = _dbContext.SysRoles
             .AsNoTracking()
@@ -306,7 +301,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default)
     {
-        var roleIds = ParseLongList(ids);
+        var roleIds = CollectionExtensions.ParsePositiveLongIds(ids);
         if (roleIds.Count == 0)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的角色ID不能为空");
@@ -512,22 +507,4 @@ internal sealed class SystemRoleService : ISystemRoleService
         }
     }
 
-    private static IReadOnlyCollection<long> ParseLongList(string? ids)
-    {
-        if (string.IsNullOrWhiteSpace(ids))
-        {
-            return Array.Empty<long>();
-        }
-
-        var list = new List<long>();
-        foreach (var s in ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (long.TryParse(s, out var id) && id > 0)
-            {
-                list.Add(id);
-            }
-        }
-
-        return list;
-    }
 }

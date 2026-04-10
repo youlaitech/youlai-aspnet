@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Enums;
-using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos.Log;
-using Youlai.Application.System.Dtos.Statistics;
-using Youlai.Application.System.Services;
+using Youlai.Core.Enums;
+using Youlai.Core.Results;
+using Youlai.Core.System.Dtos.Log;
+using Youlai.Core.System.Dtos.Statistics;
+using Youlai.Core.System.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
@@ -21,13 +21,7 @@ internal sealed class SystemLogService : ISystemLogService
 
     public async Task<PageResult<LogPageVo>> GetLogPageAsync(LogQuery query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
-
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var (pageNum, pageSize) = query.Normalize();
 
         var logs =
             from l in _dbContext.SysLogs.AsNoTracking()
@@ -204,14 +198,16 @@ internal sealed class SystemLogService : ISystemLogService
         DateTime? start = null;
         DateTime? end = null;
 
-        if (!string.IsNullOrWhiteSpace(createTime[0]))
+        var startText = createTime[0];
+        if (!string.IsNullOrWhiteSpace(startText))
         {
-            start = ParseDateTimeMaybeDateOnly(createTime[0].Trim(), isStart: true);
+            start = ParseDateTimeMaybeDateOnly(startText.Trim(), isStart: true);
         }
 
-        if (createTime.Length >= 2 && !string.IsNullOrWhiteSpace(createTime[1]))
+        var endText = createTime.Length >= 2 ? createTime[1] : null;
+        if (!string.IsNullOrWhiteSpace(endText))
         {
-            end = ParseDateTimeMaybeDateOnly(createTime[1].Trim(), isStart: false);
+            end = ParseDateTimeMaybeDateOnly(endText.Trim(), isStart: false);
         }
 
         return (start, end);

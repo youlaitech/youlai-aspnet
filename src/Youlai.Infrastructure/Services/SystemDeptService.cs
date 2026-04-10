@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos.Dept;
-using Youlai.Application.System.Services;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.Dept;
+using Youlai.Core.System.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 using Youlai.Domain.Entities;
 
@@ -42,7 +42,7 @@ internal sealed class SystemDeptService : ISystemDeptService
             .AsNoTracking()
             .Where(d => !d.IsDeleted);
 
-        // 数据权限过滤：按部门ID过滤，并使用 CreateBy 实现 SELF(本人) 口径与 boot 对齐
+        // 数据权限过滤：按部门ID过滤，CreateBy 字段用于 SELF(本人) 口径
         q = _dataPermissionService.Apply(q, d => d.Id, d => d.CreateBy ?? 0);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))

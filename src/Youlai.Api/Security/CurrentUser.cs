@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Youlai.Application.Auth.Constants;
-using Youlai.Application.Common.Security;
+using Youlai.Core.Auth.Constants;
+using Youlai.Core.Security;
 
 namespace Youlai.Api.Security;
 

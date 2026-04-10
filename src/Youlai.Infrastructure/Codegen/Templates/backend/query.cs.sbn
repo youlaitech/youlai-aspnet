@@ -1,5 +1,5 @@
 using System;
-using Youlai.Application.Common.Models;
+using Youlai.Core.Models;
 
 namespace Youlai.Application.{{ moduleNamePascal }}.Dtos;
 

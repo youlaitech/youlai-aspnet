@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
-using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos.Notice;
-using Youlai.Application.System.Services;
+using Youlai.Core.Results;
+using Youlai.Core.System.Dtos.Notice;
+using Youlai.Core.System.Services;
 
 namespace Youlai.Api.Controllers.System;
 

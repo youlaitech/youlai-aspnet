@@ -1,9 +1,9 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.Common.Services;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.Services;
 
 namespace Youlai.Api.Controllers;
 

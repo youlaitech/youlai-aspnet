@@ -2,11 +2,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
-using Youlai.Application.Common.Attributes;
-using Youlai.Application.Common.Enums;
-using Youlai.Application.Common.Results;
-using Youlai.Application.System.Dtos.User;
-using Youlai.Application.System.Services;
+using Youlai.Core.Attributes;
+using Youlai.Core.Enums;
+using Youlai.Core.Results;
+using Youlai.Core.System.Dtos.User;
+using Youlai.Core.System.Services;
 
 namespace Youlai.Api.Controllers.System;
 
@@ -148,7 +148,7 @@ public sealed class UsersController : ControllerBase
     [Consumes("multipart/form-data")]
     [HasPerm("sys:user:import")]
     [Log(LogModule.USER, ActionType.INSERT)]
-    public async Task<Result<Application.Common.Models.ExcelResult>> ImportUsers(
+    public async Task<Result<Youlai.Core.Models.ExcelResult>> ImportUsers(
         IFormFile file,
         CancellationToken cancellationToken)
     {
@@ -247,7 +247,7 @@ public sealed class UsersController : ControllerBase
     /// 用户下拉选项
     /// </summary>
     [HttpGet("options")]
-    public async Task<Result<IReadOnlyCollection<Application.Common.Models.Option<long>>>> GetOptions(CancellationToken cancellationToken)
+    public async Task<Result<IReadOnlyCollection<Youlai.Core.Models.Option<long>>>> GetOptions(CancellationToken cancellationToken)
     {
         var list = await _userService.GetUserOptionsAsync(cancellationToken);
         return Result.Success(list);

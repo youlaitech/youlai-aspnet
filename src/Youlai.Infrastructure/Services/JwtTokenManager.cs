@@ -5,11 +5,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
-using Youlai.Application.Auth.Constants;
-using Youlai.Application.Auth.Dtos;
-using Youlai.Application.Common.Security;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Results;
+using Youlai.Core.Auth.Constants;
+using Youlai.Core.Auth.Dtos;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
 using Youlai.Infrastructure.Constants;
 using Youlai.Infrastructure.Options;
 

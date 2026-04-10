@@ -1,12 +1,12 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Common.Enums;
-using Youlai.Application.Common.Exceptions;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos.Menu;
-using Youlai.Application.System.Services;
+using Youlai.Core.Enums;
+using Youlai.Core.Exceptions;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.Menu;
+using Youlai.Core.System.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;
@@ -59,23 +59,20 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
         else
         {
-            // 使用原生 SQL 查询，避免 EF Core 表达式树编译问题
-            var roleCodesList = string.Join("','", roleCodes.Select(c => c.Replace("'", "''")));
-            var sql = $@"
-                SELECT DISTINCT t1.id, t1.name, t1.parent_id, t1.route_name, t1.route_path,
-                       t1.component, t1.icon, t1.sort, t1.visible, t1.redirect, t1.type,
-                       t1.always_show, t1.keep_alive, t1.params, t1.perm, t1.tree_path
-                FROM sys_menu t1
-                INNER JOIN sys_role_menu t2 ON t1.id = t2.menu_id
-                INNER JOIN sys_role t3 ON t2.role_id = t3.id AND t3.status = 1 AND t3.is_deleted = 0
-                WHERE t1.type != 'B' AND t3.code IN ('{roleCodesList}')
-                ORDER BY t1.sort";
-
-            menus = await _dbContext.SysMenus
-                .FromSqlRaw(sql)
-                .AsNoTracking()
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            // Use parameterized LINQ query instead of raw SQL to prevent SQL injection
+            var roleCodesSet = roleCodes.ToHashSet(StringComparer.Ordinal);
+            menus = await (
+                from m in _dbContext.SysMenus.AsNoTracking()
+                join rm in _dbContext.SysRoleMenus on m.Id equals rm.MenuId
+                join r in _dbContext.SysRoles on rm.RoleId equals r.Id
+                where m.Type != MenuType.Button.GetCode()
+                    && r.Status == 1 && !r.IsDeleted
+                    && roleCodesSet.Contains(r.Code)
+                select m
+            ).Distinct()
+             .OrderBy(m => m.Sort ?? 0)
+             .ToListAsync(cancellationToken)
+             .ConfigureAwait(false);
         }
 
         return BuildRoutes(parentId: 0, menus).ToArray();

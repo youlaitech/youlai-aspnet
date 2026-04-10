@@ -7,13 +7,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Youlai.Application.Auth.Constants;
-using Youlai.Application.Common.Models;
-using Youlai.Application.Common.Results;
-using Youlai.Application.Common.Security;
-using Youlai.Application.System.Dtos;
-using Youlai.Application.System.Services;
-using Youlai.Api.Controllers;
+using Youlai.Core.Auth.Constants;
+using Youlai.Core.Models;
+using Youlai.Core.Results;
+using Youlai.Core.Security;
+using Youlai.Core.System.Dtos.Dept;
+using Youlai.Core.System.Dtos.Dict;
+using Youlai.Core.System.Dtos.Menu;
+using Youlai.Core.System.Dtos.Notice;
+using Youlai.Core.System.Dtos.Role;
+using Youlai.Core.System.Dtos.User;
+using Youlai.Core.System.Services;
+using Youlai.Api.Controllers.System;
 
 namespace Youlai.Api.Tests;
 
@@ -106,7 +111,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             });
         }
 
-        public Task<PageResult<UserPageVo>> GetUserPageAsync(UserPageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<UserPageVo>> GetUserPageAsync(UserQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -156,7 +161,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult<IReadOnlyCollection<byte>>(Array.Empty<byte>());
         }
 
-        public Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserPageQuery query, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserQuery query, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<byte>>(Array.Empty<byte>());
         }
@@ -271,7 +276,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
 
     private sealed class FakeSystemRoleService : ISystemRoleService
     {
-        public Task<PageResult<RolePageVo>> GetRolePageAsync(RolePageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<RolePageVo>> GetRolePageAsync(RoleQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -319,11 +324,21 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         {
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<long>>(Array.Empty<long>());
+        }
+
+        public Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeSystemDictService : ISystemDictService
     {
-        public Task<PageResult<DictPageVo>> GetDictPageAsync(DictPageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<DictPageVo>> GetDictPageAsync(DictQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -355,7 +370,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<PageResult<DictItemPageVo>> GetDictItemPageAsync(string dictCode, DictItemPageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<DictItemPageVo>> GetDictItemPageAsync(string dictCode, DictItemQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -369,7 +384,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
 
         public Task<DictItemForm> GetDictItemFormAsync(string dictCode, long itemId, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(new DictItemForm { Id = itemId, DictCode = dictCode, Label = "男", Value = "1", Status = 1, Sort = 1 });
+            return Task.FromResult(new DictItemForm { Id = itemId, DictCode = dictCode, Label = "1", Value = "1", Status = 1, Sort = 1 });
         }
 
         public Task<bool> CreateDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
@@ -390,7 +405,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
 
     private sealed class FakeSystemNoticeService : ISystemNoticeService
     {
-        public Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -437,7 +452,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticePageQuery query, CancellationToken cancellationToken = default)
+        public Task<PageResult<NoticePageVo>> GetMyNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
         {
             var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
@@ -463,7 +478,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             {
                 new(JwtClaimConstants.UserId, "1"),
                 new(JwtClaimConstants.DeptId, "1"),
-                new(JwtClaimConstants.DataScope, ((int)DataScope.All).ToString()),
+                new(JwtClaimConstants.DataScopes, ((int)DataScope.All).ToString()),
                 new(JwtClaimConstants.Authorities, SecurityConstants.RolePrefix + SecurityConstants.RootRoleCode),
             };
 

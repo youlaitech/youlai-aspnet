@@ -3,8 +3,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Youlai.Application.Common.Attributes;
-using Youlai.Application.Common.Enums;
+using Youlai.Core.Attributes;
+using Youlai.Core.Enums;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Persistence.DbContext;
 
