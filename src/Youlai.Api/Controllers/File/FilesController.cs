@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youlai.Core.Exceptions;
-using Youlai.Core.Results;
-using Youlai.Core.File.Dtos;
-using Youlai.Core.File.Services;
+using Youlai.Application.Exceptions;
+using Youlai.Application.Results;
+using Youlai.Application.File.Dtos;
+using Youlai.Application.File.Interfaces;
 
 namespace Youlai.Api.Controllers.File;
 

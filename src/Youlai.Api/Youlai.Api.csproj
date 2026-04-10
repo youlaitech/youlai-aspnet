@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Youlai.Core\Youlai.Core.csproj" />
     <ProjectReference Include="..\Youlai.Application\Youlai.Application.csproj" />
     <ProjectReference Include="..\Youlai.Infrastructure\Youlai.Infrastructure.csproj" />
   </ItemGroup>

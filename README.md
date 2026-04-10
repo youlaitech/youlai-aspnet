@@ -54,11 +54,43 @@
 youlai-aspnet/
 ├─ src/                             # 源码目录
 │  ├─ Youlai.Api/                   # Web API层（控制器、中间件、认证授权）
-│  │  ├─ appsettings.json           # 生产环境配置
+│  │  ├─ Controllers/              # 控制器（按模块组织）
+│  │  │  ├─ Auth/                 # 认证模块
+│  │  │  ├─ Codegen/              # 代码生成模块
+│  │  │  ├─ File/                 # 文件模块
+│  │  │  ├─ Message/              # 消息模块（SSE）
+│  │  │  └─ System/               # 系统模块
+│  │  ├─ Middlewares/             # 中间件
+│  │  ├─ Security/                # 安全认证
+│  │  ├─ Swagger/                 # Swagger配置
+│  │  ├─ Converters/              # 类型转换器
+│  │  ├─ Properties/              # 项目属性
+│  │  ├─ Program.cs               # 应用入口
+│  │  ├─ appsettings.json         # 生产环境配置
 │  │  └─ appsettings.Development.json # 开发环境配置
 │  ├─ Youlai.Application/           # 应用层（服务接口定义、DTO、业务逻辑）
+│  │  ├─ Dtos/                    # 数据传输对象
+│  │  ├─ Interfaces/              # 服务接口
+│  │  ├─ Services/                # 业务逻辑
+│  │  ├─ Security/                # 安全相关
+│  │  ├─ Constants/               # 常量定义
+│  │  ├─ Exceptions/              # 自定义异常
+│  │  ├─ Results/                 # 返回结果封装
+│  │  ├─ Options/                 # 配置选项
+│  │  ├─ Extensions/              # 扩展方法
+│  │  ├─ Attributes/              # 自定义特性
+│  │  ├─ Persistence/             # 持久化相关
+│  │  ├─ Common/                  # 通用工具类
+│  │  ├─ Models/                  # 模型定义
+│  │  ├─ File/                    # 文件服务
+│  │  └─ Auth/                    # 认证服务
 │  ├─ Youlai.Domain/                # 领域层（实体模型、领域对象、枚举）
+│  │  ├─ Entities/                # 实体模型
+│  │  └─ Enums/                   # 枚举
 │  └─ Youlai.Infrastructure/        # 基础设施层（EF Core、仓储、缓存）
+│     ├─ CodegenTemplates/        # 代码生成模板
+│     ├─ FileStorage/             # 文件存储
+│     └─ Filters/                 # 过滤器
 ├─ sql/                             # 数据库脚本
 │  └─ mysql/                        # MySQL 脚本
 ├─ tests/                           # 测试项目

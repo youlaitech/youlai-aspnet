@@ -3,16 +3,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Youlai.Core.Auth.Services;
-using Youlai.Core.Security;
-using Youlai.Core.Services;
-using Youlai.Core.Codegen.Services;
-using Youlai.Core.File.Services;
-using Youlai.Core.System.Services;
-using Youlai.Infrastructure.Persistence.DbContext;
-using Youlai.Infrastructure.Options;
-using Youlai.Infrastructure.Services;
-using Youlai.Infrastructure.Services.File;
+using Youlai.Application.Persistence;
+using Youlai.Application.Options;
+using Youlai.Application.Security;
+using Youlai.Application.File.Interfaces;
+using Youlai.Infrastructure.FileStorage;
+using Youlai.Infrastructure.Persistence;
 
 namespace Youlai.Infrastructure;
 
@@ -20,6 +16,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // Options
         services.AddOptions<DatabaseOptions>()
             .Bind(configuration.GetSection(DatabaseOptions.SectionName))
             .Validate(o => !string.IsNullOrWhiteSpace(o.ConnectionString), "Database:ConnectionString is required")
@@ -50,45 +47,31 @@ public static class DependencyInjection
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);
 
+        // DbContext
         services.AddDbContext<YoulaiDbContext>((sp, options) =>
         {
             var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             options.UseMySql(dbOptions.ConnectionString, ServerVersion.AutoDetect(dbOptions.ConnectionString));
         });
+        services.AddScoped<IYoulaiDbContext>(sp => sp.GetRequiredService<YoulaiDbContext>());
 
+        // Redis
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<RedisOptions>>().Value;
             return ConnectionMultiplexer.Connect(options.ConnectionString);
         });
 
-        services.AddScoped<ICaptchaService, CaptchaService>();
-
+        // Identity
         services.AddScoped<JwtTokenManager>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddHttpClient("Wechat");
-        services.AddScoped<IWxMaAuthService, WxMaAuthService>();
 
-        services.AddScoped<ISystemUserService, SystemUserService>();
-        services.AddScoped<ISystemMenuService, SystemMenuService>();
-        services.AddScoped<ISystemDeptService, SystemDeptService>();
-        services.AddScoped<ISystemRoleService, SystemRoleService>();
-        services.AddScoped<ISystemConfigService, SystemConfigService>();
-        services.AddScoped<ISystemLogService, SystemLogService>();
-        services.AddScoped<ISystemDictService, SystemDictService>();
-        services.AddScoped<ISystemNoticeService, SystemNoticeService>();
-        services.AddScoped<ICodegenService, CodegenService>();
-
-        services.AddScoped<IFileService, FileService>();
+        // File Storage (strategy pattern)
         services.AddScoped<IFileStorage, LocalFileStorage>();
         services.AddScoped<IFileStorage, MinioFileStorage>();
         services.AddScoped<IFileStorage, AliyunFileStorage>();
 
-        services.AddScoped<IRolePermissionService, RolePermissionService>();
-        services.AddScoped<IRolePermsCacheInvalidator, RolePermsCacheInvalidator>();
-        services.AddScoped<IDataPermissionService, DataPermissionService>();
-        services.AddSingleton<ISseService, SseService>();
-        services.AddScoped<ILoggingService, LoggingService>();
+        // Http clients
+        services.AddHttpClient("Wechat");
 
         return services;
     }

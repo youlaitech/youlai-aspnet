@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
-using Youlai.Core.Security;
+using Youlai.Application.Security;
 
 namespace Youlai.Api.Security;
 

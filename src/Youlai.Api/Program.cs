@@ -6,10 +6,10 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 using Youlai.Api.Converters;
 using Youlai.Api.Security;
 using Youlai.Api.Middlewares;
+using Youlai.Api.Filters;
 using Youlai.Application;
-using Youlai.Infrastructure.Common.Filters;
-using Youlai.Core.Security;
-using Youlai.Core.Results;
+using Youlai.Application.Security;
+using Youlai.Application.Results;
 using Youlai.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);

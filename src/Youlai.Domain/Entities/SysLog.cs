@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace Youlai.Domain.Entities;
 
 public sealed class SysLog
@@ -8,23 +6,18 @@ public sealed class SysLog
 
     public int? Module { get; set; }
 
-    [Column("action_type")]
     public int? ActionType { get; set; }
 
     public string? Title { get; set; }
 
     public string? Content { get; set; }
 
-    [Column("operator_id")]
     public long? OperatorId { get; set; }
 
-    [Column("operator_name")]
     public string? OperatorName { get; set; }
 
-    [Column("request_uri")]
     public string? RequestUri { get; set; }
 
-    [Column("request_method")]
     public string? RequestMethod { get; set; }
 
     public string? Ip { get; set; }
@@ -44,12 +37,9 @@ public sealed class SysLog
     /// </summary>
     public int Status { get; set; }
 
-    [Column("error_msg")]
     public string? ErrorMsg { get; set; }
 
-    [Column("execution_time")]
     public int? ExecutionTime { get; set; }
 
-    [Column("create_time")]
     public DateTime? CreateTime { get; set; }
 }

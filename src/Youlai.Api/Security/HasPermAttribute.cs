@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using Youlai.Core.Security;
+using Youlai.Application.Security;
 
 namespace Youlai.Api.Security;
 

@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Youlai.Core.Results;
+using Youlai.Application.Results;
 
 namespace Youlai.Api.Middlewares;
 

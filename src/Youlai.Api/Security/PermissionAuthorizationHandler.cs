@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Youlai.Core.Security;
+using Youlai.Application.Security;
 
 namespace Youlai.Api.Security;
 
