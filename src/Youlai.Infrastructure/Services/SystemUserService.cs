@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -24,7 +23,6 @@ namespace Youlai.Infrastructure.Services;
 /// </summary>
 internal sealed class SystemUserService : ISystemUserService
 {
-    private const string DefaultPassword = "123456";
     private static readonly TimeSpan VerifyCodeTtl = TimeSpan.FromMinutes(5);
 
     private readonly YoulaiDbContext _dbContext;
@@ -109,60 +107,7 @@ internal sealed class SystemUserService : ISystemUserService
         var (pageNum, pageSize) = query.Normalize();
 
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
-
-        // 排除超级管理员，避免列表误操作
-        var rootUserIds =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
-            select ur.UserId;
-
-        users = users.Where(u => !rootUserIds.Contains(u.Id));
-
-        // 数据权限过滤，确保用户只能看到授权范围内的数据
-        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
-
-        if (!string.IsNullOrWhiteSpace(query.Keywords))
-        {
-            var keywords = query.Keywords.Trim();
-            users = users.Where(u => (u.Username != null && u.Username.Contains(keywords))
-                || (u.Nickname != null && u.Nickname.Contains(keywords))
-                || (u.Mobile != null && u.Mobile.Contains(keywords)));
-        }
-
-        if (query.Status.HasValue)
-        {
-            users = users.Where(u => u.Status == query.Status.Value);
-        }
-
-        if (query.DeptId.HasValue)
-        {
-            users = users.Where(u => u.DeptId == query.DeptId.Value);
-        }
-
-        var roleIdList = CollectionExtensions.ParsePositiveLongIds(query.RoleIds);
-        if (roleIdList.Count > 0)
-        {
-            var roleUserIds = _dbContext.SysUserRoles
-                .AsNoTracking()
-                .Where(ur => roleIdList.Contains(ur.RoleId))
-                .Select(ur => ur.UserId);
-
-            users = users.Where(u => roleUserIds.Contains(u.Id));
-        }
-
-        var (startTime, endTime) = ParseTimeRange(query.CreateTime);
-        if (startTime.HasValue)
-        {
-            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value >= startTime.Value);
-        }
-
-        if (endTime.HasValue)
-        {
-            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value <= endTime.Value);
-        }
-
-        users = ApplySorting(users, query.Field, query.Direction);
+        users = ApplyUserFilters(users, query);
 
         var total = await users.LongCountAsync(cancellationToken).ConfigureAwait(false);
         if (total == 0)
@@ -213,7 +158,7 @@ internal sealed class SystemUserService : ISystemUserService
                 Status = x.Status,
                 DeptName = x.DeptName,
                 RoleNames = roleNamesMap.TryGetValue(x.Id, out var rn) ? rn : null,
-                CreateTime = x.CreateTime.HasValue ? x.CreateTime.Value.ToString("yyyy/MM/dd HH:mm") : null,
+                CreateTime = x.CreateTime.HasValue ? x.CreateTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
             })
             .ToArray();
 
@@ -304,7 +249,7 @@ internal sealed class SystemUserService : ISystemUserService
             Avatar = formData.Avatar?.Trim(),
             DeptId = formData.DeptId,
             Status = formData.Status ?? 1,
-            Password = BCrypt.Net.BCrypt.HashPassword(DefaultPassword),
+            Password = BCrypt.Net.BCrypt.HashPassword(DevDefaults.DefaultPassword),
             CreateBy = createBy,
             CreateTime = now,
             UpdateBy = createBy,
@@ -382,7 +327,7 @@ internal sealed class SystemUserService : ISystemUserService
         var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
-            throw new BusinessException(ResultCode.InvalidUserInput, "delete user data is empty");
+            throw new BusinessException(ResultCode.InvalidUserInput, "删除的用户数据为空");
         }
 
         var users = await _dbContext.SysUsers
@@ -453,30 +398,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = _currentUser.GetRequiredUserId();
-
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Password, u.Mobile })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (user is null)
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
-        }
-
-        if (string.IsNullOrWhiteSpace(user.Mobile))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前账号未绑定手机号");
-        }
-
-        if (string.IsNullOrWhiteSpace(formData.Password) || string.IsNullOrWhiteSpace(user.Password)
-            || !BCrypt.Net.BCrypt.Verify(formData.Password, user.Password))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
-        }
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -491,30 +413,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = _currentUser.GetRequiredUserId();
-
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Password, u.Email })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (user is null)
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
-        }
-
-        if (string.IsNullOrWhiteSpace(user.Email))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前账号未绑定邮箱");
-        }
-
-        if (string.IsNullOrWhiteSpace(formData.Password) || string.IsNullOrWhiteSpace(user.Password)
-            || !BCrypt.Net.BCrypt.Verify(formData.Password, user.Password))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
-        }
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -554,7 +453,7 @@ internal sealed class SystemUserService : ISystemUserService
     }
 
     /// <summary>
-    /// 下载导入模板
+    /// download import template
     /// </summary>
     public Task<IReadOnlyCollection<byte>> DownloadUserImportTemplateAsync(CancellationToken cancellationToken = default)
     {
@@ -562,7 +461,7 @@ internal sealed class SystemUserService : ISystemUserService
         var worksheet = workbook.Worksheets.Add("用户导入模板");
         var headers = new[]
         {
-            "username", "nickname", "mobile", "email", "gender", "role", "dept"
+            "用户名", "昵称", "手机号", "邮箱", "性别", "角色", "部门"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -578,64 +477,12 @@ internal sealed class SystemUserService : ISystemUserService
     }
 
     /// <summary>
-    /// 导出用户
+    /// export users
     /// </summary>
     public async Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserQuery query, CancellationToken cancellationToken = default)
     {
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
-
-        // 排除超级管理员，避免导出误操作
-        var rootUserIds =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
-            select ur.UserId;
-
-        users = users.Where(u => !rootUserIds.Contains(u.Id));
-        // 数据权限过滤，和列表保持一致
-        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
-
-        if (!string.IsNullOrWhiteSpace(query.Keywords))
-        {
-            var keywords = query.Keywords.Trim();
-            users = users.Where(u => (u.Username != null && u.Username.Contains(keywords))
-                || (u.Nickname != null && u.Nickname.Contains(keywords))
-                || (u.Mobile != null && u.Mobile.Contains(keywords)));
-        }
-
-        if (query.Status.HasValue)
-        {
-            users = users.Where(u => u.Status == query.Status.Value);
-        }
-
-        if (query.DeptId.HasValue)
-        {
-            users = users.Where(u => u.DeptId == query.DeptId.Value);
-        }
-
-        var roleIdList = CollectionExtensions.ParsePositiveLongIds(query.RoleIds);
-        if (roleIdList.Count > 0)
-        {
-            var roleUserIds = _dbContext.SysUserRoles
-                .AsNoTracking()
-                .Where(ur => roleIdList.Contains(ur.RoleId))
-                .Select(ur => ur.UserId);
-
-            users = users.Where(u => roleUserIds.Contains(u.Id));
-        }
-
-        var (startTime, endTime) = ParseTimeRange(query.CreateTime);
-        if (startTime.HasValue)
-        {
-            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value >= startTime.Value);
-        }
-
-        if (endTime.HasValue)
-        {
-            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value <= endTime.Value);
-        }
-
-        users = ApplySorting(users, query.Field, query.Direction);
+        users = ApplyUserFilters(users, query);
 
         var rowsQuery =
             from u in users
@@ -653,7 +500,7 @@ internal sealed class SystemUserService : ISystemUserService
             };
 
         var rows = await rowsQuery
-            // 导出行数做上限保护
+            // Export row limit protection
             .Take(5000)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -670,7 +517,7 @@ internal sealed class SystemUserService : ISystemUserService
         var worksheet = workbook.Worksheets.Add("用户列表");
         var headers = new[]
         {
-            "用户名", "用户昵称", "部门", "性别", "手机号码", "邮箱", "创建时间"
+            "用户名", "昵称", "部门", "性别", "手机号", "邮箱", "创建时间"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -691,7 +538,7 @@ internal sealed class SystemUserService : ISystemUserService
             worksheet.Cell(rowIndex, 5).Value = r.Mobile ?? string.Empty;
             worksheet.Cell(rowIndex, 6).Value = r.Email ?? string.Empty;
             worksheet.Cell(rowIndex, 7).Value = r.CreateTime.HasValue
-                ? r.CreateTime.Value.ToString("yyyy/MM/dd HH:mm")
+                ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm")
                 : string.Empty;
             rowIndex++;
         }
@@ -704,13 +551,10 @@ internal sealed class SystemUserService : ISystemUserService
     }
 
     /// <summary>
-    /// 导入用户
+    /// import users
     /// </summary>
     public async Task<ExcelResult> ImportUsersAsync(Stream content, CancellationToken cancellationToken = default)
     {
-        var db = _redis.GetDatabase();
-        _ = db;
-
         var messages = new List<string>();
         var valid = 0;
         var invalid = 0;
@@ -845,7 +689,7 @@ internal sealed class SystemUserService : ISystemUserService
                 Gender = gender,
                 Status = 1,
                 DeptId = userDeptId,
-                Password = BCrypt.Net.BCrypt.HashPassword(DefaultPassword),
+                Password = BCrypt.Net.BCrypt.HashPassword(DevDefaults.DefaultPassword),
                 CreateBy = createBy,
                 CreateTime = now,
                 UpdateBy = createBy,
@@ -919,7 +763,7 @@ internal sealed class SystemUserService : ISystemUserService
             Email = row.Email,
             DeptName = row.DeptName,
             RoleNames = roleNamesMap.TryGetValue(userId, out var rn) ? rn : null,
-            CreateTime = row.CreateTime.HasValue ? row.CreateTime.Value.ToString("yyyy/MM/dd HH:mm") : null,
+            CreateTime = row.CreateTime.HasValue ? row.CreateTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
         };
     }
 
@@ -1042,30 +886,13 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> BindOrChangeMobileAsync(MobileUpdateForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = _currentUser.GetRequiredUserId();
         var mobile = formData.Mobile?.Trim();
         if (string.IsNullOrWhiteSpace(mobile))
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "手机号不能为空");
         }
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Password })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (user is null)
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
-        }
-
-        if (string.IsNullOrWhiteSpace(formData.Password) || string.IsNullOrWhiteSpace(user.Password)
-            || !BCrypt.Net.BCrypt.Verify(formData.Password, user.Password))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
-        }
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
 
         var mobileExists = await _dbContext.SysUsers
             .AsNoTracking()
@@ -1077,21 +904,8 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "手机号已被其他账号绑定");
         }
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile);
-        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
-
-        if (!cached.HasValue)
-        {
-            throw new BusinessException(ResultCode.UserVerificationCodeExpired);
-        }
-
-        if (!string.Equals(cached.ToString(), formData.Code, StringComparison.Ordinal))
-        {
-            throw new BusinessException(ResultCode.UserVerificationCodeError);
-        }
-
-        await db.KeyDeleteAsync(key).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -1128,30 +942,13 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> BindOrChangeEmailAsync(EmailUpdateForm formData, CancellationToken cancellationToken = default)
     {
-        var userId = _currentUser.GetRequiredUserId();
         var email = formData.Email?.Trim();
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "邮箱不能为空");
         }
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Password })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (user is null)
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
-        }
-
-        if (string.IsNullOrWhiteSpace(formData.Password) || string.IsNullOrWhiteSpace(user.Password)
-            || !BCrypt.Net.BCrypt.Verify(formData.Password, user.Password))
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
-        }
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
 
         var emailExists = await _dbContext.SysUsers
             .AsNoTracking()
@@ -1163,21 +960,8 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "邮箱已被其他账号绑定");
         }
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.EmailCode, email);
-        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
-
-        if (!cached.HasValue)
-        {
-            throw new BusinessException(ResultCode.UserVerificationCodeExpired);
-        }
-
-        if (!string.Equals(cached.ToString(), formData.Code, StringComparison.Ordinal))
-        {
-            throw new BusinessException(ResultCode.UserVerificationCodeError);
-        }
-
-        await db.KeyDeleteAsync(key).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -1234,6 +1018,74 @@ internal sealed class SystemUserService : ISystemUserService
                 ? query.OrderByDescending(u => u.CreateTime)
                 : query.OrderBy(u => u.CreateTime),
         };
+    }
+
+    /// <summary>
+    /// Apply common user filters (shared by GetUserPageAsync and ExportUsersAsync)
+    /// </summary>
+    private IQueryable<SysUser> ApplyUserFilters(IQueryable<SysUser> users, UserQuery query)
+    {
+        // Exclude root users
+        var rootUserIds =
+            from ur in _dbContext.SysUserRoles.AsNoTracking()
+            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
+            select ur.UserId;
+
+        users = users.Where(u => !rootUserIds.Contains(u.Id));
+
+        // Data permission filter
+        users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
+
+        // Keywords filter
+        if (!string.IsNullOrWhiteSpace(query.Keywords))
+        {
+            var keywords = query.Keywords.Trim();
+            users = users.Where(u => (u.Username != null && u.Username.Contains(keywords))
+                || (u.Nickname != null && u.Nickname.Contains(keywords))
+                || (u.Mobile != null && u.Mobile.Contains(keywords)));
+        }
+
+        // Status filter
+        if (query.Status.HasValue)
+        {
+            users = users.Where(u => u.Status == query.Status.Value);
+        }
+
+        // Dept filter
+        if (query.DeptId.HasValue)
+        {
+            users = users.Where(u => u.DeptId == query.DeptId.Value);
+        }
+
+        // Role filter
+        var roleIdList = CollectionExtensions.ParsePositiveLongIds(query.RoleIds);
+        if (roleIdList.Count > 0)
+        {
+            var roleUserIds = _dbContext.SysUserRoles
+                .AsNoTracking()
+                .Where(ur => roleIdList.Contains(ur.RoleId))
+                .Select(ur => ur.UserId);
+
+            users = users.Where(u => roleUserIds.Contains(u.Id));
+        }
+
+        // Time range filter
+        var (startTime, endTime) = ParseTimeRange(query.CreateTime);
+        if (startTime.HasValue)
+        {
+            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value >= startTime.Value);
+        }
+
+        if (endTime.HasValue)
+        {
+            users = users.Where(u => u.CreateTime != null && u.CreateTime.Value <= endTime.Value);
+        }
+
+        // Sorting
+        users = ApplySorting(users, query.Field, query.Direction);
+
+        return users;
     }
 
     private async Task<Dictionary<long, string>> GetRoleNamesMapAsync(long[] userIds, CancellationToken cancellationToken)
@@ -1337,18 +1189,54 @@ internal sealed class SystemUserService : ISystemUserService
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static string EscapeCsv(string? input)
+    /// <summary>
+    /// Verify user exists and password is correct
+    /// </summary>
+    private async Task<(long UserId, string? Password)> VerifyUserPasswordAsync(
+        string password,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(input))
+        var userId = _currentUser.GetRequiredUserId();
+
+        var user = await _dbContext.SysUsers
+            .AsNoTracking()
+            .Where(u => u.Id == userId && !u.IsDeleted)
+            .Select(u => new { u.Id, u.Password })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (user is null)
         {
-            return string.Empty;
+            throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
         }
 
-        if (!input.Contains('"') && !input.Contains(',') && !input.Contains('\n') && !input.Contains('\r'))
+        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(user.Password)
+            || !BCrypt.Net.BCrypt.Verify(password, user.Password))
         {
-            return input;
+            throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
         }
 
-        return "\"" + input.Replace("\"", "\"\"") + "\"";
+        return (userId, user.Password);
+    }
+
+    /// <summary>
+    /// Verify cached verification code
+    /// </summary>
+    private async Task VerifyCodeAsync(string cacheKey, string code)
+    {
+        var db = _redis.GetDatabase();
+        var cached = await db.StringGetAsync(cacheKey).ConfigureAwait(false);
+
+        if (!cached.HasValue)
+        {
+            throw new BusinessException(ResultCode.UserVerificationCodeExpired);
+        }
+
+        if (!string.Equals(cached.ToString(), code, StringComparison.Ordinal))
+        {
+            throw new BusinessException(ResultCode.UserVerificationCodeError);
+        }
+
+        await db.KeyDeleteAsync(cacheKey).ConfigureAwait(false);
     }
 }

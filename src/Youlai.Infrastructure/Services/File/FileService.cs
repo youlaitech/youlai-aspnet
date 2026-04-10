@@ -1,7 +1,7 @@
 using Youlai.Core.Exceptions;
 using Youlai.Core.Results;
-using Youlai.Core.Platform.File.Dtos;
-using Youlai.Core.Platform.File.Services;
+using Youlai.Core.File.Dtos;
+using Youlai.Core.File.Services;
 using Youlai.Infrastructure.Options;
 
 namespace Youlai.Infrastructure.Services.File;

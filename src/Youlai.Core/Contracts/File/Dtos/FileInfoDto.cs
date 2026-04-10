@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Youlai.Core.Platform.File.Dtos;
+namespace Youlai.Core.File.Dtos;
 
 /// <summary>
 /// 文件信息

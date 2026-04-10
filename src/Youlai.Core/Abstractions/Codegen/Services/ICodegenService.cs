@@ -1,7 +1,7 @@
 using Youlai.Core.Results;
-using Youlai.Core.Platform.Codegen.Dtos;
+using Youlai.Core.Codegen.Dtos;
 
-namespace Youlai.Core.Platform.Codegen.Services;
+namespace Youlai.Core.Codegen.Services;
 
 /// <summary>
 /// 代码生成服务

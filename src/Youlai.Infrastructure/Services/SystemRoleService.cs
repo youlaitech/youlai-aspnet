@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Youlai.Core.Exceptions;
 using Youlai.Core.Extensions;
@@ -157,7 +158,7 @@ internal sealed class SystemRoleService : ISystemRoleService
                 Status = formData.Status ?? 1,
                 DataScope = formData.DataScope,
                 CreateBy = _currentUser.UserId,
-                CreateTime = DateTime.Now,
+                CreateTime = DateTime.UtcNow,
                 IsDeleted = false,
             };
 
@@ -179,7 +180,7 @@ internal sealed class SystemRoleService : ISystemRoleService
         oldRole.Status = formData.Status ?? oldRole.Status;
         oldRole.DataScope = formData.DataScope;
         oldRole.UpdateBy = _currentUser.UserId;
-        oldRole.UpdateTime = DateTime.Now;
+        oldRole.UpdateTime = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -266,16 +267,6 @@ internal sealed class SystemRoleService : ISystemRoleService
         IReadOnlyCollection<long>? deptIds,
         CancellationToken cancellationToken)
     {
-        var existing = await _dbContext.SysRoleDepts
-            .Where(rd => rd.RoleId == roleId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (existing.Count > 0)
-        {
-            _dbContext.SysRoleDepts.RemoveRange(existing);
-        }
-
         if (dataScope == (int)DataScope.Custom)
         {
             var distinctDeptIds = (deptIds ?? Array.Empty<long>())
@@ -283,17 +274,27 @@ internal sealed class SystemRoleService : ISystemRoleService
                 .Distinct()
                 .ToArray();
 
-            foreach (var deptId in distinctDeptIds)
+            await ReplaceRelatedEntitiesAsync(
+                _dbContext.SysRoleDepts,
+                rd => rd.RoleId == roleId,
+                distinctDeptIds,
+                deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId },
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Non-custom data scope: clear all role-dept relations
+            var existing = await _dbContext.SysRoleDepts
+                .Where(rd => rd.RoleId == roleId)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existing.Count > 0)
             {
-                _dbContext.SysRoleDepts.Add(new SysRoleDept
-                {
-                    RoleId = roleId,
-                    DeptId = deptId,
-                });
+                _dbContext.SysRoleDepts.RemoveRange(existing);
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -332,7 +333,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
             role.IsDeleted = true;
             role.UpdateBy = _currentUser.UserId;
-            role.UpdateTime = DateTime.Now;
+            role.UpdateTime = DateTime.UtcNow;
 
             if (!string.IsNullOrWhiteSpace(role.Code))
             {
@@ -371,7 +372,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
         role.Status = status;
         role.UpdateBy = _currentUser.UserId;
-        role.UpdateTime = DateTime.Now;
+        role.UpdateTime = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -412,31 +413,17 @@ internal sealed class SystemRoleService : ISystemRoleService
             throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
         }
 
-        var existing = await _dbContext.SysRoleMenus
-            .Where(rm => rm.RoleId == roleId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (existing.Count > 0)
-        {
-            _dbContext.SysRoleMenus.RemoveRange(existing);
-        }
-
         var distinctMenuIds = menuIds
             .Where(id => id > 0)
             .Distinct()
             .ToArray();
 
-        foreach (var menuId in distinctMenuIds)
-        {
-            _dbContext.SysRoleMenus.Add(new SysRoleMenu
-            {
-                RoleId = roleId,
-                MenuId = menuId,
-            });
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await ReplaceRelatedEntitiesAsync(
+            _dbContext.SysRoleMenus,
+            rm => rm.RoleId == roleId,
+            distinctMenuIds,
+            menuId => new SysRoleMenu { RoleId = roleId, MenuId = menuId },
+            cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(role.Code))
         {
@@ -467,31 +454,17 @@ internal sealed class SystemRoleService : ISystemRoleService
             throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
         }
 
-        var existing = await _dbContext.SysRoleDepts
-            .Where(rd => rd.RoleId == roleId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (existing.Count > 0)
-        {
-            _dbContext.SysRoleDepts.RemoveRange(existing);
-        }
-
         var distinctDeptIds = deptIds
             .Where(id => id > 0)
             .Distinct()
             .ToArray();
 
-        foreach (var deptId in distinctDeptIds)
-        {
-            _dbContext.SysRoleDepts.Add(new SysRoleDept
-            {
-                RoleId = roleId,
-                DeptId = deptId,
-            });
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await ReplaceRelatedEntitiesAsync(
+            _dbContext.SysRoleDepts,
+            rd => rd.RoleId == roleId,
+            distinctDeptIds,
+            deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId },
+            cancellationToken).ConfigureAwait(false);
 
         var userIds = await _dbContext.SysUserRoles
             .AsNoTracking()
@@ -505,6 +478,35 @@ internal sealed class SystemRoleService : ISystemRoleService
         {
             await _jwtTokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Generic helper for delete-old-insert-new pattern
+    /// </summary>
+    private async Task ReplaceRelatedEntitiesAsync<TEntity, TKey>(
+        DbSet<TEntity> dbSet,
+        Expression<Func<TEntity, bool>> predicate,
+        IReadOnlyCollection<TKey> newKeys,
+        Func<TKey, TEntity> createEntity,
+        CancellationToken cancellationToken)
+        where TEntity : class
+    {
+        var existing = await dbSet
+            .Where(predicate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing.Count > 0)
+        {
+            dbSet.RemoveRange(existing);
+        }
+
+        foreach (var key in newKeys)
+        {
+            dbSet.Add(createEntity(key));
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
 }

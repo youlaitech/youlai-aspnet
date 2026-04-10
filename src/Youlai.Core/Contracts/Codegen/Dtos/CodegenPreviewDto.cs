@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Youlai.Core.Platform.Codegen.Dtos;
+namespace Youlai.Core.Codegen.Dtos;
 
 /// <summary>
 /// 代码预览条目

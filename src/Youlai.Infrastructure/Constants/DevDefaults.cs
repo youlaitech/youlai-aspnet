@@ -10,4 +10,9 @@ internal static class DevDefaults
     /// Default verification code for development environment
     /// </summary>
     public const string VerifyCode = "1234";
+
+    /// <summary>
+    /// Default password for new users
+    /// </summary>
+    public const string DefaultPassword = "123456";
 }

@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Core.Results;
-using Youlai.Core.Platform.Codegen.Dtos;
-using Youlai.Core.Platform.Codegen.Services;
+using Youlai.Core.Codegen.Dtos;
+using Youlai.Core.Codegen.Services;
 
 namespace Youlai.Api.Controllers.Codegen;
 

@@ -442,7 +442,7 @@ internal sealed class SystemDictService : ISystemDictService
         var idList = CollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
-            throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典项数据为空");
+            throw new BusinessException(ResultCode.InvalidUserInput, "delete dict item data is empty");
         }
 
         await _dbContext.SysDictItems

@@ -5,8 +5,8 @@ using Scriban;
 using Scriban.Runtime;
 using Youlai.Core.Exceptions;
 using Youlai.Core.Results;
-using Youlai.Core.Platform.Codegen.Dtos;
-using Youlai.Core.Platform.Codegen.Services;
+using Youlai.Core.Codegen.Dtos;
+using Youlai.Core.Codegen.Services;
 using Youlai.Infrastructure.Persistence.DbContext;
 
 namespace Youlai.Infrastructure.Services;

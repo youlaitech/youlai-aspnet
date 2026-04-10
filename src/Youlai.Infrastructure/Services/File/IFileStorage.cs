@@ -1,4 +1,4 @@
-using Youlai.Core.Platform.File.Dtos;
+using Youlai.Core.File.Dtos;
 
 namespace Youlai.Infrastructure.Services.File;
 

@@ -106,7 +106,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
                 RevokeTime = r.RevokeTime.HasValue ? r.RevokeTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
                 PublisherName = r.PublisherName,
                 TargetType = r.TargetType,
-                CreateTime = r.CreateTime.ToString("yyyy-MM-dd HH:mm"),
+                CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
             })
             .ToArray();
 
@@ -150,7 +150,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         ValidateTargets(formData);
 
         var now = DateTime.UtcNow;
-        var uid = GetRequiredCurrentUserId();
+        var uid = _currentUser.GetRequiredUserId();
 
         var notice = new SysNotice
         {
@@ -202,7 +202,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         notice.Level = formData.Level;
         notice.TargetType = formData.TargetType ?? notice.TargetType;
         notice.TargetUserIds = JoinIds(formData.TargetUserIds);
-        notice.UpdateBy = GetRequiredCurrentUserId();
+        notice.UpdateBy = _currentUser.GetRequiredUserId();
         notice.UpdateTime = DateTime.UtcNow;
 
         return await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
@@ -225,7 +225,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             .Where(n => idList.Contains(n.Id) && !n.IsDeleted)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.IsDeleted, true)
-                .SetProperty(x => x.UpdateBy, GetRequiredCurrentUserId())
+                .SetProperty(x => x.UpdateBy, _currentUser.GetRequiredUserId())
                 .SetProperty(x => x.UpdateTime, DateTime.UtcNow), cancellationToken)
             .ConfigureAwait(false);
 
@@ -263,7 +263,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         }
 
         var now = DateTime.UtcNow;
-        var uid = GetRequiredCurrentUserId();
+        var uid = _currentUser.GetRequiredUserId();
 
         await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -316,7 +316,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        // SSE通知目标用户 - 使用客户端评估
+        // SSE通知目标用户
         var noticeData = new
         {
             id,
@@ -327,24 +327,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             publishTime = notice.PublishTime?.ToString("yyyy-MM-dd HH:mm"),
         };
 
-        var allUsers = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => !u.IsDeleted && u.Status == 1)
-            .Select(u => new { u.Id, u.Username })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var noticeTargetIds = notice.TargetType == TargetSpecified
-            ? CollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds).ToHashSet()
-            : allUsers.Select(u => u.Id).ToHashSet();
-
-        var noticeTargetIdStrings = allUsers
-            .Where(u => noticeTargetIds.Contains(u.Id))
-            .Select(u => u.Id.ToString())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var userIdStr in noticeTargetIdStrings)
+        var sseTargetIds = await ResolveSseTargetIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
+        foreach (var userIdStr in sseTargetIds)
         {
             _logger.LogInformation("[Notice] Sending SSE to userId: {UserId}, event: notice", userIdStr);
             await _sseService.SendToUserAsync(userIdStr, "notice", noticeData, cancellationToken).ConfigureAwait(false);
@@ -373,7 +357,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         }
 
         var now = DateTime.UtcNow;
-        var uid = GetRequiredCurrentUserId();
+        var uid = _currentUser.GetRequiredUserId();
 
         await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -391,25 +375,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        // SSE通知目标用户移除该通知 - 使用客户端评估
-        var allUsernames = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => !u.IsDeleted && u.Status == 1)
-            .Select(u => new { u.Id, u.Username })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var revokeTargetIds = notice.TargetType == TargetSpecified
-            ? CollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds).ToHashSet()
-            : allUsernames.Select(u => u.Id).ToHashSet();
-
-        var revokeTargetIdStrings = allUsernames
-            .Where(u => revokeTargetIds.Contains(u.Id))
-            .Select(u => u.Id.ToString())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var userIdStr in revokeTargetIdStrings)
+        // SSE通知目标用户移除该通知
+        var sseTargetIds = await ResolveSseTargetIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
+        foreach (var userIdStr in sseTargetIds)
         {
             await _sseService.SendToUserAsync(userIdStr, "notice-revoke", new { id }, cancellationToken).ConfigureAwait(false);
         }
@@ -477,7 +445,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<bool> ReadAllAsync(CancellationToken cancellationToken = default)
     {
-        var userId = GetRequiredCurrentUserId();
+        var userId = _currentUser.GetRequiredUserId();
         var now = DateTime.UtcNow;
 
         await _dbContext.SysUserNotices
@@ -593,5 +561,37 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         return ids
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToArray();
+    }
+
+    /// <summary>
+    /// Resolve SSE notification target user IDs
+    /// </summary>
+    private async Task<List<string>> ResolveSseTargetIdsAsync(
+        int targetType,
+        string? targetUserIds,
+        CancellationToken cancellationToken)
+    {
+        var allUsers = await _dbContext.SysUsers
+            .AsNoTracking()
+            .Where(u => !u.IsDeleted && u.Status == 1)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (targetType == TargetSpecified)
+        {
+            var specifiedIds = CollectionExtensions.ParsePositiveLongIds(targetUserIds);
+            return allUsers
+                .Where(id => specifiedIds.Contains(id))
+                .Select(id => id.ToString())
+            .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+
+        // TargetAll
+        return allUsers
+            .Select(id => id.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 }

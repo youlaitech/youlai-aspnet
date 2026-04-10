@@ -1,6 +1,6 @@
-using Youlai.Core.Platform.File.Dtos;
+using Youlai.Core.File.Dtos;
 
-namespace Youlai.Core.Platform.File.Services;
+namespace Youlai.Core.File.Services;
 
 /// <summary>
 /// 文件服务

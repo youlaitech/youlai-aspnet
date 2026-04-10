@@ -71,10 +71,4 @@ public sealed class CurrentUser : ICurrentUser
         var value = Principal?.FindFirstValue(claimType);
         return long.TryParse(value, out var parsed) ? parsed : null;
     }
-
-    private int? TryGetInt32(string claimType)
-    {
-        var value = Principal?.FindFirstValue(claimType);
-        return int.TryParse(value, out var parsed) ? parsed : null;
-    }
 }

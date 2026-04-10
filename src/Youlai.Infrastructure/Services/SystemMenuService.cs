@@ -487,25 +487,13 @@ internal sealed class SystemMenuService : ISystemMenuService
 
     private static IReadOnlyCollection<KeyValue>? ParseKeyValueList(JsonElement? element)
     {
-        if (element is null || element.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        var dict = TryParseParams(element);
+        if (dict is null)
         {
             return null;
         }
 
-        try
-        {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(element.Value.GetRawText());
-            if (dict is not { Count: > 0 })
-            {
-                return null;
-            }
-
-            return dict.Select(kv => new KeyValue { Key = kv.Key, Value = kv.Value }).ToArray();
-        }
-        catch
-        {
-            return null;
-        }
+        return dict.Select(kv => new KeyValue { Key = kv.Key, Value = kv.Value }).ToArray();
     }
 
     private static JsonElement? SerializeParams(IReadOnlyCollection<KeyValue>? list)
