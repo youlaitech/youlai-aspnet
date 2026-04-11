@@ -3,8 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
-using Youlai.Application.File.Dtos;
-using Youlai.Application.File.Interfaces;
+using Youlai.Application.File;
 
 namespace Youlai.Api.Controllers.File;
 

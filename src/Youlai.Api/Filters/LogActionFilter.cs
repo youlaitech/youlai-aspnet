@@ -3,7 +3,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Youlai.Application.Attributes;
-using Youlai.Application.Common.Utils;
+using Youlai.Application.Common;
 using Youlai.Domain.Enums;
 using Youlai.Domain.Entities;
 using Youlai.Application.Persistence;
@@ -11,14 +11,14 @@ using Youlai.Application.Persistence;
 namespace Youlai.Api.Filters;
 
 /// <summary>
-/// Log action filter - records operation logs for actions marked with [Log] attribute
+/// 日志操作过滤器 - 为标记 [Log] 特性的操作记录操作日志
 /// </summary>
 public sealed class LogActionFilter : IAsyncActionFilter
 {
-    private readonly IYoulaiDbContext _dbContext;
+    private readonly IDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public LogActionFilter(IYoulaiDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    public LogActionFilter(IDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         _dbContext = dbContext;
         _httpContextAccessor = httpContextAccessor;

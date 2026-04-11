@@ -4,8 +4,8 @@ using Youlai.Api.Security;
 using Youlai.Application.Attributes;
 using Youlai.Domain.Enums;
 using Youlai.Application.Results;
-using Youlai.Application.System.Dtos.Config;
-using Youlai.Application.System.Interfaces;
+using Youlai.Application.System.Models.Config;
+using Youlai.Application.System;
 
 namespace Youlai.Api.Controllers.System;
 

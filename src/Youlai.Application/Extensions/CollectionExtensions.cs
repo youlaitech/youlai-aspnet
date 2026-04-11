@@ -1,12 +1,12 @@
 namespace Youlai.Application.Extensions;
 
 /// <summary>
-/// Collection extension methods
+/// 集合扩展方法
 /// </summary>
 public static class IdCollectionExtensions
 {
     /// <summary>
-    /// Parse comma-separated string to HashSet of positive long IDs
+    /// 将逗号分隔的字符串解析为正整数ID集合
     /// </summary>
     public static HashSet<long> ParsePositiveLongIds(string? input)
     {

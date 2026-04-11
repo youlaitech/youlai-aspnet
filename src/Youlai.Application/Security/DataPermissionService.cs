@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Youlai.Application.Security;
+using Youlai.Application.Security.Models;
 using Youlai.Application.Persistence;
 
 namespace Youlai.Application.Security;
@@ -15,9 +16,9 @@ namespace Youlai.Application.Security;
 internal sealed class DataPermissionService : IDataPermissionService
 {
     private readonly ICurrentUser _currentUser;
-    private readonly IYoulaiDbContext _dbContext;
+    private readonly IDbContext _dbContext;
 
-    public DataPermissionService(ICurrentUser currentUser, IYoulaiDbContext dbContext)
+    public DataPermissionService(ICurrentUser currentUser, IDbContext dbContext)
     {
         _currentUser = currentUser;
         _dbContext = dbContext;

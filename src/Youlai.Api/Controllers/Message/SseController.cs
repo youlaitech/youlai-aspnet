@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Common.Interfaces;
+using Youlai.Application.Common;
 
 namespace Youlai.Api.Controllers.Message;
 
 /// <summary>
-/// SSE Push API
+/// SSE 推送接口
 /// </summary>
 [ApiController]
 [Route("api/v1/sse")]
@@ -25,7 +25,7 @@ public class SseController : ControllerBase
     }
 
     /// <summary>
-    /// SSE Connect
+    /// SSE 连接
     /// </summary>
     [HttpGet("connect")]
     [Authorize]
@@ -65,7 +65,7 @@ public class SseController : ControllerBase
     }
 
     /// <summary>
-    /// Get online user count
+    /// 获取在线用户数
     /// </summary>
     [HttpGet("online-count")]
     public Result<int> GetOnlineCount()

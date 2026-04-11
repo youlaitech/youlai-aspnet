@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Results;
-using Youlai.Application.System.Dtos.Notice;
-using Youlai.Application.System.Interfaces;
+using Youlai.Application.System.Models.Notice;
+using Youlai.Application.System;
 
 namespace Youlai.Api.Controllers.System;
 

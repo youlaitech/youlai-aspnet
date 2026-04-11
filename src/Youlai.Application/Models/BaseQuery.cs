@@ -1,7 +1,7 @@
 namespace Youlai.Application.Models;
 
 /// <summary>
-/// Pagination query parameters
+/// 分页查询参数
 /// </summary>
 public abstract class BaseQuery
 {
@@ -10,7 +10,7 @@ public abstract class BaseQuery
     public int PageSize { get; set; } = 10;
 
     /// <summary>
-    /// Normalize pagination parameters: ensure PageNum >= 1, PageSize in [1, 200]
+    /// 规范化分页参数：确保 PageNum >= 1，PageSize 在 [1, 200] 范围内
     /// </summary>
     public (int PageNum, int PageSize) Normalize()
     {

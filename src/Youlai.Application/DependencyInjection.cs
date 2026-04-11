@@ -1,15 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using Youlai.Application.Auth.Interfaces;
-using Youlai.Application.System.Interfaces;
-using Youlai.Application.Codegen.Interfaces;
-using Youlai.Application.File.Interfaces;
+using Youlai.Application.Auth;
+using Youlai.Application.System;
+using Youlai.Application.Codegen;
+using Youlai.Application.File;
 using Youlai.Application.Security;
-using Youlai.Application.Common.Interfaces;
-using Youlai.Application.Services.Auth;
-using Youlai.Application.Services.System;
-using Youlai.Application.Services.Codegen;
-using Youlai.Application.Services.File;
-using Youlai.Application.Common.Services;
+using Youlai.Application.Common;
 
 namespace Youlai.Application;
 

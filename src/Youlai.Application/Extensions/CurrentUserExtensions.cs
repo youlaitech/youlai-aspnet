@@ -5,12 +5,12 @@ using Youlai.Application.Security;
 namespace Youlai.Application.Extensions;
 
 /// <summary>
-/// CurrentUser extension methods
+/// CurrentUser 扩展方法
 /// </summary>
 public static class CurrentUserExtensions
 {
     /// <summary>
-    /// Get required current user ID, throws BusinessException if invalid
+    /// 获取当前用户ID，无效时抛出 BusinessException
     /// </summary>
     public static long GetRequiredUserId(this ICurrentUser currentUser)
     {

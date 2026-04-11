@@ -1,8 +1,7 @@
 using System.Globalization;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
-using Youlai.Application.File.Dtos;
-using Youlai.Application.File.Interfaces;
+using Youlai.Application.File;
 using Youlai.Application.Options;
 
 namespace Youlai.Infrastructure.FileStorage;

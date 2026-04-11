@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youlai.Application.Auth.Dtos;
-using Youlai.Application.Auth.Interfaces;
+using Youlai.Application.Auth.Models;
+using Youlai.Application.Auth;
 using Youlai.Application.Attributes;
 using Youlai.Domain.Enums;
 using Youlai.Application.Results;
-using Youlai.Application.Common.Interfaces;
-using Youlai.Infrastructure.Filters;
+using Youlai.Application.Common;
+using Youlai.Api.Filters;
 
 namespace Youlai.Api.Controllers.Auth;
 

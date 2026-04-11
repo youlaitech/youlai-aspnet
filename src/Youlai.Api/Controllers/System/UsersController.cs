@@ -6,8 +6,8 @@ using Youlai.Application.Attributes;
 using Youlai.Domain.Enums;
 using Youlai.Application.Results;
 using Youlai.Application.Models;
-using Youlai.Application.System.Dtos.User;
-using Youlai.Application.System.Interfaces;
+using Youlai.Application.System.Models.User;
+using Youlai.Application.System;
 
 namespace Youlai.Api.Controllers.System;
 

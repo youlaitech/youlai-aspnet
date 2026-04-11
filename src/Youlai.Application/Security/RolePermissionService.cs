@@ -18,9 +18,9 @@ internal sealed class RolePermissionService : IRolePermissionService
     private const string ButtonMenuType = "B";
 
     private readonly IConnectionMultiplexer _redis;
-    private readonly IYoulaiDbContext _dbContext;
+    private readonly IDbContext _dbContext;
 
-    public RolePermissionService(IConnectionMultiplexer redis, IYoulaiDbContext dbContext)
+    public RolePermissionService(IConnectionMultiplexer redis, IDbContext dbContext)
     {
         _redis = redis;
         _dbContext = dbContext;

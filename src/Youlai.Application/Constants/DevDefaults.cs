@@ -1,18 +1,18 @@
 namespace Youlai.Application.Constants;
 
 /// <summary>
-/// Development environment defaults
-/// TODO: Replace with real SMS/Email gateway in production
+/// 开发环境默认值
+/// TODO: 生产环境请替换为真实的短信/邮件网关
 /// </summary>
 internal static class DevDefaults
 {
     /// <summary>
-    /// Default verification code for development environment
+    /// 开发环境默认验证码
     /// </summary>
     public const string VerifyCode = "1234";
 
     /// <summary>
-    /// Default password for new users
+    /// 新用户默认密码
     /// </summary>
     public const string DefaultPassword = "123456";
 }

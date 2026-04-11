@@ -6,7 +6,7 @@ using StackExchange.Redis;
 using Youlai.Application.Persistence;
 using Youlai.Application.Options;
 using Youlai.Application.Security;
-using Youlai.Application.File.Interfaces;
+using Youlai.Application.File;
 using Youlai.Infrastructure.FileStorage;
 using Youlai.Infrastructure.Persistence;
 
@@ -41,19 +41,19 @@ public static class DependencyInjection
             .Validate(o => !string.IsNullOrWhiteSpace(o.Type), "Oss:Type is required")
             .ValidateOnStart();
 
-        services.AddOptions<WechatMiniappOptions>()
-            .Bind(configuration.GetSection(WechatMiniappOptions.SectionName))
+        services.AddOptions<WxMaOptions>()
+            .Bind(configuration.GetSection(WxMaOptions.SectionName))
             .ValidateOnStart();
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);
 
         // DbContext
-        services.AddDbContext<YoulaiDbContext>((sp, options) =>
+        services.AddDbContext<AppDbContext>((sp, options) =>
         {
             var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             options.UseMySql(dbOptions.ConnectionString, ServerVersion.AutoDetect(dbOptions.ConnectionString));
         });
-        services.AddScoped<IYoulaiDbContext>(sp => sp.GetRequiredService<YoulaiDbContext>());
+        services.AddScoped<IDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         // Redis
         services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -65,10 +65,17 @@ public static class DependencyInjection
         // Identity
         services.AddScoped<JwtTokenManager>();
 
-        // File Storage (strategy pattern)
-        services.AddScoped<IFileStorage, LocalFileStorage>();
-        services.AddScoped<IFileStorage, MinioFileStorage>();
-        services.AddScoped<IFileStorage, AliyunFileStorage>();
+        // File Storage (strategy pattern - factory based on OssOptions.Type)
+        services.AddScoped<IFileStorage>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<OssOptions>>().Value;
+            return options.Type switch
+            {
+                "minio" => new MinioFileStorage(options),
+                "aliyun" => new AliyunFileStorage(options),
+                _ => new LocalFileStorage(options)
+            };
+        });
 
         // Http clients
         services.AddHttpClient("Wechat");
