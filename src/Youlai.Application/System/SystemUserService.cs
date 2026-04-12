@@ -10,7 +10,6 @@ using Youlai.Application.Extensions;
 using Youlai.Application.Models;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Security;
 using Youlai.Application.System.Models.User;
 using Youlai.Application.System;
 using Youlai.Domain.Entities;

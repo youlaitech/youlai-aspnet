@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Youlai.Domain.Enums;
-using Youlai.Application.Common;
-using Youlai.Application.Common;
 using Youlai.Domain.Entities;
 using Youlai.Application.Persistence;
 

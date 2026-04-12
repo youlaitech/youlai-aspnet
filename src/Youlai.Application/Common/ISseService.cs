@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using Youlai.Application.Common;
 using Youlai.Application.System.Models.User;
 
 namespace Youlai.Application.Common;

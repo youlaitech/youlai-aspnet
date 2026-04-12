@@ -5,7 +5,6 @@ using Youlai.Application.Extensions;
 using Youlai.Application.Models;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Security;
 using Youlai.Application.Security.Models;
 using Youlai.Application.System.Models.Role;
 using Youlai.Application.System;

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
-using Youlai.Application.Common;
 using Youlai.Application.System.Models.User;
 
 namespace Youlai.Application.Common;
