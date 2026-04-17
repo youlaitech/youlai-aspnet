@@ -51,17 +51,7 @@ internal sealed class SystemDictService : ISystemDictService
 
         dicts = dicts.OrderByDescending(d => d.Id);
 
-        var total = await dicts.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        if (total == 0)
-        {
-            return PageResult<DictPageVo>.Success(Array.Empty<DictPageVo>(), 0, pageNum, pageSize);
-        }
-
-        var skip = (pageNum - 1) * pageSize;
-
         var rows = await dicts
-            .Skip(skip)
-            .Take(pageSize)
             .Select(d => new DictPageVo
             {
                 Id = d.Id,
@@ -69,10 +59,10 @@ internal sealed class SystemDictService : ISystemDictService
                 DictCode = d.DictCode ?? string.Empty,
                 Status = d.Status ?? 0,
             })
-            .ToListAsync(cancellationToken)
+            .ToPageAsync(pageNum, pageSize, cancellationToken)
             .ConfigureAwait(false);
 
-        return PageResult<DictPageVo>.Success(rows, total, pageNum, pageSize);
+        return rows;
     }
 
     /// <summary>
@@ -303,16 +293,7 @@ internal sealed class SystemDictService : ISystemDictService
 
         items = items.OrderBy(i => i.Sort).ThenBy(i => i.Id);
 
-        var total = await items.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        if (total == 0)
-        {
-            return PageResult<DictItemPageVo>.Success(Array.Empty<DictItemPageVo>(), 0, pageNum, pageSize);
-        }
-
-        var skip = (pageNum - 1) * pageSize;
         var rows = await items
-            .Skip(skip)
-            .Take(pageSize)
             .Select(i => new DictItemPageVo
             {
                 Id = i.Id,
@@ -322,10 +303,10 @@ internal sealed class SystemDictService : ISystemDictService
                 Status = i.Status ?? 0,
                 Sort = i.Sort,
             })
-            .ToListAsync(cancellationToken)
+            .ToPageAsync(pageNum, pageSize, cancellationToken)
             .ConfigureAwait(false);
 
-        return PageResult<DictItemPageVo>.Success(rows, total, pageNum, pageSize);
+        return rows;
     }
 
     /// <summary>

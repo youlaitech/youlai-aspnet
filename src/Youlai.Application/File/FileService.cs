@@ -1,5 +1,8 @@
 ﻿namespace Youlai.Application.File;
 
+/// <summary>
+/// 文件上传/删除
+/// </summary>
 internal sealed class FileService : IFileService
 {
     private readonly IFileStorage _storage;

@@ -66,7 +66,7 @@ internal sealed class CodegenService : ICodegenService
         }
 
         var countSql = $"SELECT COUNT(1) AS total FROM information_schema.TABLES t WHERE {where}";
-        var total = await ExecuteScalarLongAsync(countSql, parameters, cancellationToken).ConfigureAwait(false);
+        var total = (int)await ExecuteScalarLongAsync(countSql, parameters, cancellationToken).ConfigureAwait(false);
 
         var offset = (pageNum - 1) * pageSize;
         var listSql = $@"

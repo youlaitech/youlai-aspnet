@@ -109,15 +109,7 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
         q = q.OrderByDescending(x => x.Id);
 {{~ end ~}}
 
-        var total = await q.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        if (total == 0)
-        {
-            return PageResult<{{ entityName }}PageVo>.Success(Array.Empty<{{ entityName }}PageVo>(), 0, pageNum, pageSize);
-        }
-
         var list = await q
-            .Skip((pageNum - 1) * pageSize)
-            .Take(pageSize)
             .Select(x => new {{ entityName }}PageVo
             {
 {{~ if hasId ~}}
@@ -129,10 +121,10 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{~ end ~}}
 {{~ end ~}}
             })
-            .ToListAsync(cancellationToken)
+            .ToPageAsync(pageNum, pageSize, cancellationToken)
             .ConfigureAwait(false);
 
-        return PageResult<{{ entityName }}PageVo>.Success(list, total, pageNum, pageSize);
+        return list;
     }
 
     /// <summary>

@@ -102,6 +102,9 @@ internal sealed class SystemUserService : ISystemUserService
         };
     }
 
+    /// <summary>
+    /// 用户分页
+    /// </summary>
     public async Task<PageResult<UserPageVo>> GetUserPageAsync(UserQuery query, CancellationToken cancellationToken = default)
     {
         var (pageNum, pageSize) = query.Normalize();
@@ -109,13 +112,11 @@ internal sealed class SystemUserService : ISystemUserService
         var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
         users = ApplyUserFilters(users, query);
 
-        var total = await users.LongCountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await users.CountAsync(cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<UserPageVo>.Success(Array.Empty<UserPageVo>(), 0, pageNum, pageSize);
         }
-
-        var skip = (pageNum - 1) * pageSize;
 
         var pageRowsQuery =
             from u in users
@@ -136,7 +137,7 @@ internal sealed class SystemUserService : ISystemUserService
             };
 
         var pageRows = await pageRowsQuery
-            .Skip(skip)
+            .Skip((pageNum - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

@@ -13,7 +13,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.Auth;
 
 /// <summary>
-/// comment?/// </summary>
+/// 认证服务（登录、注册、Token 刷新）
+/// </summary>
 internal sealed class AuthService : IAuthService
 {
     private static readonly TimeSpan SmsCodeTtl = TimeSpan.FromMinutes(5);
@@ -68,6 +69,9 @@ internal sealed class AuthService : IAuthService
         return (token, user.Id);
     }
 
+    /// <summary>
+    /// 发送短信登录验证码
+    /// </summary>
     public async Task SendSmsLoginCodeAsync(string mobile, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile))
@@ -82,6 +86,9 @@ internal sealed class AuthService : IAuthService
         await db.StringSetAsync(key, code, SmsCodeTtl).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 短信验证码登录
+    /// </summary>
     public async Task<(AuthenticationTokenDto Token, long UserId)> LoginBySmsAsync(string mobile, string code, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile) || string.IsNullOrWhiteSpace(code))
@@ -133,7 +140,8 @@ internal sealed class AuthService : IAuthService
     }
 
     /// <summary>
-    /// comment?    /// </summary>
+    /// 登出，使当前 Token 失效
+    /// </summary>
     public Task LogoutAsync(string? authorizationHeader, CancellationToken cancellationToken = default)
     {
         return _tokenManager.InvalidateTokenAsync(authorizationHeader);

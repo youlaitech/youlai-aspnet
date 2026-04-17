@@ -59,13 +59,11 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         notices = notices.OrderByDescending(n => n.Id);
 
-        var total = await notices.LongCountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await notices.CountAsync(cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<NoticePageVo>.Success(Array.Empty<NoticePageVo>(), 0, pageNum, pageSize);
         }
-
-        var skip = (pageNum - 1) * pageSize;
 
         var rowsQuery =
             from n in notices
@@ -87,7 +85,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             };
 
         var rows = await rowsQuery
-            .Skip(skip)
+            .Skip((pageNum - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -493,15 +491,14 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         baseQuery = baseQuery.OrderByDescending(x => x.PublishTime).ThenByDescending(x => x.Id);
 
-        var total = await baseQuery.LongCountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await baseQuery.CountAsync(cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<NoticePageVo>.Success(Array.Empty<NoticePageVo>(), 0, pageNum, pageSize);
         }
 
-        var skip = (pageNum - 1) * pageSize;
         var rows = await baseQuery
-            .Skip(skip)
+            .Skip((pageNum - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

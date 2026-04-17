@@ -56,17 +56,7 @@ internal sealed class SystemRoleService : ISystemRoleService
             .ThenByDescending(r => r.CreateTime)
             .ThenByDescending(r => r.UpdateTime);
 
-        var total = await roles.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        if (total == 0)
-        {
-            return PageResult<RolePageVo>.Success(Array.Empty<RolePageVo>(), 0, pageNum, pageSize);
-        }
-
-        var skip = (pageNum - 1) * pageSize;
-
         var list = await roles
-            .Skip(skip)
-            .Take(pageSize)
             .Select(r => new RolePageVo
             {
                 Id = r.Id,
@@ -79,10 +69,10 @@ internal sealed class SystemRoleService : ISystemRoleService
                 CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
                 UpdateTime = r.UpdateTime.HasValue ? r.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
             })
-            .ToListAsync(cancellationToken)
+            .ToPageAsync(pageNum, pageSize, cancellationToken)
             .ConfigureAwait(false);
 
-        return PageResult<RolePageVo>.Success(list, total, pageNum, pageSize);
+        return list;
     }
 
     /// <summary>
@@ -431,6 +421,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         }
     }
 
+    /// <summary>
+    /// 角色已关联的部门ID
+    /// </summary>
     public async Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
     {
         var list = await _dbContext.SysRoleDepts
@@ -443,6 +436,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         return list;
     }
 
+    /// <summary>
+    /// 给角色分配数据权限部门
+    /// </summary>
     public async Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default)
     {
         var role = await _dbContext.SysRoles

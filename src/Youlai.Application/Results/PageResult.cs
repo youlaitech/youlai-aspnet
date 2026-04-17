@@ -16,7 +16,7 @@ public sealed class PageResult<T>
     [JsonPropertyName("msg")]
     public string Msg { get; init; } = ResultCode.Success.Msg();
 
-    public static PageResult<T> Success(IReadOnlyCollection<T> list, long total, int pageNum, int pageSize)
+    public static PageResult<T> Success(IReadOnlyCollection<T> list, int total, int pageNum, int pageSize)
     {
         return new PageResult<T>
         {
@@ -39,6 +39,6 @@ public sealed class PageResult<T>
         public IReadOnlyCollection<TItem> List { get; init; } = Array.Empty<TItem>();
 
         [JsonPropertyName("total")]
-        public long Total { get; init; }
+        public int Total { get; init; }
     }
 }

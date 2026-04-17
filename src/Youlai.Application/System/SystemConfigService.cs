@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Extensions;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.System.Models.Config;
@@ -49,16 +50,7 @@ internal sealed class SystemConfigService : ISystemConfigService
 
         q = q.OrderByDescending(x => x.Id);
 
-        var total = await q.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        if (total == 0)
-        {
-            return PageResult<ConfigPageVo>.Success(Array.Empty<ConfigPageVo>(), 0, pageNum, pageSize);
-        }
-
-        var skip = (pageNum - 1) * pageSize;
         var list = await q
-            .Skip(skip)
-            .Take(pageSize)
             .Select(x => new ConfigPageVo
             {
                 Id = x.Id,
@@ -67,10 +59,10 @@ internal sealed class SystemConfigService : ISystemConfigService
                 ConfigValue = x.ConfigValue,
                 Remark = x.Remark,
             })
-            .ToListAsync(cancellationToken)
+            .ToPageAsync(pageNum, pageSize, cancellationToken)
             .ConfigureAwait(false);
 
-        return PageResult<ConfigPageVo>.Success(list, total, pageNum, pageSize);
+        return list;
     }
 
     /// <summary>

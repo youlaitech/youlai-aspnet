@@ -6,6 +6,9 @@ using Youlai.Application.Persistence;
 
 namespace Youlai.Application.Common;
 
+/// <summary>
+/// 操作日志记录（登录日志等）
+/// </summary>
 internal sealed class LoggingService : ILoggingService
 {
     private readonly IDbContext _dbContext;
@@ -17,6 +20,9 @@ internal sealed class LoggingService : ILoggingService
         _httpContextAccessor = httpContextAccessor;
     }
 
+    /// <summary>
+    /// 记录登录日志
+    /// </summary>
     public async Task RecordLoginLogAsync(long userId, string requestUri, CancellationToken cancellationToken = default)
     {
         try

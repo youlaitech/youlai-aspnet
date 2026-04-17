@@ -32,6 +32,9 @@ internal sealed class CaptchaService : ICaptchaService
         _options = options.Value;
     }
 
+    /// <summary>
+    /// 生成图形验证码（图片 + Redis 缓存）
+    /// </summary>
     public async Task<CaptchaInfoDto> GenerateAsync(CancellationToken cancellationToken = default)
     {
         var code = GenerateCode(_options.Length);
@@ -47,6 +50,9 @@ internal sealed class CaptchaService : ICaptchaService
         return new CaptchaInfoDto(captchaId, captchaBase64);
     }
 
+    /// <summary>
+    /// 校验验证码（不区分大小写，验证后立即删除）
+    /// </summary>
     public async Task ValidateAsync(string captchaId, string captchaCode, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(captchaId) || string.IsNullOrWhiteSpace(captchaCode))
