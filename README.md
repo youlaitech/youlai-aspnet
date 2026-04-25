@@ -1,156 +1,172 @@
 <div align="center">
-  <img alt="logo" width="100" height="100" src="https://foruda.gitee.com/images/1733417239320800627/3c5290fe_716974.png">
-  <h2>youlai-aspnet</h2>
-  <img alt=".NET" src="https://img.shields.io/badge/.NET-10-blueviolet.svg"/>
-  <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET Core-10-blue.svg"/>
-  <a href="https://gitcode.com/youlai/youlai-aspnet" target="_blank">
-    <img alt="GitCode star" src="https://gitcode.com/youlai/youlai-aspnet/star/badge.svg"/>
-  </a>
-  <a href="https://gitee.com/youlaiorg/youlai-aspnet" target="_blank">
-    <img alt="Gitee star" src="https://gitee.com/youlaiorg/youlai-aspnet/badge/star.svg"/>
-  </a>
-  <a href="https://github.com/youlaitech/youlai-aspnet" target="_blank">
-    <img alt="Github star" src="https://img.shields.io/github/stars/youlaitech/youlai-aspnet.svg?style=social&label=Stars"/>
-  </a>
+
+<img alt="youlai-aspnet" width="80" src="./docs/images/logo/logo.png">
+
+# youlai-aspnet
+
+**ASP.NET Core 企业级权限管理系统后端**
+
+[![.NET](https://img.shields.io/badge/.NET-10-blueviolet?logo=dotnet)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?logo=apache)](LICENSE)
+[![Gitee Star](https://gitee.com/youlaiorg/youlai-aspnet/badge/star.svg)](https://gitee.com/youlaiorg/youlai-aspnet/stargazers)
+[![GitHub Star](https://img.shields.io/github/stars/youlaitech/youlai-aspnet?style=social)](https://github.com/youlaitech/youlai-aspnet)
+[![GitCode Star](https://gitcode.com/youlai/youlai-aspnet/star/badge.svg)](https://gitcode.com/youlai/youlai-aspnet/stargazers)
+
 </div>
 
-<p align="center">
-  <a target="_blank" href="https://vue.youlai.tech/">🖥️ 在线预览</a>
-  <span>&nbsp;|&nbsp;</span>
-  <a target="_blank" href="https://www.youlai.tech/youlai-aspnet">📑 阅读文档</a>
-  <span>&nbsp;|&nbsp;</span>
-  <a target="_blank" href="https://www.youlai.tech">🌐 官网</a>
-</p>
+![](https://foruda.gitee.com/images/1708618984641188532/a7cca095_716974.png "rainbow.png")
 
-## 📢 项目简介
+<div align="center">
 
-`youlai-aspnet` 是 `vue3-element-admin` 的 ASP.NET Core 10（.NET 10）后端实现，接口路径与返回结构完全对齐，可直接为前端提供后端服务。
+[🖥️ 在线预览](https://vue.youlai.tech) | [📲 移动端预览](https://app.youlai.tech) | [📖 文档](https://www.youlai.tech/docs/admin/backend/csharp/)
 
-- **🚀 最新技术栈**：.NET 10 + ASP.NET Core 10，LTS 版本支持至 2028 年 11 月。
-- **🔐 安全认证**：JWT 无状态认证 + Redis 会话双模式。
-- **🔑 权限管理**：RBAC 权限模型，菜单/按钮/接口统一治理。
-- **🛠️ 模块能力**：用户、角色、菜单、部门、字典等核心模块开箱即用。
+</div>
 
-## 🌈 项目源码
+## 简介
 
-| 项目类型 | Gitee | GitHub | GitCode |
-| --- | --- | --- | --- |
-| ✅ .NET 后端 | [youlai-aspnet](https://gitee.com/youlaiorg/youlai-aspnet) | [youlai-aspnet](https://github.com/youlaitech/youlai-aspnet) | [youlai-aspnet](https://gitcode.com/youlai/youlai-aspnet) |
-| Vue3 管理端 | [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) | [vue3-element-admin](https://github.com/youlaitech/vue3-element-admin) | [vue3-element-admin](https://gitcode.com/youlai/vue3-element-admin) |
-| uni-app 移动端 | [youlai-app](https://gitee.com/youlaiorg/youlai-app) | [youlai-app](https://github.com/youlaitech/youlai-app) | [youlai-app](https://gitcode.com/youlai/youlai-app) |
+**youlai-aspnet** 是一套基于 ASP.NET Core 10 的企业级权限管理系统后端，配套前端 [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) 和移动端 [youlai-app](https://gitee.com/youlaiorg/youlai-app)，并提供 **6 种语言实现**（Java / Node.js / Go / Python / PHP / C#），共享同一套 API 规范与数据库结构。适用于企业中后台管理系统的学习参考与二次开发。
 
-## 📚 项目文档
+## 核心特性
 
-| 文档名称 | 访问地址 |
-| --- | --- |
-| 项目介绍与使用指南 | [https://www.youlai.tech/youlai-aspnet](https://www.youlai.tech/youlai-aspnet) |
+- 🔐 **安全体系** — JWT + Redis Token 双会话模式、令牌续期、多端互斥
+- 🛡️ **细粒度权限** — RBAC 权限模型，菜单/按钮/接口统一治理
+- ⚡ **代码生成器** — 一键生成前后端 CRUD 代码
+- 📦 **模块齐全** — 用户、角色、菜单、部门、字典、文件、消息中心、操作日志
+- 🔌 **实时通信** — SSE 推送：在线用户数、字典同步、通知广播
 
-## 📁 项目目录
+## 系统预览
 
-<details>
-<summary>目录结构</summary>
+**PC 端**
 
-```text
+<table align="center">
+  <tr>
+    <td><img alt="PC预览1" width="400" src="./docs/images/preview/pc-01.png"></td>
+    <td><img alt="PC预览2" width="400" src="./docs/images/preview/pc-02.png"></td>
+  </tr>
+  <tr>
+    <td><img alt="PC预览3" width="400" src="./docs/images/preview/pc-03.png"></td>
+    <td><img alt="PC预览4" width="400" src="./docs/images/preview/pc-04.png"></td>
+  </tr>
+  <tr>
+    <td><img alt="PC预览5" width="400" src="./docs/images/preview/pc-05.png"></td>
+    <td><img alt="PC预览6" width="400" src="./docs/images/preview/pc-06.png"></td>
+  </tr>
+</table>
+
+**移动端**
+
+<table align="center">
+  <tr>
+    <td><img alt="APP预览1" width="200" src="./docs/images/preview/app-01.png"></td>
+    <td><img alt="APP预览2" width="200" src="./docs/images/preview/app-02.png"></td>
+    <td><img alt="APP预览3" width="200" src="./docs/images/preview/app-03.png"></td>
+    <td><img alt="APP预览4" width="200" src="./docs/images/preview/app-04.png"></td>
+  </tr>
+</table>
+
+## 快速开始
+
+**环境要求**：.NET SDK 10+ · MySQL 8.0+ · Redis 7.x+
+
+1. 克隆项目：`git clone https://gitee.com/youlaiorg/youlai-aspnet.git`
+2. 导入数据库：`sql/mysql/youlai_admin.sql`
+3. 修改配置（可选，默认已配置线上只读数据源）：`src/Youlai.Api/appsettings.Development.json`
+4. 启动服务：`dotnet run --project src/Youlai.Api`，访问 http://localhost:8000/swagger
+
+默认账号：`admin` / `123456`
+
+详细指南：[部署文档](https://www.youlai.tech/docs/admin/backend/csharp/deploy)
+
+## 技术栈
+
+| 技术 | 版本 | 说明 |
+|:-----|:-----|:-----|
+| .NET | 10 | 核心框架 |
+| ASP.NET Core | 10 | Web 框架 |
+| EF Core | 10 | ORM 框架 |
+| MySQL | 5.7+ / 8.x | 数据库 |
+| Redis | 7.x+ | 缓存 · 会话 |
+| Swagger | — | API 文档 |
+| MinIO | — | 对象存储 |
+
+## 目录结构
+
+```
 youlai-aspnet/
-├─ src/                             # 源码目录
-│  ├─ Youlai.Api/                   # Web API层（控制器、中间件、认证授权）
-│  │  ├─ Controllers/              # 控制器（按模块组织）
-│  │  │  ├─ Auth/                 # 认证模块
-│  │  │  ├─ Codegen/              # 代码生成模块
-│  │  │  ├─ File/                 # 文件模块
-│  │  │  ├─ Message/              # 消息模块（SSE）
-│  │  │  └─ System/               # 系统模块
-│  │  ├─ Middlewares/             # 中间件
-│  │  ├─ Security/                # 安全认证
-│  │  ├─ Swagger/                 # Swagger配置
-│  │  ├─ Converters/              # 类型转换器
-│  │  ├─ Properties/              # 项目属性
-│  │  ├─ Program.cs               # 应用入口
-│  │  ├─ appsettings.json         # 生产环境配置
-│  │  └─ appsettings.Development.json # 开发环境配置
-│  ├─ Youlai.Application/           # 应用层（服务接口定义、DTO、业务逻辑）
-│  │  ├─ Dtos/                    # 数据传输对象
-│  │  ├─ Interfaces/              # 服务接口
-│  │  ├─ Services/                # 业务逻辑
-│  │  ├─ Security/                # 安全相关
-│  │  ├─ Constants/               # 常量定义
-│  │  ├─ Exceptions/              # 自定义异常
-│  │  ├─ Results/                 # 返回结果封装
-│  │  ├─ Options/                 # 配置选项
-│  │  ├─ Extensions/              # 扩展方法
-│  │  ├─ Attributes/              # 自定义特性
-│  │  ├─ Persistence/             # 持久化相关
-│  │  ├─ Common/                  # 通用工具类
-│  │  ├─ Models/                  # 模型定义
-│  │  ├─ File/                    # 文件服务
-│  │  └─ Auth/                    # 认证服务
-│  ├─ Youlai.Domain/                # 领域层（实体模型、领域对象、枚举）
-│  │  ├─ Entities/                # 实体模型
-│  │  └─ Enums/                   # 枚举
-│  └─ Youlai.Infrastructure/        # 基础设施层（EF Core、仓储、缓存）
-│     ├─ CodegenTemplates/        # 代码生成模板
-│     ├─ FileStorage/             # 文件存储
-│     └─ Filters/                 # 过滤器
-├─ sql/                             # 数据库脚本
-│  └─ mysql/                        # MySQL 脚本
-├─ tests/                           # 测试项目
-├─ youlai-aspnet.sln                # 解决方案文件
-└─ global.json                      # .NET SDK版本锁定
+├── src/
+│   ├── Youlai.Api/                     # Web API 层（控制器、中间件、认证授权）
+│   │   ├── Controllers/               # 控制器（Auth/Codegen/File/Message/System）
+│   │   ├── Middlewares/               # 中间件
+│   │   ├── Security/                  # 安全认证
+│   │   └── Program.cs                 # 应用入口
+│   ├── Youlai.Application/            # 应用层（DTO、服务接口、业务逻辑）
+│   ├── Youlai.Domain/                 # 领域层（实体、枚举）
+│   └── Youlai.Infrastructure/        # 基础设施层（EF Core、仓储、缓存）
+├── sql/                                # 数据库初始化脚本
+├── tests/                              # 测试项目
+└── youlai-aspnet.sln                   # 解决方案文件
 ```
 
-</details>
+## 生态矩阵
 
-## 🚀 快速启动
+**前端**
 
-1. **基础环境**
+| 项目 | 技术栈 | 说明 |
+|:-----|:-------|:-----|
+| [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) | Vue 3 + Element Plus | PC 管理前端（主推） |
+| [youlai-app](https://gitee.com/youlaiorg/youlai-app) | Vue 3 + UniApp | 移动端 App |
 
-   | 依赖     | 版本要求   | 说明           |
-   | -------- | ---------- | -------------- |
-   | .NET SDK | 10.0.100+  | 开发框架       |
-   | MySQL    | 5.7+ / 8.x | 数据库（必需） |
-   | Redis    | 7.x        | 缓存（必需）   |
+**后端**
 
-2. **初始化数据库**
+| 项目 | 技术栈 | 说明 |
+|:-----|:-------|:-----|
+| [youlai-boot](https://gitee.com/youlaiorg/youlai-boot) | Spring Boot 4 + MyBatis-Plus | Java（主推） |
+| [youlai-nest](https://gitee.com/youlaiorg/youlai-nest) | NestJS + TypeORM | Node.js |
+| [youlai-gin](https://gitee.com/youlaiorg/youlai-gin) | Go + Gorm | Go |
+| [youlai-django](https://gitee.com/youlaiorg/youlai-django) | Django + DRF | Python |
+| [youlai-thinkphp](https://gitee.com/youlaiorg/youlai-thinkphp) | ThinkPHP 8 | PHP |
 
-   执行 `sql/mysql/youlai_admin.sql` 脚本，完成库表与基础数据初始化。
+> **youlai-boot** 还提供以下变种和分支版本：[多租户](https://gitee.com/youlaiorg/youlai-boot-tenant)（Spring Boot 4）· [MyBatis-Flex](https://gitee.com/youlaiorg/youlai-boot-flex)（Spring Boot 4）· [Spring Boot 3](https://gitee.com/youlaiorg/youlai-boot/tree/spring-boot-3) · [PostgreSQL](https://gitee.com/youlaiorg/youlai-boot/tree/db-pg) · [多模块](https://gitee.com/youlaiorg/youlai-boot/tree/multi-module)
+>
+> 六种后端共享同一套 **RESTful API 规范** 和 **数据库结构**，前端可无缝切换。
 
-3. **配置应用**
-   - `appsettings.json` - 默认配置（连接线上演示环境 `www.youlai.tech`）
-   - `appsettings.Development.json` - 开发环境配置（默认连接线上演示环境，本地开发需修改 Database 和 Redis 连接地址）
+## 文档资源
 
-4. **启动后端**
+| 资源 | 地址 |
+|:-----|:-----|
+| 📖 完整文档站 | [www.youlai.tech/docs/admin](https://www.youlai.tech/docs/admin/) |
+| 🖥️ PC 端在线预览 | [vue.youlai.tech](https://vue.youlai.tech) |
+| 📱 移动端在线预览 | [app.youlai.tech](https://app.youlai.tech) |
+| 🔗 Apifox 接口文档 | [apifox.com](https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5) |
+| 🔗 本地接口文档 | [localhost:8000/swagger](http://localhost:8000/swagger) |
 
-   ```bash
-   dotnet restore
-   dotnet run --project src/Youlai.Api
-   ```
+## 参与贡献
 
-   启动成功后访问 [http://localhost:8000/swagger](http://localhost:8000/swagger)。
+欢迎提交 Issue 和 Pull Request！详见 [贡献指南](https://www.youlai.tech/docs/admin/faq/help)。
 
-## 🚀 项目部署
+## 开源协议
 
-**Windows 部署（IIS + Kestrel）**
-
-1. 安装 IIS（控制面板 → 启用或关闭 Windows 功能 → 勾选 Internet Information Services）。
-2. 安装 ASP.NET Core Hosting Bundle（官网下载安装后重启 IIS）。
-3. 发布项目：
-
-   ```bash
-   dotnet publish src/Youlai.Api -c Release -r win-x64 --self-contained true -o ./publish
-   ```
-
-4. IIS 新建站点：物理路径指向 `publish`，端口设置为可用端口（如 8000），应用程序池选择“无托管代码”。
-
-访问 `http://服务器IP:端口` 即可。
+本项目基于 [Apache License 2.0](LICENSE) 开源，可免费用于商业项目。
 
 ---
 
-## 💖 技术交流
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="./docs/images/qr/wechat-offical.png" height="180" alt="公众号「有来技术」"><br>
+      <sub>公众号「有来技术」</sub>
+    </td>
+    <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    <td align="center">
+      <img src="./docs/images/qr/wechat-mp.jpg" height="180" alt="小程序「有来技术」"><br>
+      <sub>小程序「有来技术」</sub>
+    </td>
+    <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    <td align="center">
+      <img src="./docs/images/qr/wechat-personal.png" height="180" alt="添加作者微信"><br>
+      <sub>添加作者微信</sub>
+    </td>
+  </tr>
+</table>
 
-关注「有来技术」公众号，点击菜单【交流群】获取微信群二维码（为防营销广告，实属无奈，望理解）：
-
-<div align="center">
-  <img src="https://foruda.gitee.com/images/1737108820762592766/3390ed0d_716974.png" width="280">
-</div>
-
-> 二维码过期？添加微信 **`haoxianrui`**，备注「前端/后端/全栈」即可拉你入群。
+<p align="center"><em>技术交流 · 问题反馈 · 商务合作</em></p>
