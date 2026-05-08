@@ -293,6 +293,11 @@ public sealed class JwtTokenManager
             return 0;
         }
 
+        if (value is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt64(out var jeVal))
+        {
+            return jeVal;
+        }
+
         if (value is long l)
         {
             return l;
@@ -311,6 +316,11 @@ public sealed class JwtTokenManager
         if (value is null)
         {
             return 0;
+        }
+
+        if (value is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt32(out var jeVal))
+        {
+            return jeVal;
         }
 
         if (value is int i)
