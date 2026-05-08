@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -332,19 +333,27 @@ public sealed class JwtTokenManager
         string Username,
         IReadOnlyCollection<string> Authorities)
     {
+        /// <summary>
+        /// 从 JWT payload 还原 token 主体信息
+        /// </summary>
         public static AuthTokenSubject FromPayload(JwtPayload payload)
         {
             var userId = TryGetInt64(payload, JwtClaimConstants.UserId);
             var deptId = TryGetInt64(payload, JwtClaimConstants.DeptId);
             var username = payload.TryGetValue(JwtRegisteredClaimNames.Sub, out var sub) ? sub?.ToString() ?? string.Empty : string.Empty;
 
-            // 解析数据权限列表
+            // dataScopes: 写入时做了 JSON 序列化，读取时需区分 JsonElement 和普通对象
             List<RoleDataScope> dataScopes = new();
             if (payload.TryGetValue(JwtClaimConstants.DataScopes, out var dataScopesObj))
             {
                 try
                 {
-                    var json = dataScopesObj?.ToString();
+                    string? json = dataScopesObj switch
+                    {
+                        JsonElement dsJe => dsJe.ValueKind == JsonValueKind.String ? dsJe.GetString() : dsJe.ToString(),
+                        _ => dataScopesObj?.ToString()
+                    };
+
                     if (!string.IsNullOrWhiteSpace(json))
                     {
                         dataScopes = global::System.Text.Json.JsonSerializer.Deserialize<List<RoleDataScope>>(json) ?? new();
@@ -352,31 +361,41 @@ public sealed class JwtTokenManager
                 }
                 catch
                 {
-                    // 解析失败，返回空列表
+                    // 反序列化失败则留空
                 }
             }
 
+            // authorities: JWT 反序列化后为 JsonElement 数组，不能用 ToString() 否则会拿到原始 JSON 字符串
             var authorities = new List<string>();
             if (payload.TryGetValue(JwtClaimConstants.Authorities, out var authObj))
             {
-                if (authObj is string s)
+                switch (authObj)
                 {
-                    if (!string.IsNullOrWhiteSpace(s))
-                    {
+                    case JsonElement je when je.ValueKind == JsonValueKind.Array:
+                        foreach (var item in je.EnumerateArray())
+                        {
+                            var val = item.ValueKind == JsonValueKind.String ? item.GetString() : item.ToString();
+                            if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
+                        }
+                        break;
+                    case JsonElement je when je.ValueKind == JsonValueKind.String:
+                        {
+                            var val = je.GetString();
+                            if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
+                        }
+                        break;
+                    case string s when !string.IsNullOrWhiteSpace(s):
                         authorities.Add(s);
-                    }
-                }
-                else if (authObj is IEnumerable<object> arr)
-                {
-                    authorities.AddRange(arr.Select(a => a.ToString()).Where(a => !string.IsNullOrWhiteSpace(a))!);
-                }
-                else
-                {
-                    var single = authObj?.ToString();
-                    if (!string.IsNullOrWhiteSpace(single))
-                    {
-                        authorities.Add(single);
-                    }
+                        break;
+                    case IEnumerable<object> arr:
+                        authorities.AddRange(arr.Select(a => a.ToString()).Where(a => !string.IsNullOrWhiteSpace(a))!);
+                        break;
+                    default:
+                        {
+                            var single = authObj?.ToString();
+                            if (!string.IsNullOrWhiteSpace(single)) authorities.Add(single);
+                        }
+                        break;
                 }
             }
 
@@ -388,6 +407,12 @@ public sealed class JwtTokenManager
             if (!payload.TryGetValue(key, out var obj) || obj is null)
             {
                 return 0;
+            }
+
+            // JWT 反序列化后数值类型为 JsonElement
+            if (obj is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt64(out var jeVal))
+            {
+                return jeVal;
             }
 
             if (obj is long l)
@@ -413,6 +438,11 @@ public sealed class JwtTokenManager
             if (!payload.TryGetValue(key, out var obj) || obj is null)
             {
                 return null;
+            }
+
+            if (obj is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt32(out var jeVal))
+            {
+                return jeVal;
             }
 
             if (obj is int i)
