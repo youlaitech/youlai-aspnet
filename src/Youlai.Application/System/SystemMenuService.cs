@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Youlai.Domain.Enums;
 using Youlai.Application.Exceptions;
@@ -14,9 +14,6 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 菜单服务
 /// </summary>
-/// <remarks>
-/// 提供菜单维护、菜单树查询以及当前用户路由构建能力
-/// </remarks>
 internal sealed class SystemMenuService : ISystemMenuService
 {
     private const string LayoutComponent = "Layout";
@@ -59,15 +56,14 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
         else
         {
-            // Use parameterized LINQ query instead of raw SQL to prevent SQL injection
-            var roleCodesSet = roleCodes.ToHashSet(StringComparer.Ordinal);
+            var roleCodesList = roleCodes;
             menus = await (
                 from m in _dbContext.SysMenus.AsNoTracking()
                 join rm in _dbContext.SysRoleMenus on m.Id equals rm.MenuId
                 join r in _dbContext.SysRoles on rm.RoleId equals r.Id
                 where m.Type != MenuType.Button.GetCode()
                     && r.Status == 1 && !r.IsDeleted
-                    && roleCodesSet.Contains(r.Code)
+                    && r.Code != null && roleCodesList.Contains(r.Code)
                 select m
             ).Distinct()
              .OrderBy(m => m.Sort ?? 0)
@@ -226,7 +222,6 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         var menuType = formData.Type;
-        // 外链菜单不挂载组件，仅保留跳转地址
         var isExternalLink = string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(formData.RoutePath)
             && (formData.RoutePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
@@ -252,10 +247,9 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         if (string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal) && !isExternalLink)
         {
-            // 仅菜单类型且非外链时校验路由名唯一
             if (string.IsNullOrWhiteSpace(routeName))
             {
-                throw new BusinessException(ResultCode.InvalidUserInput, "路由名称已存在");
+                throw new BusinessException(ResultCode.InvalidUserInput, "路由名称不能为空");
             }
 
             var routeNameTrim = routeName.Trim();
@@ -266,7 +260,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
             if (exists)
             {
-                throw new BusinessException(ResultCode.InvalidUserInput, "路由名称已存在");
+                throw new BusinessException(ResultCode.InvalidUserInput, "Route name already exists");
             }
 
             routeName = routeNameTrim;
@@ -276,7 +270,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             routeName = null;
         }
 
-        // 生成树路径，后续用于更新子节点
         var treePath = await GenerateMenuTreePathAsync(formData.ParentId, cancellationToken).ConfigureAwait(false);
         var paramsJson = SerializeParams(formData.Params);
 
@@ -349,7 +342,6 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
-        // 一次性拿到自身及所有子级菜单
         var menuIds = await _dbContext.SysMenus
             .AsNoTracking()
             .Where(m => m.Id == menuId
@@ -367,7 +359,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             return true;
         }
 
-        // 先收集受影响的角色编码，便于刷新权限缓存
         var roleCodes = await (
                 from rm in _dbContext.SysRoleMenus.AsNoTracking()
                 join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
@@ -378,7 +369,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // 先删关联表，再删菜单本体
         _dbContext.SysRoleMenus.RemoveRange(_dbContext.SysRoleMenus.Where(x => menuIds.Contains(x.MenuId)));
         _dbContext.SysMenus.RemoveRange(_dbContext.SysMenus.Where(x => menuIds.Contains(x.Id)));
 
@@ -393,7 +383,8 @@ internal sealed class SystemMenuService : ISystemMenuService
     }
 
     /// <summary>
-    /// 修改可见状态    /// </summary>
+    /// 修改可见状态
+    /// </summary>
     public async Task<bool> UpdateMenuVisibleAsync(long menuId, int visible, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.SysMenus
@@ -593,7 +584,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             }
             else if (string.Equals(menu.Type, MenuType.Catalog.GetCode(), StringComparison.Ordinal))
             {
-                // 目录使用路由路径作为名称，避免与子菜单路由名称冲突                routeName = routePath;
+                routeName = routePath;
             }
             else
             {
