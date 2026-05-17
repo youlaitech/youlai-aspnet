@@ -47,7 +47,7 @@ internal sealed class CodegenService : ICodegenService
     public CodegenService(IDbContext dbContext)
     {
         _dbContext = dbContext;
-        _templateRoot = Path.Combine(AppContext.BaseDirectory, "Codegen", "Templates");
+        _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
     public async Task<PageResult<CodegenTableDto>> GetTablePageAsync(
@@ -802,7 +802,7 @@ ORDER BY ORDINAL_POSITION ASC";
         var fullPath = Path.Combine(_templateRoot, tplPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
         if (!global::System.IO.File.Exists(fullPath))
         {
-            throw new BusinessException(ResultCode.InterfaceNotExist, $"模板不存在: {tplPath}");
+            throw new BusinessException($"模板不存在: {tplPath}");
         }
 
         var content = global::System.IO.File.ReadAllText(fullPath, Encoding.UTF8);

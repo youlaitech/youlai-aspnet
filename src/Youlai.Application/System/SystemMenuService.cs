@@ -56,19 +56,35 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
         else
         {
-            var roleCodesList = roleCodes;
-            menus = await (
-                from m in _dbContext.SysMenus.AsNoTracking()
-                join rm in _dbContext.SysRoleMenus on m.Id equals rm.MenuId
-                join r in _dbContext.SysRoles on rm.RoleId equals r.Id
-                where m.Type != MenuType.Button.GetCode()
-                    && r.Status == 1 && !r.IsDeleted
-                    && r.Code != null && roleCodesList.Contains(r.Code)
-                select m
-            ).Distinct()
-             .OrderBy(m => m.Sort ?? 0)
-             .ToListAsync(cancellationToken)
-             .ConfigureAwait(false);
+            // 第一步：先查角色ID（单表 Contains，避免 EF Core 表达式树编译异常）
+            var roleIds = await _dbContext.SysRoles
+                .AsNoTracking()
+                .Where(r => r.Status == 1 && !r.IsDeleted
+                    && r.Code != null && roleCodes.Contains(r.Code))
+                .Select(r => r.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (roleIds.Count == 0)
+            {
+                return Array.Empty<RouteVo>();
+            }
+
+            // 第二步：查角色关联的菜单ID
+            var menuIds = await _dbContext.SysRoleMenus
+                .AsNoTracking()
+                .Where(rm => roleIds.Contains(rm.RoleId))
+                .Select(rm => rm.MenuId)
+                .Distinct()
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            menus = await _dbContext.SysMenus
+                .AsNoTracking()
+                .Where(m => m.Type != MenuType.Button.GetCode() && menuIds.Contains(m.Id))
+                .OrderBy(m => m.Sort ?? 0)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         return BuildRoutes(parentId: 0, menus).ToArray();
@@ -359,12 +375,19 @@ internal sealed class SystemMenuService : ISystemMenuService
             return true;
         }
 
-        var roleCodes = await (
-                from rm in _dbContext.SysRoleMenus.AsNoTracking()
-                join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
-                where r.Code != null && menuIds.Contains(rm.MenuId)
-                select r.Code
-            )
+        // 先查关联的角色ID（分步查询避免 EF Core 表达式树编译异常）
+        var relatedRoleIds = await _dbContext.SysRoleMenus
+            .AsNoTracking()
+            .Where(rm => menuIds.Contains(rm.MenuId))
+            .Select(rm => rm.RoleId)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var roleCodes = await _dbContext.SysRoles
+            .AsNoTracking()
+            .Where(r => r.Code != null && relatedRoleIds.Contains(r.Id))
+            .Select(r => r.Code)
             .Distinct()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

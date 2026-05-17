@@ -17,4 +17,9 @@ public sealed class BusinessException : Exception
     {
         ResultCode = resultCode;
     }
+
+    public BusinessException(string message)
+        : this(ResultCode.SystemError, message)
+    {
+    }
 }

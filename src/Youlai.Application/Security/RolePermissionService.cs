@@ -158,20 +158,37 @@ internal sealed class RolePermissionService : IRolePermissionService
         IReadOnlyCollection<string> roleCodes,
         CancellationToken cancellationToken)
     {
-        var query =
+        var roleCodesArray = roleCodes.ToArray();
+
+        // 第一步：查询符合条件的角色（单表 Contains，避免 EF Core 表达式树编译异常）
+        var roles = await _dbContext.SysRoles
+            .AsNoTracking()
+            .Where(r => roleCodesArray.Contains(r.Code) && !r.IsDeleted && r.Status == 1)
+            .Select(r => new { r.Id, r.Code })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (roles.Count == 0)
+        {
+            return new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.Ordinal);
+        }
+
+        var roleIdToCode = roles.ToDictionary(r => r.Id, r => r.Code);
+        var roleIds = roles.Select(r => r.Id).ToList();
+
+        // 第二步：查询角色菜单关联和权限
+        var rows = await (
             from rm in _dbContext.SysRoleMenus.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
             join m in _dbContext.SysMenus.AsNoTracking() on rm.MenuId equals m.Id
-            where roleCodes.Contains(r.Code)
-                && !r.IsDeleted
-                && r.Status == 1
+            where roleIds.Contains(rm.RoleId)
                 && m.Type == ButtonMenuType
                 && m.Perm != null
-            select new { RoleCode = r.Code, Perm = m.Perm };
-
-        var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+            select new { rm.RoleId, Perm = m.Perm }
+        ).ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return rows
+            .Where(x => roleIdToCode.ContainsKey(x.RoleId))
+            .Select(x => new { RoleCode = roleIdToCode[x.RoleId], x.Perm })
             .GroupBy(x => x.RoleCode, StringComparer.Ordinal)
             .ToDictionary(
                 g => g.Key,

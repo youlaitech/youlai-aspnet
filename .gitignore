@@ -14,6 +14,7 @@
 *.suo
 *.userosscache
 *.sln.docstates
+*.lscache
 
 ## OS
 [Dd]esktop.ini
