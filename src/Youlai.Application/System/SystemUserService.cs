@@ -399,7 +399,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -414,7 +414,7 @@ internal sealed class SystemUserService : ISystemUserService
 
     public async Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
-        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -893,7 +893,7 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "手机号不能为空");
         }
 
-        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
         var mobileExists = await _dbContext.SysUsers
             .AsNoTracking()
@@ -906,7 +906,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile);
-        await VerifyCodeAsync(key, formData.Code).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code ?? string.Empty).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)
@@ -949,7 +949,7 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "邮箱不能为空");
         }
 
-        var (userId, _) = await VerifyUserPasswordAsync(formData.Password, cancellationToken).ConfigureAwait(false);
+        var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
         var emailExists = await _dbContext.SysUsers
             .AsNoTracking()
@@ -962,7 +962,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var key = string.Format(RedisKeyConstants.Captcha.EmailCode, email);
-        await VerifyCodeAsync(key, formData.Code).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code ?? string.Empty).ConfigureAwait(false);
 
         var ok = await _dbContext.SysUsers
             .Where(u => u.Id == userId && !u.IsDeleted)

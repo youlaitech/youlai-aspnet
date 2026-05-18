@@ -163,8 +163,8 @@ internal sealed class RolePermissionService : IRolePermissionService
         // 第一步：查询符合条件的角色（单表 Contains，避免 EF Core 表达式树编译异常）
         var roles = await _dbContext.SysRoles
             .AsNoTracking()
-            .Where(r => roleCodesArray.Contains(r.Code) && !r.IsDeleted && r.Status == 1)
-            .Select(r => new { r.Id, r.Code })
+            .Where(r => roleCodesArray.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
+            .Select(r => new { r.Id, Code = r.Code! })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

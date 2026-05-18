@@ -387,7 +387,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         var roleCodes = await _dbContext.SysRoles
             .AsNoTracking()
             .Where(r => r.Code != null && relatedRoleIds.Contains(r.Id))
-            .Select(r => r.Code)
+            .Select(r => r.Code!)
             .Distinct()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
