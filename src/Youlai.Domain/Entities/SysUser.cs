@@ -43,9 +43,4 @@ public sealed class SysUser
     /// 软删除标记：true=已删除，false=正常
     /// </summary>
     public bool IsDeleted { get; set; }
-
-    /// <summary>
-    /// 三方登录OpenId
-    /// </summary>
-    public string? OpenId { get; set; }
 }

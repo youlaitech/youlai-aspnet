@@ -44,4 +44,14 @@ public sealed class SysMenu
     /// 路由参数
     /// </summary>
     public JsonElement? Params { get; set; }
+
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    public DateTime? CreateTime { get; set; }
+
+    /// <summary>
+    /// 更新时间
+    /// </summary>
+    public DateTime? UpdateTime { get; set; }
 }
