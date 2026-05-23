@@ -8,11 +8,8 @@ using Youlai.Application.Codegen;
 namespace Youlai.Api.Controllers.Codegen;
 
 /// <summary>
-/// 代码生成接口
+/// 代码生成接口（表查询、配置、预览、下载）
 /// </summary>
-/// <remarks>
-/// 提供数据表查询、配置维护、预览以及下载能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/codegen")]
 [Authorize]

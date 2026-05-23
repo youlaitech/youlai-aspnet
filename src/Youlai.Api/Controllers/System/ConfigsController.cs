@@ -10,11 +10,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 参数配置接口
+/// 参数配置接口（分页、CRUD、缓存刷新）
 /// </summary>
-/// <remarks>
-/// 提供参数配置的分页查询、表单数据、创建、更新、删除及缓存刷新能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/configs")]
 [Authorize]

@@ -6,9 +6,6 @@ namespace Youlai.Application.System.Models.Role;
 /// <summary>
 /// 角色分页查询参数
 /// </summary>
-/// <remarks>
-/// 用于角色分页接口的查询条件。
-/// </remarks>
 public sealed class RoleQuery : BaseQuery
 {
     /// <summary>

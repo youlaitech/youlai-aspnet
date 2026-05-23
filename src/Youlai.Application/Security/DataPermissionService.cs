@@ -7,12 +7,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.Security;
 
 /// <summary>
-/// 数据权限服务实现
+/// 数据权限服务（多角色并集策略）
 /// </summary>
-/// <remarks>
-/// 根据当前登录用户的数据权限范围，对查询结果进行过滤
-/// 支持多角色数据权限合并（并集策略）
-/// </remarks>
 internal sealed class DataPermissionService : IDataPermissionService
 {
     private readonly ICurrentUser _currentUser;

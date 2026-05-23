@@ -12,7 +12,7 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 菜单服务
+/// 菜单服务（路由、树形列表、CRUD）
 /// </summary>
 internal sealed class SystemMenuService : ISystemMenuService
 {
@@ -56,11 +56,12 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
         else
         {
-            // 第一步：先查角色ID（单表 Contains，避免 EF Core 表达式树编译异常）
+            // EF Core 9+ 将 string[].Contains() 编译为 ReadOnlySpan<string>，MySQL 驱动无法处理 → 必须用 HashSet 兜底
+            var roleSet = new HashSet<string>(roleCodes, StringComparer.Ordinal);
             var roleIds = await _dbContext.SysRoles
                 .AsNoTracking()
                 .Where(r => r.Status == 1 && !r.IsDeleted
-                    && r.Code != null && roleCodes.Contains(r.Code))
+                    && r.Code != null && roleSet.Contains(r.Code))
                 .Select(r => r.Id)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -70,18 +71,19 @@ internal sealed class SystemMenuService : ISystemMenuService
                 return Array.Empty<RouteVo>();
             }
 
-            // 第二步：查角色关联的菜单ID
+            var roleIdSet = roleIds.ToHashSet();
             var menuIds = await _dbContext.SysRoleMenus
                 .AsNoTracking()
-                .Where(rm => roleIds.Contains(rm.RoleId))
+                .Where(rm => roleIdSet.Contains(rm.RoleId))
                 .Select(rm => rm.MenuId)
                 .Distinct()
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            var menuIdSet = menuIds.ToHashSet();
             menus = await _dbContext.SysMenus
                 .AsNoTracking()
-                .Where(m => m.Type != MenuType.Button.GetCode() && menuIds.Contains(m.Id))
+                .Where(m => m.Type != MenuType.Button.GetCode() && menuIdSet.Contains(m.Id))
                 .OrderBy(m => m.Sort ?? 0)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -424,6 +426,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return true;
     }
 
+    /// <summary>
+    /// 递归构建路由树：按 parentId 匹配父子关系，生成前端 Vue Router 所需的嵌套路由结构
+    /// </summary>
     private static List<RouteVo> BuildRoutes(long parentId, List<Domain.Entities.SysMenu> menus)
     {
         var routes = new List<RouteVo>();

@@ -64,7 +64,6 @@ public sealed class AppDbContext : DbContext, IDbContext
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
             entity.HasQueryFilter(e => !e.IsDeleted);
-            entity.Ignore(e => e.OpenId);
         });
 
         modelBuilder.Entity<SysRole>(entity =>
@@ -120,21 +119,23 @@ public sealed class AppDbContext : DbContext, IDbContext
             entity.ToTable("sys_menu");
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.ParentId).HasColumnName("parent_id");
             entity.Property(e => e.TreePath).HasColumnName("tree_path");
-            entity.Property(e => e.Name).HasColumnName("name");
-            entity.Property(e => e.Type).HasColumnName("type");
-            entity.Property(e => e.RouteName).HasColumnName("route_name");
-            entity.Property(e => e.RoutePath).HasColumnName("route_path");
-            entity.Property(e => e.Component).HasColumnName("component");
-            entity.Property(e => e.Perm).HasColumnName("perm");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Type).HasColumnName("type").HasMaxLength(1).IsRequired();
+            entity.Property(e => e.RouteName).HasColumnName("route_name").HasMaxLength(255);
+            entity.Property(e => e.RoutePath).HasColumnName("route_path").HasMaxLength(128);
+            entity.Property(e => e.Component).HasColumnName("component").HasMaxLength(128);
+            entity.Property(e => e.Perm).HasColumnName("perm").HasMaxLength(128);
             entity.Property(e => e.AlwaysShow).HasColumnName("always_show");
             entity.Property(e => e.KeepAlive).HasColumnName("keep_alive");
             entity.Property(e => e.Visible).HasColumnName("visible");
             entity.Property(e => e.Sort).HasColumnName("sort");
-            entity.Property(e => e.Icon).HasColumnName("icon");
-            entity.Property(e => e.Redirect).HasColumnName("redirect");
+            entity.Property(e => e.Icon).HasColumnName("icon").HasMaxLength(64);
+            entity.Property(e => e.Redirect).HasColumnName("redirect").HasMaxLength(128);
+            entity.Property(e => e.CreateTime).HasColumnName("create_time");
+            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
             entity.Property(e => e.Params)
                 .HasColumnName("params")
                 .HasConversion(
@@ -315,6 +316,13 @@ public sealed class AppDbContext : DbContext, IDbContext
         {
             return null;
         }
-        return JsonDocument.Parse(value).RootElement.Clone();
+        try
+        {
+            return JsonDocument.Parse(value).RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

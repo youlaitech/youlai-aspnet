@@ -8,11 +8,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.Security;
 
 /// <summary>
-/// 角色权限聚合服务（带 Redis 缓存）
+/// 角色权限服务（聚合权限码 + Redis 缓存）
 /// </summary>
-/// <remarks>
-/// 聚合角色的权限码列表，并缓存到 Redis，便于鉴权快速判断
-/// </remarks>
 internal sealed class RolePermissionService : IRolePermissionService
 {
     private const string ButtonMenuType = "B";
@@ -158,12 +155,11 @@ internal sealed class RolePermissionService : IRolePermissionService
         IReadOnlyCollection<string> roleCodes,
         CancellationToken cancellationToken)
     {
-        var roleCodesArray = roleCodes.ToArray();
+        var roleSet = roleCodes.ToHashSet(StringComparer.Ordinal);
 
-        // 第一步：查询符合条件的角色（单表 Contains，避免 EF Core 表达式树编译异常）
         var roles = await _dbContext.SysRoles
             .AsNoTracking()
-            .Where(r => roleCodesArray.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
+            .Where(r => roleSet.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
             .Select(r => new { r.Id, Code = r.Code! })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

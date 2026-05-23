@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Youlai.Application.Auth.Models;
-using Youlai.Application.Auth;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
@@ -28,7 +27,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     private const string GetPhoneNumberUrl = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={0}&code={1}";
     private const string GetAccessTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={0}&secret={1}";
 
-    private static readonly TimeSpan SmsCodeTtl = TimeSpan.FromMinutes(5);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IDbContext _dbContext;
@@ -59,7 +57,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     public async Task<WxMaLoginResultDto> SilentLoginAsync(string code, CancellationToken cancellationToken = default)
     {
-        // 1. 获取微信会话信息
         var session = await GetSessionAsync(code, cancellationToken);
         var openId = session.OpenId;
 
@@ -68,19 +65,16 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
         }
 
-        // 2. 查找是否已绑定用户
         var social = await _dbContext.SysUserSocials
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Platform == "WECHAT_MINI" && s.OpenId == openId, cancellationToken);
 
         if (social is not null)
         {
-            // 已绑定用户，直接登录
             var token = await GenerateTokenByUserIdAsync(social.UserId, cancellationToken);
             return WxMaLoginResultDto.Success(token);
         }
 
-        // 未绑定用户，返回需要绑定手机号
         _logger.LogInformation("微信小程序静默登录：用户未绑定手机号，openId={OpenId}", openId);
         return WxMaLoginResultDto.RequireBindMobile(openId);
     }
@@ -90,7 +84,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     public async Task<AuthenticationTokenDto> PhoneLoginAsync(string loginCode, string phoneCode, CancellationToken cancellationToken = default)
     {
-        // 1. 获取微信会话信息
         var session = await GetSessionAsync(loginCode, cancellationToken);
         var openId = session.OpenId;
 
@@ -99,20 +92,14 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
         }
 
-        var nonNullOpenId = openId;
-
-        // 2. 获取手机号
         var mobile = await GetPhoneNumberAsync(phoneCode, cancellationToken);
 
         _logger.LogInformation("微信小程序手机号快捷登录：openId={OpenId}, mobile={Mobile}", openId, mobile);
 
-        // 3. 查询或创建用户
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
-        // 4. 绑定微信 openid
-        await BindWechatOpenIdAsync(user.Id, nonNullOpenId, session.UnionId, session.SessionKey, cancellationToken);
+        await BindWechatOpenIdAsync(user.Id, openId, session.UnionId, session.SessionKey, cancellationToken);
 
-        // 5. 生成认证令牌
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);
     }
 
@@ -121,18 +108,14 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     public async Task<AuthenticationTokenDto> BindMobileAsync(string openId, string mobile, string smsCode, CancellationToken cancellationToken = default)
     {
-        // 1. 验证短信验证码
         await ValidateSmsCodeAsync(mobile, smsCode);
 
-        // 2. 查询或创建用户
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
-        // 3. 绑定微信 openid
         await BindWechatOpenIdAsync(user.Id, openId, null, null, cancellationToken);
 
         _logger.LogInformation("微信小程序绑定手机号成功：mobile={Mobile}, openId={OpenId}", mobile, openId);
 
-        // 4. 生成认证令牌
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);
     }
 

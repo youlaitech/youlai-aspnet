@@ -11,11 +11,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 数据字典接口
+/// 数据字典接口（类型/字典项查询与维护）
 /// </summary>
-/// <remarks>
-/// 提供字典类型与字典项的查询、维护及变更通知能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/dicts")]
 [Authorize]

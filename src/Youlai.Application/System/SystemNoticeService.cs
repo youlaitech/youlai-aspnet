@@ -13,7 +13,7 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 公告服务
+/// 公告服务（分页、CRUD、发布/撤回）
 /// </summary>
 internal sealed class SystemNoticeService : ISystemNoticeService
 {

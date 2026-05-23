@@ -18,11 +18,8 @@ using Youlai.Application.Options;
 namespace Youlai.Application.Security;
 
 /// <summary>
-/// JWT 令牌管理器（签发、校验与作废访问令牌/刷新令牌）
+/// JWT 令牌管理器（签发、校验、Redis 会话作废）
 /// </summary>
-/// <remarks>
-/// 负责生成与校验 JWT，并结合 Redis 处理会话作废与安全版本控制
-/// </remarks>
 public sealed class JwtTokenManager
 {
     private const string BearerPrefix = "Bearer ";
@@ -90,6 +87,9 @@ public sealed class JwtTokenManager
         );
     }
 
+    /// <summary>
+    /// 作废当前令牌：将 JTI 写入 Redis 黑名单，TTL 对齐令牌剩余有效期，过期自动清理
+    /// </summary>
     public async Task InvalidateTokenAsync(string? authorizationHeader)
     {
         if (string.IsNullOrWhiteSpace(authorizationHeader) || !authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))

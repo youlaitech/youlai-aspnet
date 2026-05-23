@@ -12,11 +12,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 角色管理接口
+/// 角色管理接口（分页、CRUD、菜单权限分配）
 /// </summary>
-/// <remarks>
-/// 提供角色的分页查询、表单、创建、更新、删除及菜单权限分配等能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/roles")]
 [Authorize]

@@ -14,10 +14,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 角色服务
+/// 角色服务（CRUD、菜单权限分配）
 /// </summary>
-/// <remarks>
-/// 提供角色维护、角色下拉选项与角色菜单权限分配能力/// </remarks>
 internal sealed class SystemRoleService : ISystemRoleService
 {
     private readonly IDbContext _dbContext;
@@ -476,9 +474,6 @@ internal sealed class SystemRoleService : ISystemRoleService
         }
     }
 
-    /// <remarks>
-    /// 提供角色维护、角色下拉选项与角色菜单权限分配能力。
-    /// </remarks>
     private async Task ReplaceRelatedEntitiesAsync<TEntity, TKey>(
         DbSet<TEntity> dbSet,
         Expression<Func<TEntity, bool>> predicate,

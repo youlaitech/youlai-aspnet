@@ -5,11 +5,8 @@ using System.Text.Json.Serialization;
 namespace Youlai.Api.Converters;
 
 /// <summary>
-/// 将 int64 序列化为字符串，避免 JavaScript 精度丢失
+/// long → string 转换器，避免 JavaScript 大数精度丢失
 /// </summary>
-/// <remarks>
-/// 用于全局 JSON 序列化配置，将 long 输出为字符串
-/// </remarks>
 public sealed class Int64ToStringJsonConverter : JsonConverter<long>
 {
     public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -40,11 +37,8 @@ public sealed class Int64ToStringJsonConverter : JsonConverter<long>
 }
 
 /// <summary>
-/// 将可空 int64 序列化为字符串，避免 JavaScript 精度丢失
+/// long? → string 转换器，避免 JavaScript 大数精度丢失
 /// </summary>
-/// <remarks>
-/// 用于全局 JSON 序列化配置，将 long? 输出为字符串
-/// </remarks>
 public sealed class NullableInt64ToStringJsonConverter : JsonConverter<long?>
 {
     public override long? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

@@ -8,11 +8,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 通知公告接口
+/// 通知公告接口（分页、CRUD、发布/撤回）
 /// </summary>
-/// <remarks>
-/// 提供公告的分页查询、表单、创建、更新、删除、发布与撤回等能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/notices")]
 [Authorize]

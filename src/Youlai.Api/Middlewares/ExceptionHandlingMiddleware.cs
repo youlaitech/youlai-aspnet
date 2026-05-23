@@ -1,15 +1,13 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
 
 namespace Youlai.Api.Middlewares;
 
-/// <summary>
-/// 统一异常处理并输出 Result 响应
-/// </summary>
 public sealed class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
@@ -33,37 +31,43 @@ public sealed class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        // 异常捕获按优先级从具体到宽泛：业务异常 → 数据库约束冲突 → 其他数据库错误 → 兜底系统异常
         catch (BusinessException ex)
         {
             _logger.LogWarning(ex, "Business exception: {Message}", ex.Message);
-            // 401: 未认证（token无效/过期）
-            // 403: 权限不足
-            // 429: 请求并发数超限
-            var statusCode = ex.ResultCode switch
-            {
-                ResultCode.AccessTokenInvalid or ResultCode.RefreshTokenInvalid => HttpStatusCode.Unauthorized,
-                ResultCode.AccessPermissionException => HttpStatusCode.Forbidden,
-                ResultCode.RequestConcurrencyLimitExceeded => (HttpStatusCode)429,
-                _ => HttpStatusCode.BadRequest
-            };
-            await WriteErrorAsync(context, statusCode, ex.ResultCode, ex.Message);
+            await WriteErrorAsync(context, ex.ResultCode, ex.Message);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("duplicate") == true)
+        {
+            _logger.LogWarning(ex, "Duplicate key violation");
+            await WriteErrorAsync(context, ResultCode.IntegrityConstraintViolation, "违反唯一约束");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("denied") == true)
+        {
+            _logger.LogWarning(ex, "Database access denied");
+            await WriteErrorAsync(context, ResultCode.DatabaseAccessDenied, null);
+        }
+        catch (DbUpdateException ex)
+        {
+            var innerMsg = ex.InnerException?.Message ?? "N/A";
+            _logger.LogError(ex, "Database execution error | Inner: {InnerMessage}", innerMsg);
+            await WriteErrorAsync(context, ResultCode.DatabaseExecutionError, $"DB Error: {innerMsg}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
-            await WriteErrorAsync(context, HttpStatusCode.InternalServerError, ResultCode.SystemError, "系统执行出错");
+            var innerMsg = ex.InnerException?.Message ?? "N/A";
+            _logger.LogError(ex, "Unhandled exception | Type: {Type} | Inner: {InnerMessage}", ex.GetType().Name, innerMsg);
+            await WriteErrorAsync(context, ResultCode.SystemError, $"{ex.GetType().Name}: {ex.Message}");
         }
     }
 
-    private async Task WriteErrorAsync(HttpContext context, HttpStatusCode statusCode, ResultCode code, string? message)
+    private async Task WriteErrorAsync(HttpContext context, ResultCode code, string? message)
     {
         if (context.Response.HasStarted)
-        {
             return;
-        }
 
         context.Response.Clear();
-        context.Response.StatusCode = (int)statusCode;
+        context.Response.StatusCode = code.GetHttpStatus();
         context.Response.ContentType = "application/json; charset=utf-8";
 
         var result = Result.Failed(code, message);

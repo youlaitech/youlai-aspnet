@@ -8,11 +8,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 系统日志接口
+/// 系统日志接口（查询、清理）
 /// </summary>
-/// <remarks>
-/// 提供操作日志查询与清理能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/logs")]
 [Authorize]

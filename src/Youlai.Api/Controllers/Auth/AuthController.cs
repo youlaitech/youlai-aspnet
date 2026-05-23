@@ -11,11 +11,8 @@ using Youlai.Api.Filters;
 namespace Youlai.Api.Controllers.Auth;
 
 /// <summary>
-/// 认证接口
+/// 认证接口（登录、刷新令牌、退出）
 /// </summary>
-/// <remarks>
-/// 提供登录、刷新令牌、退出登录等能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/auth")]
 [Authorize]

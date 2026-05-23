@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Youlai.Application.Auth.Models;
-using Youlai.Application.Auth;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
@@ -177,8 +176,6 @@ internal sealed class AuthService : IAuthService
             .Select(c => SecurityConstants.RolePrefix + c)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-
-        // comment?
         var dataScopes = new List<RoleDataScope>();
         foreach (var role in roles)
         {

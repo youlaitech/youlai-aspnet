@@ -13,11 +13,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 参数配置服务
+/// 参数配置服务（查询与维护，支持 Redis 缓存刷新）
 /// </summary>
-/// <remarks>
-/// 提供参数配置的查询与维护，并支持缓存刷新
-/// </remarks>
 internal sealed class SystemConfigService : ISystemConfigService
 {
     private readonly IDbContext _dbContext;

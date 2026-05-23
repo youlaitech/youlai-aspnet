@@ -11,11 +11,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 菜单管理接口
+/// 菜单管理接口（路由、树形列表、CRUD、显示状态）
 /// </summary>
-/// <remarks>
-/// 提供菜单路由、菜单列表、表单数据、增删改及显示状态维护等能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/menus")]
 [Authorize]

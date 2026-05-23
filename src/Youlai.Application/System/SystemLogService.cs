@@ -202,7 +202,7 @@ internal sealed class SystemLogService : ISystemLogService
     }
 
     /// <summary>
-    /// 支持纯日期(yyyy-MM-dd) 或完整日期时间格式
+    /// 解析日期字符串，支持 yyyy-MM-dd 和完整日期时间
     /// </summary>
     private static DateTime? ParseDateTimeMaybeDateOnly(string value, bool isStart)
     {

@@ -11,11 +11,8 @@ using Youlai.Domain.Entities;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 部门服务
+/// 部门服务（树查询、下拉选项、CRUD）
 /// </summary>
-/// <remarks>
-/// 提供部门树查询、下拉选项与部门维护能力。
-/// </remarks>
 internal sealed class SystemDeptService : ISystemDeptService
 {
     private const long RootNodeId = 0;

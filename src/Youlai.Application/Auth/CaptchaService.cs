@@ -8,7 +8,6 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using StackExchange.Redis;
 using Youlai.Application.Auth.Models;
-using Youlai.Application.Auth;
 using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Options;

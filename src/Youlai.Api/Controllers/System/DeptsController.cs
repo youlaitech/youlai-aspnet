@@ -11,11 +11,8 @@ using Youlai.Application.System;
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 部门管理接口
+/// 部门管理接口（树查询、CRUD）
 /// </summary>
-/// <remarks>
-/// 提供部门树查询、详情、创建、修改、删除等能力。
-/// </remarks>
 [ApiController]
 [Route("api/v1/depts")]
 [Authorize]

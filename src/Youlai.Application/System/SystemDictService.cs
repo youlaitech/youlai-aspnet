@@ -13,7 +13,7 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.System;
 
 /// <summary>
-/// 字典服务
+/// 字典服务（字典类型/字典项 CRUD）
 /// </summary>
 internal sealed class SystemDictService : ISystemDictService
 {
