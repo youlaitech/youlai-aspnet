@@ -55,6 +55,12 @@ public sealed class MenuForm
     public string? Component { get; init; }
 
     /// <summary>
+    /// 外链地址
+    /// </summary>
+    [JsonPropertyName("externalUrl")]
+    public string? ExternalUrl { get; init; }
+
+    /// <summary>
     /// 权限标识
     /// </summary>
     [JsonPropertyName("perm")]

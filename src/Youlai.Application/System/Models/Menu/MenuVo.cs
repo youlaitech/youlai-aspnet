@@ -50,6 +50,12 @@ public sealed class MenuVo
     public string? Component { get; init; }
 
     /// <summary>
+    /// 外链地址
+    /// </summary>
+    [JsonPropertyName("externalUrl")]
+    public string? ExternalUrl { get; init; }
+
+    /// <summary>
     /// 排序
     /// </summary>
     [JsonPropertyName("sort")]

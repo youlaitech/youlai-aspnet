@@ -16,6 +16,11 @@ public enum MenuType
     Menu,
 
     /// <summary>
+    /// 外链
+    /// </summary>
+    External,
+
+    /// <summary>
     /// 按钮
     /// </summary>
     Button
@@ -33,6 +38,7 @@ public static class MenuTypeExtensions
     {
         MenuType.Catalog => "C",
         MenuType.Menu => "M",
+        MenuType.External => "E",
         MenuType.Button => "B",
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
@@ -44,6 +50,7 @@ public static class MenuTypeExtensions
     {
         "C" => MenuType.Catalog,
         "M" => MenuType.Menu,
+        "E" => MenuType.External,
         "B" => MenuType.Button,
         _ => throw new ArgumentException($"Invalid menu type code: {code}", nameof(code))
     };

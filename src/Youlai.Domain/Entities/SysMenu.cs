@@ -24,6 +24,11 @@ public sealed class SysMenu
     public string? Component { get; set; }
 
     /// <summary>
+    /// 外链地址
+    /// </summary>
+    public string? ExternalUrl { get; set; }
+
+    /// <summary>
     /// 权限标识
     /// </summary>
     public string? Perm { get; set; }
