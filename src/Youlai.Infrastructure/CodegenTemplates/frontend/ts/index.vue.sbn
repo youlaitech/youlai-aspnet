@@ -1,53 +1,54 @@
 <template>
   <div class="page-container">
+    <!-- 搜索 -->
     <el-card class="page-search" shadow="never">
-      <el-form ref="queryFormRef" :model="queryParams" :inline="true">
+      <el-form ref="queryFormRef" :model="params" :inline="true">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInQuery == 1 }}
         <el-form-item label="{{ field.FieldComment }}" prop="{{ field.FieldName }}">
 {{ if field.FormType == "INPUT" }}
           <el-input
-            v-model="queryParams.{{ field.FieldName }}"
+            v-model="params.{{ field.FieldName }}"
             placeholder="{{ field.FieldComment }}"
             clearable
             @keyup.enter="handleQuery"
           />
 {{ else if field.FormType == "SELECT" }}
 {{ if field.DictType != "" }}
-          <DictSelect v-model="queryParams.{{ field.FieldName }}" code="{{ field.DictType }}" />
+          <DictSelect v-model="params.{{ field.FieldName }}" code="{{ field.DictType }}" />
 {{ else }}
-          <el-select v-model="queryParams.{{ field.FieldName }}" placeholder="请选择{{ field.FieldComment }}" clearable>
+          <el-select v-model="params.{{ field.FieldName }}" placeholder="请选择{{ field.FieldComment }}" clearable>
             <el-option :value="1" label="选项一" />
             <el-option :value="2" label="选项二" />
           </el-select>
 {{ end }}
 {{ else if field.FormType == "RADIO" }}
 {{ if field.DictType != "" }}
-          <DictSelect v-model="queryParams.{{ field.FieldName }}" type="radio" code="{{ field.DictType }}" />
+          <DictSelect v-model="params.{{ field.FieldName }}" type="radio" code="{{ field.DictType }}" />
 {{ else }}
-          <el-radio-group v-model="queryParams.{{ field.FieldName }}">
+          <el-radio-group v-model="params.{{ field.FieldName }}">
             <el-radio :value="1">选项一</el-radio>
             <el-radio :value="2">选项二</el-radio>
           </el-radio-group>
 {{ end }}
 {{ else if field.FormType == "CHECK_BOX" }}
 {{ if field.DictType != "" }}
-          <DictSelect v-model="queryParams.{{ field.FieldName }}" type="checkbox" code="{{ field.DictType }}" />
+          <DictSelect v-model="params.{{ field.FieldName }}" type="checkbox" code="{{ field.DictType }}" />
 {{ else }}
-          <el-checkbox-group v-model="queryParams.{{ field.FieldName }}">
+          <el-checkbox-group v-model="params.{{ field.FieldName }}">
             <el-checkbox :value="1">选项一</el-checkbox>
             <el-checkbox :value="2">选项二</el-checkbox>
           </el-checkbox-group>
 {{ end }}
 {{ else if field.FormType == "INPUT_NUMBER" }}
-          <el-input-number v-model="queryParams.{{ field.FieldName }}" placeholder="{{ field.FieldComment }}" />
+          <el-input-number v-model="params.{{ field.FieldName }}" placeholder="{{ field.FieldComment }}" />
 {{ else if field.FormType == "SWITCH" }}
-          <el-switch v-model="queryParams.{{ field.FieldName }}" :active-value="1" :inactive-value="0" />
+          <el-switch v-model="params.{{ field.FieldName }}" :active-value="1" :inactive-value="0" />
 {{ else if field.FormType == "TEXT_AREA" }}
-          <el-input v-model="queryParams.{{ field.FieldName }}" type="textarea" placeholder="{{ field.FieldComment }}" />
+          <el-input v-model="params.{{ field.FieldName }}" type="textarea" placeholder="{{ field.FieldComment }}" />
 {{ else if field.FormType == "DATE_TIME" }}
           <el-date-picker
-            v-model="queryParams.{{ field.FieldName }}"
+            v-model="params.{{ field.FieldName }}"
 {{ if field.QueryType == "BETWEEN" }}
             type="daterange"
             range-separator="~"
@@ -61,7 +62,7 @@
           />
 {{ else if field.FormType == "DATE" }}
           <el-date-picker
-            v-model="queryParams.{{ field.FieldName }}"
+            v-model="params.{{ field.FieldName }}"
 {{ if field.QueryType == "BETWEEN" }}
             type="daterange"
             range-separator="~"
@@ -78,41 +79,55 @@
 {{ end }}
 {{ end }}
         <el-form-item>
-          <el-button type="primary" icon="search" @click="handleQuery">搜索</el-button>
-          <el-button icon="refresh" @click="handleResetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="handleResetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <el-card class="page-content" shadow="never">
+    <!-- 表格 -->
+    <el-card ref="tableWrapperRef" class="page-content" shadow="never">
       <div class="page-toolbar">
         <div class="page-toolbar__left">
           <el-button
             v-hasPerm="['{{ moduleName }}:{{ entityKebab }}:create']"
-            type="success"
-            icon="plus"
-            @click="handleOpenDialog()"
+            type="primary"
+            @click="handleCreateClick()"
           >
             新增
           </el-button>
           <el-button
             v-hasPerm="['{{ moduleName }}:{{ entityKebab }}:delete']"
             type="danger"
-            :disabled="removeIds.length === 0"
-            icon="delete"
-            @click="handleDelete()"
+            :disabled="!hasSelection"
+            @click="handleBatchDelete()"
           >
             删除
           </el-button>
         </div>
+        <div class="page-toolbar__right">
+          <el-tooltip content="刷新" placement="top">
+            <el-button class="page-icon-btn" @click="fetchData">
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="全屏" placement="top">
+            <el-button class="page-icon-btn" @click="toggleFullscreen">
+              <el-icon><FullScreen /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
       </div>
 
-      <el-table
-        ref="dataTableRef"
-        v-loading="loading"
-        :data="pageData"
-        highlight-current-row
-        border
+      <div class="page-table-wrapper">
+        <el-table
+          ref="dataTableRef"
+          v-loading="loading"
+          class="page-table"
+          :data="list"
+          height="100%"
+          highlight-current-row
+          border
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
@@ -141,8 +156,7 @@
               type="primary"
               size="small"
               link
-              icon="edit"
-              @click="handleOpenDialog(String(scope.row.id))"
+              @click="handleEditClick(String(scope.row.id))"
             >
               编辑
             </el-button>
@@ -150,28 +164,29 @@
               v-hasPerm="['{{ moduleName }}:{{ entityKebab }}:delete']"
               type="danger"
               size="small"
-              link
-              icon="delete"
-              @click="handleDelete(String(scope.row.id))"
+                link
+                @click="handleDelete(String(scope.row.id))"
             >
               删除
             </el-button>
           </template>
         </el-table-column>
       </el-table>
+      </div>
 
       <div class="page-pagination">
         <pagination
           v-if="total > 0"
           v-model:total="total"
-          v-model:page="queryParams.pageNum"
-          v-model:limit="queryParams.pageSize"
-          @pagination="handleQuery"
+          v-model:page="params.pageNum"
+          v-model:limit="params.pageSize"
+          class="page-pagination"
+          @pagination="fetchData"
         />
       </div>
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px" @close="handleCloseDialog">
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px" @close="closeDialog">
       <el-form ref="dataFormRef" :model="formData" :rules="rules" label-width="100px">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInForm == 1 }}
@@ -237,145 +252,174 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button type="primary" @click="handleSubmit">确定</el-button>
-          <el-button @click="handleCloseDialog">取消</el-button>
+          <el-button @click="closeDialog">取消</el-button>
         </div>
       </template>
     </el-dialog>
   </div>
 </template>
 
+
 <script setup lang="ts">
-defineOptions({
-  name: "{{ entityName }}",
-  inheritAttrs: false,
-});
+  import { useFullscreen } from "@vueuse/core";
+  import {
+  ElMessage,
+  ElMessageBox,
+  type FormInstance,
+  type FormRules,
+} from "element-plus";
+  import { FullScreen, Refresh } from "@element-plus/icons-vue";
+  import { usePageTable, useTableSelection } from "@/composables";
+  import ${entityName}API from "@/api/${moduleName}/${entityKebab}";
+  import type { ${entityName}Item, ${entityName}Form, ${entityName}QueryParams } from "@/api/${moduleName}/${entityKebab}";
 
-import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
-import type { {{ entityName }}Item, {{ entityName }}Form, {{ entityName }}QueryParams } from "@/api/{{ moduleName }}/{{ entityKebab }}";
-
-const queryFormRef = ref();
-const dataFormRef = ref();
-
-const loading = ref(false);
-const removeIds = ref<string[]>([]);
-const total = ref(0);
-
-const queryParams = reactive<{{ entityName }}QueryParams>({
-  pageNum: 1,
-  pageSize: 10,
-});
-
-const pageData = ref<{{ entityName }}Item[]>([]);
-
-const dialog = reactive({
-  title: "",
-  visible: false,
-});
-
-const formData = reactive<{{ entityName }}Form>({});
-
-const rules = reactive({
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 && field.IsRequired == 1 }}
-  {{ field.FieldName }}: [{ required: true, message: "请输入{{ field.FieldComment }}", trigger: "{{ if field.FormType == "INPUT" || field.FormType == "TEXT_AREA" }}blur{{ else }}change{{ end }}" }],
-{{ end }}
-{{ end }}
-});
-
-function handleQuery() {
-  loading.value = true;
-  {{ entityName }}API.getPage(queryParams)
-    .then((data) => {
-      pageData.value = data.list;
-      total.value = data.total ?? 0;
-    })
-    .finally(() => {
-      loading.value = false;
-    });
-}
-
-function handleResetQuery() {
-  queryFormRef.value?.resetFields();
-  queryParams.pageNum = 1;
-  handleQuery();
-}
-
-function handleSelectionChange(selection: any) {
-  removeIds.value = selection.map((item: any) => String(item.id));
-}
-
-function handleOpenDialog(id?: string) {
-  dialog.visible = true;
-  if (id) {
-    dialog.title = "修改{{ businessName }}";
-    {{ entityName }}API.getFormData(id).then((data) => {
-      Object.assign(formData, data);
-    });
-  } else {
-    dialog.title = "新增{{ businessName }}";
-  }
-}
-
-function handleSubmit() {
-  dataFormRef.value?.validate((valid: boolean) => {
-    if (!valid) return;
-    loading.value = true;
-    const id = (formData as any).id;
-    if (id) {
-      {{ entityName }}API.update(id, formData)
-        .then(() => {
-          ElMessage.success("修改成功");
-          handleCloseDialog();
-          handleResetQuery();
-        })
-        .finally(() => (loading.value = false));
-    } else {
-      {{ entityName }}API.create(formData)
-        .then(() => {
-          ElMessage.success("新增成功");
-          handleCloseDialog();
-          handleResetQuery();
-        })
-        .finally(() => (loading.value = false));
-    }
+  defineOptions({
+    name: "${entityName}",
+    inheritAttrs: false,
   });
-}
 
-function handleCloseDialog() {
-  dialog.visible = false;
-  dataFormRef.value?.resetFields();
-  dataFormRef.value?.clearValidate();
-  (formData as any).id = undefined;
-}
+  const queryFormRef = ref<FormInstance>();
+  const dataFormRef = ref<FormInstance>();
+  const tableWrapperRef = ref<HTMLElement | null>(null);
+  const { toggle: toggleFullscreen } = useFullscreen(tableWrapperRef);
 
-function handleDelete(id?: string) {
-  const ids = [id || removeIds.value].join(",");
-  if (!ids) {
-    ElMessage.warning("请勾选删除项");
-    return;
+  const initialFormData = reactive({});
+
+  const { loading, list, total, params, fetchData, handleQuery, handleResetQuery } = usePageTable<
+    ${entityName}Item,
+    ${entityName}QueryParams
+  >({
+    initialParams: {
+      pageNum: 1,
+      pageSize: 10,
+    },
+    request: ${entityName}API.getPage,
+    onBeforeReset: () => queryFormRef.value?.resetFields(),
+  });
+
+  const { selectedIds, hasSelection, handleSelectionChange } = useTableSelection<${entityName}Item>();
+
+  const dialog = reactive({
+    title: "",
+    visible: false,
+  });
+
+  const formData = reactive({});
+
+  const rules = reactive({
+    {{ for field in fieldConfigs }}{{ if field.IsShowInForm && field.IsRequired }}{{ if field.FormType != "HIDDEN" }}
+    {{ field.FieldName }}: [{ required: true, message: "请输入{{ field.FieldComment }}", trigger: "blur" }],
+{{ end }}{{ end }}{{ end }}
+  });
+
+  /**
+   * 打开表单弹窗
+   */
+  function openDialog() {
+    dialog.visible = true;
   }
 
-  ElMessageBox.confirm("确认删除已选中的数据项?", "警告", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
-  }).then(
-    () => {
-      loading.value = true;
-      {{ entityName }}API.deleteByIds(ids)
-        .then(() => {
-          ElMessage.success("删除成功");
-          handleResetQuery();
-        })
-        .finally(() => (loading.value = false));
-    },
-    () => {
-      ElMessage.info("已取消删除");
-    }
-  );
-}
+  function closeDialog() {
+    dialog.visible = false;
+    resetForm();
+  }
 
-onMounted(() => {
-  handleQuery();
-});
+  /**
+   * 重置表单
+   */
+  function resetForm() {
+    dataFormRef.value?.resetFields();
+    dataFormRef.value?.clearValidate();
+    Object.keys(formData).forEach((key) => {
+      delete formData[key];
+    });
+    Object.assign(formData, initialFormData);
+  }
+
+  /**
+   * 打开新增弹窗
+   */
+  async function handleCreateClick(): Promise<void> {
+    dialog.title = "新增${businessName}";
+    openDialog();
+  }
+
+  /**
+   * 打开编辑弹窗并回填数据
+   */
+  async function handleEditClick(id: string): Promise<void> {
+    dialog.title = "修改${businessName}";
+    const data = await ${entityName}API.getFormData(id);
+    Object.assign(formData, data);
+    openDialog();
+  }
+
+  /**
+   * 提交${businessName}表单
+   */
+  async function handleSubmit(): Promise<void> {
+    const valid = await dataFormRef.value?.validate().then(
+      () => true,
+      () => false
+    );
+    if (!valid) return;
+
+    loading.value = true;
+    try {
+      const id = formData.id;
+      if (id) {
+        await ${entityName}API.update(id, formData);
+        ElMessage.success("修改成功");
+      } else {
+        await ${entityName}API.create(formData);
+        ElMessage.success("新增成功");
+      }
+      closeDialog();
+      handleResetQuery();
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /**
+   * 批量删除${businessName}
+   */
+  function handleBatchDelete(): void {
+    handleDelete();
+  }
+
+  /**
+   * 删除${businessName}
+   */
+  async function handleDelete(id?: string): Promise<void> {
+    const ids = id || selectedIds.value.join(",");
+    if (!ids) {
+      ElMessage.warning("请勾选删除项");
+      return;
+    }
+
+    try {
+      await ElMessageBox.confirm("确认删除已选中的数据项?", "警告", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      });
+    } catch {
+      ElMessage.info("已取消删除");
+      return;
+    }
+
+    loading.value = true;
+    try {
+      await ${entityName}API.deleteByIds(ids);
+      ElMessage.success("删除成功");
+      handleResetQuery();
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  onMounted(() => {
+    handleQuery();
+  });
 </script>

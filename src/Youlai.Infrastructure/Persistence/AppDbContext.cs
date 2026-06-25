@@ -127,6 +127,7 @@ public sealed class AppDbContext : DbContext, IDbContext
             entity.Property(e => e.RouteName).HasColumnName("route_name").HasMaxLength(255);
             entity.Property(e => e.RoutePath).HasColumnName("route_path").HasMaxLength(128);
             entity.Property(e => e.Component).HasColumnName("component").HasMaxLength(128);
+            entity.Property(e => e.ExternalUrl).HasColumnName("external_url").HasMaxLength(512);
             entity.Property(e => e.Perm).HasColumnName("perm").HasMaxLength(128);
             entity.Property(e => e.AlwaysShow).HasColumnName("always_show");
             entity.Property(e => e.KeepAlive).HasColumnName("keep_alive");
