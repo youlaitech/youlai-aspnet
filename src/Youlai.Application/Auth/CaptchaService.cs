@@ -46,7 +46,7 @@ internal sealed class CaptchaService : ICaptchaService
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
         await db.StringSetAsync(key, code, TimeSpan.FromSeconds(_options.ExpireSeconds)).ConfigureAwait(false);
 
-        return new CaptchaInfoDto(captchaId, captchaBase64);
+        return new CaptchaInfoDto(captchaId, captchaBase64, code);
     }
 
     /// <summary>

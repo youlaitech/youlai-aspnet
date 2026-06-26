@@ -7,5 +7,6 @@ namespace Youlai.Application.Auth.Models;
 /// <param name="CaptchaBase64">验证码图片（Base64）</param>
 public sealed record CaptchaInfoDto(
     string CaptchaId,
-    string CaptchaBase64
+    string CaptchaBase64,
+    string CaptchaCode
 );

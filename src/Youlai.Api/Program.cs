@@ -77,7 +77,6 @@ var app = builder.Build();
 
 // 配置 HTTP 请求管道
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<RateLimitMiddleware>();
 
 app.UseStatusCodePages(async statusContext =>
 {
