@@ -240,10 +240,8 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         var menuType = formData.Type;
-        var isExternalLink = string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal)
-            && !string.IsNullOrWhiteSpace(formData.RoutePath)
-            && (formData.RoutePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-                || formData.RoutePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+        var isExternal = string.Equals(menuType, MenuType.External.GetCode(), StringComparison.Ordinal);
+        var isEmbedded = isExternal && string.Equals(formData.Component, "iframe", StringComparison.Ordinal);
 
         var routePath = formData.RoutePath;
         var component = formData.Component;
@@ -258,12 +256,13 @@ internal sealed class SystemMenuService : ISystemMenuService
 
             component = LayoutComponent;
         }
-        else if (isExternalLink)
+        else if (isExternal && !isEmbedded)
         {
             component = null;
         }
 
-        if (string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal) && !isExternalLink)
+        var needsRouteName = string.Equals(menuType, MenuType.Menu.GetCode(), StringComparison.Ordinal) || isEmbedded;
+        if (needsRouteName)
         {
             if (string.IsNullOrWhiteSpace(routeName))
             {
@@ -600,23 +599,24 @@ internal sealed class SystemMenuService : ISystemMenuService
     private static RouteVo ToRouteVo(Domain.Entities.SysMenu menu, IReadOnlyCollection<RouteVo>? children)
     {
         var routePath = menu.RoutePath ?? string.Empty;
-        var externalLink = routePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || routePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        var externalUrl = menu.ExternalUrl;
+        var isExternal = string.Equals(menu.Type, MenuType.External.GetCode(), StringComparison.Ordinal);
+        var isEmbedded = isExternal && string.Equals(menu.Component, "iframe", StringComparison.Ordinal);
+
+        var path = isExternal && !isEmbedded && !string.IsNullOrWhiteSpace(externalUrl)
+            ? externalUrl
+            : routePath;
 
         var routeName = menu.RouteName;
-        if (string.IsNullOrWhiteSpace(routeName))
+        if (string.IsNullOrWhiteSpace(routeName) && !isExternal)
         {
-            if (externalLink)
+            if (string.Equals(menu.Type, MenuType.Catalog.GetCode(), StringComparison.Ordinal))
             {
-                routeName = $"ext-{menu.Id}";
-            }
-            else if (string.Equals(menu.Type, MenuType.Catalog.GetCode(), StringComparison.Ordinal))
-            {
-                routeName = routePath;
+                routeName = path;
             }
             else
             {
-                routeName = ToPascalCase(routePath);
+                routeName = ToPascalCase(path);
             }
         }
 
@@ -625,7 +625,8 @@ internal sealed class SystemMenuService : ISystemMenuService
             Title = menu.Name,
             Icon = string.IsNullOrWhiteSpace(menu.Icon) ? null : menu.Icon,
             Hidden = menu.Visible.HasValue && menu.Visible.Value == 0 ? true : null,
-            KeepAlive = string.Equals(menu.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal) && menu.KeepAlive == 1 ? true : null,
+            KeepAlive = (string.Equals(menu.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal) || isEmbedded)
+                && menu.KeepAlive == 1 ? true : null,
             AlwaysShow = menu.AlwaysShow == 1 ? true : null,
             Params = TryParseParams(menu.Params),
         };
@@ -633,9 +634,11 @@ internal sealed class SystemMenuService : ISystemMenuService
         return new RouteVo
         {
             Name = string.IsNullOrWhiteSpace(routeName) ? null : routeName,
-            Path = routePath,
+            Path = path,
             Redirect = string.IsNullOrWhiteSpace(menu.Redirect) ? null : menu.Redirect,
-            Component = externalLink ? null : (string.IsNullOrWhiteSpace(menu.Component) ? null : menu.Component),
+            Component = isEmbedded ? "iframe"
+                : isExternal ? null
+                : (string.IsNullOrWhiteSpace(menu.Component) ? null : menu.Component),
             Meta = meta,
             Children = children,
         };
