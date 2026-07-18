@@ -146,6 +146,12 @@ internal sealed class AuthService : IAuthService
         return _tokenManager.InvalidateTokenAsync(authorizationHeader);
     }
 
+    /// <summary>
+    /// 扫码登录换发会话令牌：按用户 ID 查认证信息并复用既有令牌签发逻辑。
+    /// </summary>
+    public Task<AuthenticationTokenDto> LoginByQrAsync(long userId, CancellationToken cancellationToken = default) =>
+        GenerateTokenAsync(userId, cancellationToken);
+
     private async Task<AuthenticationTokenDto> GenerateTokenAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _dbContext.SysUsers
