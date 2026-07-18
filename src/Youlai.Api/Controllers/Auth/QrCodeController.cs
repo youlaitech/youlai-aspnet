@@ -138,6 +138,15 @@ public sealed class QrCodeController : ControllerBase
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
         if (ctx.UserId is null)
             throw new BusinessException(ResultCode.AccountNotFound);
+        var user = await _dbContext.SysUsers
+            .AsNoTracking()
+            .Where(u => u.Id == ctx.UserId.Value && !u.IsDeleted)
+            .Select(u => new { u.Status })
+            .FirstOrDefaultAsync();
+        if (user is null)
+            throw new BusinessException(ResultCode.AccountNotFound);
+        if (user.Status != 1)
+            throw new BusinessException(ResultCode.AccountFrozen);
         var token = await _authService.LoginByQrAsync(ctx.UserId.Value);
         // 换取令牌成功后立即把票据置为已使用（一次性），再次 login 会在状态校验处被拒，杜绝重放
         ctx.Status = StatusLoggedIn;
