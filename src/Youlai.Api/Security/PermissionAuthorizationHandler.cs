@@ -19,6 +19,9 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         _rolePermissionService = rolePermissionService;
     }
 
+    /// <summary>
+    /// 超管直接放行；否则取当前用户所有角色的权限点，任一匹配即通过
+    /// </summary>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
         if (_currentUser.IsRoot)
@@ -47,6 +50,9 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         }
     }
 
+    /// <summary>
+    /// 从授权上下文的 Resource 中取出请求的 CancellationToken
+    /// </summary>
     private static CancellationToken GetCancellationToken(AuthorizationHandlerContext context)
     {
         if (context.Resource is HttpContext httpContext)
@@ -62,6 +68,9 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         return CancellationToken.None;
     }
 
+    /// <summary>
+    /// 权限点通配匹配，支持 * 通配任意字符，如 sys:user:* 匹配 sys:user:add
+    /// </summary>
     private static bool SimpleMatch(string pattern, string input)
     {
         if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(input))

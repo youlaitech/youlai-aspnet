@@ -18,8 +18,12 @@ internal sealed class LocalFileStorage : IFileStorage
         _options = options.Local;
     }
 
+    /// <summary>存储类型标识：local</summary>
     public string Type => "local";
 
+    /// <summary>
+    /// 保存到「storagePath/yyyyMMdd/GUID.ext」，返回可访问 URL
+    /// </summary>
     public async Task<FileInfoDto> UploadAsync(
         Stream content,
         string fileName,
@@ -69,6 +73,9 @@ internal sealed class LocalFileStorage : IFileStorage
         };
     }
 
+    /// <summary>
+    /// 删除文件，校验路径未越出存储根目录防止路径穿越
+    /// </summary>
     public Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -106,6 +113,9 @@ internal sealed class LocalFileStorage : IFileStorage
         }
     }
 
+    /// <summary>
+    /// 拼接对外访问 URL，配置了 PublicBaseUrl 用它，否则用站内相对路径
+    /// </summary>
     private string BuildPublicUrl(string relativePath)
     {
         var normalized = relativePath.Replace("\\", "/").TrimStart('/');
@@ -117,6 +127,9 @@ internal sealed class LocalFileStorage : IFileStorage
         return "/" + normalized;
     }
 
+    /// <summary>
+    /// 把完整 URL 或路径归一为相对存储路径
+    /// </summary>
     private string NormalizePath(string filePath)
     {
         if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri))

@@ -7,6 +7,7 @@ public sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimit";
 
+    /// <summary>按 IP 限流的配置</summary>
     public IpRateLimitOptions Ip { get; init; } = new();
 
     /// <summary>

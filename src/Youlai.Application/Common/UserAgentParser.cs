@@ -78,6 +78,9 @@ public static class UserAgentParser
         return osName;
     }
 
+    /// <summary>
+    /// 从 token 后截取版本号，拼成「浏览器名 版本」
+    /// </summary>
     private static string ParseBrowserVersion(string ua, string token, string browserName)
     {
         var idx = ua.IndexOf(token);

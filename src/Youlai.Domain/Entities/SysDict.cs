@@ -7,8 +7,10 @@ public sealed class SysDict
 {
     public long Id { get; set; }
 
+    /// <summary>字典编码（唯一）</summary>
     public string? DictCode { get; set; }
 
+    /// <summary>字典名称</summary>
     public string? Name { get; set; }
 
     /// <summary>
@@ -16,14 +18,19 @@ public sealed class SysDict
     /// </summary>
     public int? Status { get; set; }
 
+    /// <summary>备注</summary>
     public string? Remark { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
     /// <summary>

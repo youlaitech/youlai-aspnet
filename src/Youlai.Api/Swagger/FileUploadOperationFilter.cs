@@ -9,6 +9,9 @@ namespace Youlai.Api.Swagger;
 /// </summary>
 internal sealed class FileUploadOperationFilter : IOperationFilter
 {
+    /// <summary>
+    /// 检测到 IFormFile 参数时，把接口的请求体改为 multipart/form-data 的 file 二进制字段
+    /// </summary>
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
         var hasFormFile = context.ApiDescription.ParameterDescriptions

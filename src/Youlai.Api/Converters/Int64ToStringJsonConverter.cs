@@ -9,6 +9,9 @@ namespace Youlai.Api.Converters;
 /// </summary>
 public sealed class Int64ToStringJsonConverter : JsonConverter<long>
 {
+    /// <summary>
+    /// 从 JSON 读取 long：接受字符串或数字，非法抛 JsonException
+    /// </summary>
     public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.String)
@@ -30,6 +33,9 @@ public sealed class Int64ToStringJsonConverter : JsonConverter<long>
         throw new JsonException($"Unexpected token parsing int64. Token: {reader.TokenType}");
     }
 
+    /// <summary>
+    /// 把 long 写成 JSON 字符串，避免 JavaScript 大数精度丢失
+    /// </summary>
     public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
@@ -72,6 +78,9 @@ public sealed class NullableInt64ToStringJsonConverter : JsonConverter<long?>
         throw new JsonException($"Unexpected token parsing nullable int64. Token: {reader.TokenType}");
     }
 
+    /// <summary>
+    /// 把 long? 写成 JSON 字符串或 null
+    /// </summary>
     public override void Write(Utf8JsonWriter writer, long? value, JsonSerializerOptions options)
     {
         if (!value.HasValue)

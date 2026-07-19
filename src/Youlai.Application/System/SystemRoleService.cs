@@ -282,6 +282,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         };
     }
 
+    /// <summary>
+    /// 保存角色-部门关联：自定义数据权限时按 deptIds 覆盖，否则清空全部关联
+    /// </summary>
     private async Task SaveRoleDeptsAsync(
         long roleId,
         int? dataScope,
@@ -304,7 +307,7 @@ internal sealed class SystemRoleService : ISystemRoleService
         }
         else
         {
-            // Non-custom data scope: clear all role-dept relations
+            // 非自定义数据权限时清空角色-部门关联
             var existing = await _dbContext.SysRoleDepts
                 .Where(rd => rd.RoleId == roleId)
                 .ToListAsync(cancellationToken)
@@ -474,6 +477,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         }
     }
 
+    /// <summary>
+    /// 以新键集合整体替换某角色的关联行：先删旧再插新
+    /// </summary>
     private async Task ReplaceRelatedEntitiesAsync<TEntity, TKey>(
         DbSet<TEntity> dbSet,
         Expression<Func<TEntity, bool>> predicate,

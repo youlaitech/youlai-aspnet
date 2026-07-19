@@ -341,7 +341,7 @@ internal sealed class SystemUserService : ISystemUserService
             return true;
         }
 
-        // Exclude ROOT role users from deletion
+        // 删除时排除超管用户
         var rootUserIds =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
@@ -355,7 +355,6 @@ internal sealed class SystemUserService : ISystemUserService
             return true;
         }
 
-        // soft delete
         var now = DateTime.UtcNow;
         var updateBy = _currentUser.UserId;
         foreach (var u in users)
@@ -365,7 +364,7 @@ internal sealed class SystemUserService : ISystemUserService
             u.UpdateTime = now;
         }
 
-        // clean user role relations
+        // 一并删除用户的角色关联
         var roles = await _dbContext.SysUserRoles
             .Where(ur => idList.Contains(ur.UserId))
             .ToListAsync(cancellationToken)
@@ -397,6 +396,9 @@ internal sealed class SystemUserService : ISystemUserService
         return ok > 0;
     }
 
+    /// <summary>
+    /// 解绑手机号（需先校验登录密码）
+    /// </summary>
     public async Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
@@ -412,6 +414,9 @@ internal sealed class SystemUserService : ISystemUserService
         return ok > 0;
     }
 
+    /// <summary>
+    /// 解绑邮箱（需先校验登录密码）
+    /// </summary>
     public async Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default)
     {
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
@@ -501,7 +506,7 @@ internal sealed class SystemUserService : ISystemUserService
             };
 
         var rows = await rowsQuery
-            // Export row limit protection
+            // 导出最多取 5000 行，防止数据量过大拖垮响应
             .Take(5000)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -1047,19 +1052,16 @@ internal sealed class SystemUserService : ISystemUserService
                 || (u.Mobile != null && u.Mobile.Contains(keywords)));
         }
 
-        // Status filter
         if (query.Status.HasValue)
         {
             users = users.Where(u => u.Status == query.Status.Value);
         }
 
-        // Dept filter
         if (query.DeptId.HasValue)
         {
             users = users.Where(u => u.DeptId == query.DeptId.Value);
         }
 
-        // Role filter
         var roleIdList = IdCollectionExtensions.ParsePositiveLongIds(query.RoleIds);
         if (roleIdList.Count > 0)
         {
@@ -1071,7 +1073,6 @@ internal sealed class SystemUserService : ISystemUserService
             users = users.Where(u => roleUserIds.Contains(u.Id));
         }
 
-        // Time range filter
         var (startTime, endTime) = ParseTimeRange(query.CreateTime);
         if (startTime.HasValue)
         {
@@ -1083,7 +1084,6 @@ internal sealed class SystemUserService : ISystemUserService
             users = users.Where(u => u.CreateTime != null && u.CreateTime.Value <= endTime.Value);
         }
 
-        // Sorting
         users = ApplySorting(users, query.Field, query.Direction);
 
         return users;

@@ -7,20 +7,28 @@ public sealed class SysConfig
 {
     public long Id { get; set; }
 
+    /// <summary>配置名称</summary>
     public string ConfigName { get; set; } = string.Empty;
 
+    /// <summary>配置键（唯一）</summary>
     public string ConfigKey { get; set; } = string.Empty;
 
+    /// <summary>配置值</summary>
     public string ConfigValue { get; set; } = string.Empty;
 
+    /// <summary>备注</summary>
     public string? Remark { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
     /// <summary>

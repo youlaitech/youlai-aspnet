@@ -18,9 +18,8 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.Auth;
 
 /// <summary>
-/// WeChat Mini Program authentication service implementation.
+/// 微信小程序认证服务实现
 /// </summary>
-/// 微信小程序认证服务实现。
 internal sealed class WxMaAuthService : IWxMaAuthService
 {
     private const string JsCode2SessionUrl = "https://api.weixin.qq.com/sns/jscode2session?appid={0}&secret={1}&js_code={2}&grant_type=authorization_code";
@@ -149,6 +148,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         }
     }
 
+    /// <summary>
+    /// 用 phoneCode 调微信接口换取用户手机号
+    /// </summary>
     private async Task<string> GetPhoneNumberAsync(string phoneCode, CancellationToken cancellationToken)
     {
         var accessToken = await GetAccessTokenAsync(cancellationToken);
@@ -178,6 +180,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         }
     }
 
+    /// <summary>
+    /// 取 access_token：优先读 Redis 缓存，未命中则调微信并缓存（提前 5 分钟过期）
+    /// </summary>
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
         var db = _redis.GetDatabase();
@@ -208,6 +213,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         return response.AccessToken;
     }
 
+    /// <summary>
+    /// 按手机号查用户，不存在则新建并分配默认角色
+    /// </summary>
     private async Task<SysUser> FindOrCreateUserAsync(string mobile, CancellationToken cancellationToken)
     {
         var user = await _dbContext.SysUsers
@@ -249,6 +257,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         return user;
     }
 
+    /// <summary>
+    /// 绑定或更新微信 openid/sessionKey，失败仅记录日志不阻断登录
+    /// </summary>
     private async Task BindWechatOpenIdAsync(long userId, string openId, string? unionId, string? sessionKey, CancellationToken cancellationToken)
     {
         try
@@ -289,6 +300,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         }
     }
 
+    /// <summary>
+    /// 校验短信验证码，正确则删除缓存防止重放
+    /// </summary>
     private async Task ValidateSmsCodeAsync(string mobile, string smsCode)
     {
         var db = _redis.GetDatabase();
@@ -309,6 +323,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         await db.KeyDeleteAsync(cacheKey);
     }
 
+    /// <summary>
+    /// 按用户角色与数据权限范围组装载荷并签发令牌
+    /// </summary>
     private async Task<AuthenticationTokenDto> GenerateTokenByUserIdAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _dbContext.SysUsers
@@ -322,7 +339,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             throw new BusinessException(ResultCode.UserLoginException, "用户不存在");
         }
 
-        // Query user's roles and data scopes
+        // 取用户启用的角色编码与各自数据权限范围
         var rolesQuery =
             from ur in _dbContext.SysUserRoles.AsNoTracking()
             join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
@@ -331,7 +348,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         var roles = await rolesQuery.ToListAsync(cancellationToken);
 
-        // Build role authority set
+        // 角色编码加 ROLE_ 前缀作为权限点
         var authorities = roles
             .Select(r => r.Code)
             .Where(c => !string.IsNullOrWhiteSpace(c))
@@ -339,7 +356,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        // Build data scope list
         // 构建数据权限列表
         var dataScopes = new List<RoleDataScope>();
         foreach (var role in roles)
@@ -403,15 +419,19 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private sealed class WechatAccessTokenResponse
     {
+        /// <summary>接口调用凭据</summary>
         [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = string.Empty;
 
+        /// <summary>凭据有效期（秒）</summary>
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
 
+        /// <summary>错误码，0 或缺失表示成功</summary>
         [JsonPropertyName("errcode")]
         public string? ErrCode { get; set; }
 
+        /// <summary>错误信息</summary>
         [JsonPropertyName("errmsg")]
         public string? ErrMsg { get; set; }
     }
@@ -421,9 +441,11 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private sealed class WechatPhoneNumberResponse
     {
+        /// <summary>错误码，0 表示成功</summary>
         [JsonPropertyName("errcode")]
         public int ErrCode { get; set; }
 
+        /// <summary>错误信息</summary>
         [JsonPropertyName("errmsg")]
         public string ErrMsg { get; set; } = string.Empty;
 

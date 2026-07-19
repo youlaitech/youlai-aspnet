@@ -152,6 +152,9 @@ internal sealed class AuthService : IAuthService
     public Task<AuthenticationTokenDto> LoginByQrAsync(long userId, CancellationToken cancellationToken = default) =>
         GenerateTokenAsync(userId, cancellationToken);
 
+    /// <summary>
+    /// 按用户启用的角色聚合权限点与数据权限范围，组装载荷后签发令牌
+    /// </summary>
     private async Task<AuthenticationTokenDto> GenerateTokenAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _dbContext.SysUsers

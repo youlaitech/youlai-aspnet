@@ -7,10 +7,13 @@ public sealed class SysDictItem
 {
     public long Id { get; set; }
 
+    /// <summary>字典编码</summary>
     public string? DictCode { get; set; }
 
+    /// <summary>数据值</summary>
     public string? Value { get; set; }
 
+    /// <summary>显示标签</summary>
     public string? Label { get; set; }
 
     /// <summary>
@@ -23,15 +26,21 @@ public sealed class SysDictItem
     /// </summary>
     public int? Status { get; set; }
 
+    /// <summary>排序</summary>
     public int? Sort { get; set; }
 
+    /// <summary>备注</summary>
     public string? Remark { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 }

@@ -520,6 +520,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         return PageResult<NoticePageVo>.Success(list, total, pageNum, pageSize);
     }
 
+    /// <summary>
+    /// 指定用户推送时校验目标用户不为空
+    /// </summary>
     private void ValidateTargets(NoticeForm formData)
     {
         var targetType = formData.TargetType ?? TargetAll;
@@ -532,6 +535,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         }
     }
 
+    /// <summary>
+    /// 去重去空后拼成逗号分隔串，空集合返回 null
+    /// </summary>
     private static string? JoinIds(IReadOnlyCollection<string>? ids)
     {
         if (ids is null || ids.Count == 0)
@@ -548,6 +554,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         return list.Length == 0 ? null : string.Join(',', list);
     }
 
+    /// <summary>
+    /// 逗号分隔串拆为数组，空串返回空集合
+    /// </summary>
     private static IReadOnlyCollection<string>? SplitIds(string? ids)
     {
         if (string.IsNullOrWhiteSpace(ids))
@@ -585,7 +594,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
                 .ToList();
         }
 
-        // TargetAll
+        // 推送全员
         return allUsers
             .Select(id => id.ToString())
             .Distinct(StringComparer.Ordinal)

@@ -56,6 +56,9 @@ public sealed class QrCodeController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("generate")]
+    /// <summary>
+    /// 生成扫码登录票据，返回 ticket 与有效期（秒）
+    /// </summary>
     public async Task<Result<QrCodeGenerateVO>> Generate()
     {
         var db = _redis.GetDatabase();
@@ -75,6 +78,9 @@ public sealed class QrCodeController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("status")]
+    /// <summary>
+    /// 查询票据当前状态（等待/已扫描/已确认/已取消）及剩余有效期
+    /// </summary>
     public async Task<Result<QrCodeStatusVO>> Status([FromQuery] string ticket)
     {
         var ctx = await LoadContextAsync(ticket);
@@ -82,6 +88,9 @@ public sealed class QrCodeController : ControllerBase
     }
 
     [HttpPost("scan")]
+    /// <summary>
+    /// 扫码：把当前登录用户绑定到票据，状态置为已扫描
+    /// </summary>
     public async Task<Result<QrCodeStatusVO>> Scan([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -104,6 +113,9 @@ public sealed class QrCodeController : ControllerBase
     }
 
     [HttpPost("confirm")]
+    /// <summary>
+    /// 确认：扫码用户确认登录，状态置为已确认
+    /// </summary>
     public async Task<Result<QrCodeStatusVO>> Confirm([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -119,6 +131,9 @@ public sealed class QrCodeController : ControllerBase
     }
 
     [HttpPost("cancel")]
+    /// <summary>
+    /// 取消：终止扫码登录流程，状态置为已取消
+    /// </summary>
     public async Task<Result<QrCodeStatusVO>> Cancel([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -134,6 +149,9 @@ public sealed class QrCodeController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
+    /// <summary>
+    /// 登录：票据已确认时换取认证令牌
+    /// </summary>
     public async Task<Result<AuthenticationTokenDto>> Login([FromBody] QrCodeTicketForm form)
     {
         var ctx = await LoadContextAsync(form.Ticket);
@@ -231,14 +249,23 @@ public sealed class QrCodeController : ControllerBase
 /// <summary>扫码登录票据上下文，序列化为 JSON 存入 Redis。</summary>
 public sealed class QrCodeContext
 {
+    /// <summary>票据标识</summary>
     public string Ticket { get; set; } = "";
+    /// <summary>状态：waiting / scanned / confirmed / canceled</summary>
     public string Status { get; set; } = "";
+    /// <summary>扫码用户 ID，未扫码为 null</summary>
     public long? UserId { get; set; }
+    /// <summary>扫码用户昵称</summary>
     public string? Nickname { get; set; }
+    /// <summary>扫码用户头像</summary>
     public string? Avatar { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
     public long? CreatedAt { get; set; }
+    /// <summary>扫码时间（Unix 毫秒）</summary>
     public long? ScannedAt { get; set; }
+    /// <summary>确认时间（Unix 毫秒）</summary>
     public long? ConfirmedAt { get; set; }
+    /// <summary>创建票据的客户端 IP</summary>
     public string? ClientIp { get; set; }
 }
 

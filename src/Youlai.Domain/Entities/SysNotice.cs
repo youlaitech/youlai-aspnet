@@ -7,8 +7,10 @@ public sealed class SysNotice
 {
     public long Id { get; set; }
 
+    /// <summary>标题</summary>
     public string? Title { get; set; }
 
+    /// <summary>内容</summary>
     public string? Content { get; set; }
 
     /// <summary>
@@ -26,8 +28,10 @@ public sealed class SysNotice
     /// </summary>
     public int TargetType { get; set; }
 
+    /// <summary>目标用户 ID 列表（逗号分隔），指定用户时有效</summary>
     public string? TargetUserIds { get; set; }
 
+    /// <summary>发布人 ID</summary>
     public long? PublisherId { get; set; }
 
     /// <summary>
@@ -35,16 +39,22 @@ public sealed class SysNotice
     /// </summary>
     public int PublishStatus { get; set; }
 
+    /// <summary>发布时间</summary>
     public DateTime? PublishTime { get; set; }
 
+    /// <summary>撤回时间</summary>
     public DateTime? RevokeTime { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long CreateBy { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime CreateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
     /// <summary>

@@ -17,9 +17,12 @@ namespace Youlai.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>
+    /// 注册基础设施层服务（DbContext、存储、Redis 等）
+    /// </summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Options
+        // 配置项
         services.AddOptions<DatabaseOptions>()
             .Bind(configuration.GetSection(DatabaseOptions.SectionName))
             .Validate(o => !string.IsNullOrWhiteSpace(o.ConnectionString), "Database:ConnectionString is required")
@@ -54,7 +57,7 @@ public static class DependencyInjection
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);
 
-        // DbContext
+        // 数据库上下文
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
@@ -69,10 +72,10 @@ public static class DependencyInjection
             return ConnectionMultiplexer.Connect(options.ConnectionString);
         });
 
-        // Identity
+        // JWT / 令牌管理
         services.AddScoped<JwtTokenManager>();
 
-        // File Storage (strategy pattern - factory based on OssOptions.Type)
+        // 文件存储：按 OssOptions.Type 选择具体实现（策略模式）
         services.AddScoped<IFileStorage>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<OssOptions>>().Value;
@@ -84,7 +87,7 @@ public static class DependencyInjection
             };
         });
 
-        // Http clients
+        // HTTP 客户端
         services.AddHttpClient("Wechat");
 
         return services;

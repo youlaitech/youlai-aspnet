@@ -5,7 +5,9 @@ namespace Youlai.Domain.Entities;
 /// </summary>
 public sealed class SysRoleDept
 {
+    /// <summary>角色 ID</summary>
     public long RoleId { get; set; }
 
+    /// <summary>部门 ID</summary>
     public long DeptId { get; set; }
 }

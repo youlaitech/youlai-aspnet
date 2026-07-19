@@ -56,6 +56,7 @@ public enum ResultCode
 /// </summary>
 public static class ResultCodeExtensions
 {
+    /// <summary>取结果码对应的 5 位业务码字符串</summary>
     public static string GetCode(this ResultCode code)
     {
         return code switch
@@ -109,6 +110,7 @@ public static class ResultCodeExtensions
         };
     }
 
+    /// <summary>取结果码对应的默认提示文案</summary>
     public static string GetMsg(this ResultCode code)
     {
         return code switch
@@ -162,9 +164,12 @@ public static class ResultCodeExtensions
         };
     }
 
+    /// <summary>取业务码（GetCode 简写）</summary>
     public static string Code(this ResultCode code) => code.GetCode();
+    /// <summary>取提示文案（GetMsg 简写）</summary>
     public static string Msg(this ResultCode code) => code.GetMsg();
 
+    /// <summary>取结果码对应的 HTTP 状态码（401/403/404/200 等）</summary>
     public static int GetHttpStatus(this ResultCode code) => code switch
     {
         // 未认证

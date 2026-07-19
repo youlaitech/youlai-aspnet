@@ -50,6 +50,9 @@ internal sealed class CodegenService : ICodegenService
         _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
+    /// <summary>
+    /// 分页查询数据库表，标记每张表是否已配置代码生成
+    /// </summary>
     public async Task<PageResult<CodegenTableDto>> GetTablePageAsync(
         CodegenTableQuery query,
         CancellationToken cancellationToken = default)
@@ -109,6 +112,9 @@ LIMIT @limit OFFSET @offset";
         return PageResult<CodegenTableDto>.Success(list, total, pageNum, pageSize);
     }
 
+    /// <summary>
+    /// 取表的生成配置；未配置过则按表结构和注释推导默认配置
+    /// </summary>
     public async Task<GenConfigFormDto> GetConfigAsync(string tableName, CancellationToken cancellationToken = default)
     {
         var config = await GetConfigRowAsync(tableName, cancellationToken).ConfigureAwait(false);
@@ -163,6 +169,9 @@ LIMIT @limit OFFSET @offset";
         };
     }
 
+    /// <summary>
+    /// 保存表配置及字段配置，同一事务内先写主表再覆盖字段行
+    /// </summary>
     public async Task<bool> SaveConfigAsync(string tableName, GenConfigFormDto formData, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(tableName))
@@ -307,6 +316,9 @@ VALUES
         }
     }
 
+    /// <summary>
+    /// 逻辑删除表配置并清空其字段行
+    /// </summary>
     public async Task<bool> DeleteConfigAsync(string tableName, CancellationToken cancellationToken = default)
     {
         var config = await GetConfigRowAsync(tableName, cancellationToken).ConfigureAwait(false);
@@ -342,6 +354,9 @@ VALUES
         }
     }
 
+    /// <summary>
+    /// 按配置渲染各模板，返回前后端各文件的预览内容
+    /// </summary>
     public async Task<IReadOnlyCollection<CodegenPreviewDto>> GetPreviewAsync(
         string tableName,
         string pageType,
@@ -439,6 +454,9 @@ VALUES
         return previews;
     }
 
+    /// <summary>
+    /// 生成多张表的代码并按目录结构打包为 zip
+    /// </summary>
     public async Task<(string FileName, byte[] Content)> DownloadAsync(
         string[] tableNames,
         string pageType,
@@ -474,6 +492,12 @@ VALUES
         return (DownloadFileName, buffer.ToArray());
     }
 
+    /// <summary>
+    /// 取底层连接，未打开则打开（读取 information_schema 需绕过 EF 直接执行 SQL）
+    /// </summary>
+    /// <summary>
+    /// 取数据库连接的已打开实例，未打开则先异步打开
+    /// </summary>
     private async Task<DbConnection> GetOpenConnectionAsync(CancellationToken cancellationToken)
     {
         var connection = _dbContext.Database.GetDbConnection();
@@ -484,6 +508,9 @@ VALUES
         return connection;
     }
 
+    /// <summary>
+    /// 执行 SQL 返回单个 long 值（如 COUNT），空值返回 0
+    /// </summary>
     private async Task<long> ExecuteScalarLongAsync(
         string sql,
         IReadOnlyCollection<DbParameter> parameters,
@@ -508,6 +535,9 @@ VALUES
         }
     }
 
+    /// <summary>
+    /// 执行查询，用 mapper 把每行映射为 T
+    /// </summary>
     private async Task<List<T>> ExecuteQueryAsync<T>(
         string sql,
         IReadOnlyCollection<DbParameter> parameters,
@@ -539,6 +569,9 @@ VALUES
         }
     }
 
+    /// <summary>
+    /// 在指定事务内执行增删改 SQL
+    /// </summary>
     private async Task ExecuteNonQueryAsync(
         string sql,
         IReadOnlyCollection<DbParameter> parameters,
@@ -557,6 +590,9 @@ VALUES
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 创建 SQL 参数，null 转为 DBNull
+    /// </summary>
     private DbParameter CreateParameter(string name, object? value)
     {
         var param = _dbContext.Database.GetDbConnection().CreateCommand().CreateParameter();
@@ -565,6 +601,9 @@ VALUES
         return param;
     }
 
+    /// <summary>
+    /// 从 information_schema 读取表注释
+    /// </summary>
     private async Task<string?> GetTableCommentAsync(string tableName, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -578,6 +617,9 @@ LIMIT 1";
         return list.FirstOrDefault();
     }
 
+    /// <summary>
+    /// 读取 gen_table 中未删除的表配置行
+    /// </summary>
     private async Task<ConfigRow?> GetConfigRowAsync(string tableName, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -606,6 +648,9 @@ LIMIT 1";
         return list.FirstOrDefault();
     }
 
+    /// <summary>
+    /// 事务内查表配置 ID，用于判断是新增还是更新
+    /// </summary>
     private async Task<long?> GetConfigIdAsync(
         string tableName,
         DbConnection connection,
@@ -627,6 +672,9 @@ LIMIT 1";
         return Convert.ToInt64(result);
     }
 
+    /// <summary>
+    /// 读取已保存的字段配置，按 field_sort 升序
+    /// </summary>
     private async Task<IReadOnlyCollection<FieldConfigDto>> GetFieldConfigsAsync(long tableId, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -675,6 +723,9 @@ ORDER BY field_sort ASC";
         return list;
     }
 
+    /// <summary>
+    /// 按表结构推导默认字段配置：主键隐藏、非空列必填、日期列用日期控件
+    /// </summary>
     private async Task<IReadOnlyCollection<FieldConfigDto>> GetDefaultFieldConfigsAsync(string tableName, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -725,6 +776,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return list;
     }
 
+    /// <summary>
+    /// 把字段配置转成模板变量，补齐 C#/TS 类型、可空类型、属性名等派生值
+    /// </summary>
     private TemplateFieldConfig BuildTemplateFieldConfig(FieldConfigDto field)
     {
         var csType = string.IsNullOrWhiteSpace(field.FieldType)
@@ -754,6 +808,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 前端选 js 时切到 js 版模板，否则用默认 ts 模板
+    /// </summary>
     private string ResolveFrontendTemplatePath(string templateName, TemplateConfig templateConfig, string frontendType)
     {
         if (frontendType != "js")
@@ -769,6 +826,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 前端选 js 时 API 文件用 .js 扩展名
+    /// </summary>
     private string ResolveFrontendExtension(string templateName, TemplateConfig templateConfig, string frontendType)
     {
         if (frontendType != "js")
@@ -779,6 +839,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return templateName == "API" ? ".js" : templateConfig.Extension;
     }
 
+    /// <summary>
+    /// 用 Scriban 渲染模板，curd 页面时切到 curd 版视图模板
+    /// </summary>
     private string RenderTemplate(
         string templateName,
         string templatePath,
@@ -824,6 +887,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return template.Render(ctx);
     }
 
+    /// <summary>
+    /// 按模板类型拼接生成文件名，如 IXxxService.cs、XxxForm.cs、index.vue
+    /// </summary>
     private string GetFileName(string entityName, string templateName, string extension)
     {
         if (templateName == "Entity")
@@ -874,6 +940,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return $"{entityName}{templateName}{extension}";
     }
 
+    /// <summary>
+    /// 按模板类型确定生成文件在前后端工程中的目录
+    /// </summary>
     private string GetFilePath(
         string templateName,
         string moduleName,
@@ -927,6 +996,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return Path.Combine(backendRoot, "Youlai.Application", moduleNamePascal);
     }
 
+    /// <summary>
+    /// 判断模板属于 frontend 还是 backend
+    /// </summary>
     private static string ResolveScope(string templateName)
     {
         return templateName switch
@@ -938,6 +1010,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 取文件扩展名作为高亮语言标识
+    /// </summary>
     private static string ResolveLanguage(string fileName)
     {
         var extension = Path.GetExtension(fileName);
@@ -948,6 +1023,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return extension.TrimStart('.').ToLowerInvariant();
     }
 
+    /// <summary>
+    /// 表单控件类型码转名称（1=INPUT、2=SELECT…）
+    /// </summary>
     private static string GetFormTypeName(int formType)
     {
         return formType switch
@@ -966,6 +1044,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 查询方式码转名称（默认 EQ、2=LIKE、4=BETWEEN…）
+    /// </summary>
     private static string GetQueryTypeName(int queryType)
     {
         return queryType switch
@@ -984,6 +1065,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 按列类型推默认控件：date→日期、datetime/timestamp→日期时间，其余为输入框
+    /// </summary>
     private static int GetDefaultFormTypeByColumnType(string columnType)
     {
         var normalized = NormalizeColumnType(columnType);
@@ -996,6 +1080,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// MySQL 列类型映射为 C# 类型
+    /// </summary>
     private static string GetCsTypeByColumnType(string columnType)
     {
         var normalized = NormalizeColumnType(columnType);
@@ -1037,6 +1124,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return "string";
     }
 
+    /// <summary>
+    /// C# 类型映射为 TypeScript 类型
+    /// </summary>
     private static string GetTsTypeByCsType(string csType)
     {
         return csType switch
@@ -1051,6 +1141,9 @@ ORDER BY ORDINAL_POSITION ASC";
         };
     }
 
+    /// <summary>
+    /// 转为可空类型，已可空则原样返回
+    /// </summary>
     private static string ToNullableType(string csType)
     {
         if (csType == "string")
@@ -1071,6 +1164,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return csType + "?";
     }
 
+    /// <summary>
+    /// 归一列类型：转小写、去 unsigned/zerofill 和长度括号，如 int(11) unsigned → int
+    /// </summary>
     private static string NormalizeColumnType(string columnType)
     {
         var normalized = (columnType ?? string.Empty).Trim().ToLowerInvariant();
@@ -1083,6 +1179,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return normalized.Trim();
     }
 
+    /// <summary>
+    /// 下划线/短横线命名转小驼峰，如 user_name → userName
+    /// </summary>
     private static string ToCamelCase(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1106,6 +1205,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 转大驼峰，如 user_name → UserName
+    /// </summary>
     private static string ToPascalCase(string value)
     {
         var camel = ToCamelCase(value);
@@ -1114,6 +1216,9 @@ ORDER BY ORDINAL_POSITION ASC";
             : char.ToUpperInvariant(camel[0]) + camel[1..];
     }
 
+    /// <summary>
+    /// 首字母小写
+    /// </summary>
     private static string LowerFirst(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1124,6 +1229,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return char.ToLowerInvariant(value[0]) + value[1..];
     }
 
+    /// <summary>
+    /// 转短横线命名，如 UserName → user-name
+    /// </summary>
     private static string ToKebabCase(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1146,6 +1254,9 @@ ORDER BY ORDINAL_POSITION ASC";
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 转大写下划线命名，如 UserName → USER_NAME
+    /// </summary>
     private static string ToSnakeUpper(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1174,19 +1285,29 @@ ORDER BY ORDINAL_POSITION ASC";
     private sealed record TemplateConfig(string TemplatePath, string SubpackageName, string Extension);
 
     /// <summary>
-    /// 模板配置行（类型、包名、作者等）
+    /// gen_table 表配置行
     /// </summary>
     private sealed record ConfigRow
     {
+        /// <summary>配置行 ID</summary>
         public long Id { get; init; }
+        /// <summary>数据库表名</summary>
         public string TableName { get; init; } = string.Empty;
+        /// <summary>模块名</summary>
         public string ModuleName { get; init; } = string.Empty;
+        /// <summary>包名</summary>
         public string PackageName { get; init; } = string.Empty;
+        /// <summary>业务名（表名去前缀转驼峰）</summary>
         public string BusinessName { get; init; } = string.Empty;
+        /// <summary>实体类名</summary>
         public string EntityName { get; init; } = string.Empty;
+        /// <summary>作者</summary>
         public string Author { get; init; } = string.Empty;
+        /// <summary>父菜单 ID，可选</summary>
         public long? ParentMenuId { get; init; }
+        /// <summary>页面类型，默认 classic</summary>
         public string PageType { get; init; } = "classic";
+        /// <summary>生成时去除的表前缀，可选</summary>
         public string? RemoveTablePrefix { get; init; }
     }
 
@@ -1195,22 +1316,39 @@ ORDER BY ORDINAL_POSITION ASC";
     /// </summary>
     private sealed class TemplateFieldConfig
     {
+        /// <summary>列名</summary>
         public string ColumnName { get; init; } = string.Empty;
+        /// <summary>数据库列类型</summary>
         public string ColumnType { get; init; } = string.Empty;
+        /// <summary>字段名（驼峰）</summary>
         public string FieldName { get; init; } = string.Empty;
+        /// <summary>列注释</summary>
         public string FieldComment { get; init; } = string.Empty;
+        /// <summary>是否在列表展示(0/1)</summary>
         public int IsShowInList { get; init; }
+        /// <summary>是否在表单展示(0/1)</summary>
         public int IsShowInForm { get; init; }
+        /// <summary>是否在查询区展示(0/1)</summary>
         public int IsShowInQuery { get; init; }
+        /// <summary>是否必填(0/1)</summary>
         public int IsRequired { get; init; }
+        /// <summary>表单控件类型</summary>
         public string FormType { get; init; } = string.Empty;
+        /// <summary>查询控件类型</summary>
         public string QueryType { get; init; } = string.Empty;
+        /// <summary>字段最大长度，可选</summary>
         public int? MaxLength { get; init; }
+        /// <summary>字段排序</summary>
         public int? FieldSort { get; init; }
+        /// <summary>关联字典类型</summary>
         public string DictType { get; init; } = string.Empty;
+        /// <summary>生成的 C# 类型</summary>
         public string CsType { get; init; } = string.Empty;
+        /// <summary>可空的 C# 类型</summary>
         public string CsTypeNullable { get; init; } = string.Empty;
+        /// <summary>生成的 TypeScript 类型</summary>
         public string TsType { get; init; } = string.Empty;
+        /// <summary>属性名（首字母大写）</summary>
         public string PropertyName { get; init; } = string.Empty;
     }
 }

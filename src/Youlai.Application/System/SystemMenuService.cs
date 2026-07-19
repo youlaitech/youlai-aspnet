@@ -98,6 +98,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return BuildRoutes(parentId: 0, menus).ToArray();
     }
 
+    /// <summary>
+    /// 取当前用户去重后的角色编码，剔除空值
+    /// </summary>
     private List<string> GetRoleCodes()
     {
         var roles = _currentUser.Roles;
@@ -452,6 +455,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return routes;
     }
 
+    /// <summary>
+    /// 递归构建菜单下拉选项树，无子节点的项 Children 置空
+    /// </summary>
     private static IReadOnlyCollection<Option<long>> RecurMenuOptions(long parentId, IReadOnlyCollection<MenuOptionRow> menus)
     {
         var list = new List<Option<long>>();
@@ -475,6 +481,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return list;
     }
 
+    /// <summary>
+    /// 递归构建菜单列表树，带 Children 嵌套
+    /// </summary>
     private static IReadOnlyCollection<MenuVo> RecurMenuList(long parentId, IReadOnlyCollection<MenuRow> menus)
     {
         var list = new List<MenuVo>();
@@ -508,6 +517,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return list;
     }
 
+    /// <summary>
+    /// 菜单参数 JSON 转键值对列表，解析失败返回 null
+    /// </summary>
     private static IReadOnlyCollection<KeyValue>? ParseKeyValueList(JsonElement? element)
     {
         var dict = TryParseParams(element);
@@ -519,6 +531,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return dict.Select(kv => new KeyValue { Key = kv.Key, Value = kv.Value }).ToArray();
     }
 
+    /// <summary>
+    /// 键值对列表转 JSON 存入数据库，空列表返回 null
+    /// </summary>
     private static JsonElement? SerializeParams(IReadOnlyCollection<KeyValue>? list)
     {
         if (list == null || list.Count == 0)
@@ -546,6 +561,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return JsonDocument.Parse(json).RootElement.Clone();
     }
 
+    /// <summary>
+    /// 生成菜单树路径：根节点为 "0"，否则拼成「父路径,父ID」
+    /// </summary>
     private async Task<string?> GenerateMenuTreePathAsync(long parentId, CancellationToken cancellationToken)
     {
         if (parentId == 0)
@@ -561,6 +579,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return parent == null ? null : string.Concat(parent.TreePath, ",", parent.Id);
     }
 
+    /// <summary>
+    /// 父节点路径变化后，递归重写其所有子节点的 TreePath
+    /// </summary>
     private async Task UpdateChildrenTreePathAsync(long id, string? treePath, CancellationToken cancellationToken)
     {
         var children = await _dbContext.SysMenus
@@ -587,6 +608,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
     }
 
+    /// <summary>
+    /// 取关联某菜单的所有角色编码，用于菜单变动后清权限缓存
+    /// </summary>
     private async Task<IReadOnlyCollection<string>> GetMenuRelatedRoleCodesAsync(long menuId, CancellationToken cancellationToken)
     {
         var codes = await (
@@ -602,6 +626,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         return codes;
     }
 
+    /// <summary>
+    /// 菜单实体转前端路由 VO：外链/内嵌/目录各有不同的 path、component、name 推导规则
+    /// </summary>
     private static RouteVo ToRouteVo(Domain.Entities.SysMenu menu, IReadOnlyCollection<RouteVo>? children)
     {
         var routePath = menu.RoutePath ?? string.Empty;
@@ -650,6 +677,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         };
     }
 
+    /// <summary>
+    /// 解析菜单参数 JSON 为字典，空或非法返回 null
+    /// </summary>
     private static IReadOnlyDictionary<string, string>? TryParseParams(JsonElement? jsonElement)
     {
         if (jsonElement is not { } element)
@@ -668,6 +698,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
     }
 
+    /// <summary>
+    /// 路由路径转大驼峰作为路由名，如 /system/user → SystemUser
+    /// </summary>
     private static string ToPascalCase(string routePath)
     {
         var s = routePath.Trim();

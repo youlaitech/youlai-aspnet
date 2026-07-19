@@ -7,5 +7,6 @@ public sealed class RedisOptions
 {
     public const string SectionName = "Redis";
 
+    /// <summary>Redis 连接字符串</summary>
     public string ConnectionString { get; init; } = string.Empty;
 }

@@ -28,6 +28,9 @@ public sealed class ExceptionHandlingMiddleware
         _jsonOptions = jsonOptions.Value.JsonSerializerOptions;
     }
 
+    /// <summary>
+    /// 全局异常捕获，按优先级包装为统一 Result 响应
+    /// </summary>
     public async Task Invoke(HttpContext context)
     {
         try
@@ -64,6 +67,9 @@ public sealed class ExceptionHandlingMiddleware
         }
     }
 
+    /// <summary>
+    /// 按结果码设置 HTTP 状态并写出 JSON；响应已开始则跳过
+    /// </summary>
     private async Task WriteErrorAsync(HttpContext context, ResultCode code, string? message)
     {
         if (context.Response.HasStarted)

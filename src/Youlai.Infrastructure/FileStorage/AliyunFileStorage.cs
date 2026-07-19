@@ -21,8 +21,12 @@ internal sealed class AliyunFileStorage : IFileStorage
         _client = new OssClient(_options.Endpoint, _options.AccessKeyId, _options.AccessKeySecret);
     }
 
+    /// <summary>存储类型标识：aliyun</summary>
     public string Type => "aliyun";
 
+    /// <summary>
+    /// 上传对象到 OSS，返回可访问 URL；SDK 为同步接口，用 Task.Run 包装
+    /// </summary>
     public async Task<FileInfoDto> UploadAsync(
         Stream content,
         string fileName,
@@ -59,6 +63,9 @@ internal sealed class AliyunFileStorage : IFileStorage
         };
     }
 
+    /// <summary>
+    /// 从 URL 或路径解析出对象名后删除
+    /// </summary>
     public async Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -83,6 +90,9 @@ internal sealed class AliyunFileStorage : IFileStorage
         }
     }
 
+    /// <summary>
+    /// 生成对象名「yyyyMMdd/GUID.ext」
+    /// </summary>
     private static string BuildObjectName(string fileName)
     {
         var extension = Path.GetExtension(fileName);
@@ -91,6 +101,9 @@ internal sealed class AliyunFileStorage : IFileStorage
         return $"{dateFolder}/{storedFileName}";
     }
 
+    /// <summary>
+    /// 从 URL 或路径归一为对象名
+    /// </summary>
     private string ParseObjectName(string filePath)
     {
         if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri))

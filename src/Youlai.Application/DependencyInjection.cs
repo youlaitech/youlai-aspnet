@@ -13,14 +13,17 @@ namespace Youlai.Application;
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>
+    /// 注册应用层所有服务（认证、系统管理、代码生成、文件、安全、通用）
+    /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // Auth services
+        // 认证相关
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICaptchaService, CaptchaService>();
         services.AddScoped<IWxMaAuthService, WxMaAuthService>();
 
-        // System services
+        // 系统管理相关
         services.AddScoped<ISystemUserService, SystemUserService>();
         services.AddScoped<ISystemRoleService, SystemRoleService>();
         services.AddScoped<ISystemMenuService, SystemMenuService>();
@@ -30,18 +33,18 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogService, SystemLogService>();
         services.AddScoped<ISystemNoticeService, SystemNoticeService>();
 
-        // Codegen service
+        // 代码生成
         services.AddScoped<ICodegenService, CodegenService>();
 
-        // File service
+        // 文件
         services.AddScoped<IFileService, FileService>();
 
-        // Security services
+        // 安全相关
         services.AddScoped<IRolePermissionService, RolePermissionService>();
         services.AddScoped<IRolePermsCacheInvalidator, RolePermsCacheInvalidator>();
         services.AddScoped<IDataPermissionService, DataPermissionService>();
 
-        // Common services
+        // 通用服务
         services.AddSingleton<ISseService, SseService>();
         services.AddScoped<ILoggingService, LoggingService>();
 

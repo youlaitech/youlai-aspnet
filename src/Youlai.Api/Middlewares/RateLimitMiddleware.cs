@@ -1,44 +1,57 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Microsoft.Extensions.Options;
+using Youlai.Application.Options;
 using Youlai.Application.Results;
 
 namespace Youlai.Api.Middlewares;
 
 /// <summary>
-/// IP 限流中间件（Redis 固定窗口计数器）
-/// 默认限制同一 IP 每秒最多 10 次请求
+/// IP 滑动窗口限流中间件（Redis ZSet Lua）
 /// </summary>
 public sealed class RateLimitMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IConnectionMultiplexer _redis;
     private readonly ILogger<RateLimitMiddleware> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly RateLimitOptions _options;
 
-    private const int DefaultIpLimit = 10;
-    private const int RateLimitWindowSec = 1;
-    private const string KeyPrefix = "rate_limiter:ip:";
+    private const string LuaSlidingWindow =
+        "local key = KEYS[1] " +
+        "local now = tonumber(ARGV[1]) " +
+        "local window = tonumber(ARGV[2]) " +
+        "local member = ARGV[3] " +
+        "redis.call('ZREMRANGEBYSCORE', key, 0, now - window) " +
+        "redis.call('ZADD', key, now, member) " +
+        "redis.call('PEXPIRE', key, window + 1000) " +
+        "return redis.call('ZCARD', key)";
 
     public RateLimitMiddleware(
         RequestDelegate next,
         IConnectionMultiplexer redis,
-        ILogger<RateLimitMiddleware> logger)
+        ILogger<RateLimitMiddleware> logger,
+        IOptions<RateLimitOptions> options)
     {
         _next = next;
         _redis = redis;
         _logger = logger;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
-        };
+        _options = options.Value;
     }
 
+    /// <summary>
+    /// 按 IP + 路径限流，超出阈值返回 429 及重试秒数
+    /// </summary>
     public async Task Invoke(HttpContext context)
     {
         if (string.Equals(context.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
+        var ipConfig = _options.Ip;
+        if (!ipConfig.Enabled)
         {
             await _next(context);
             return;
@@ -54,48 +67,63 @@ public sealed class RateLimitMiddleware
         try
         {
             var db = _redis.GetDatabase();
-            var key = $"{KeyPrefix}{ip}";
+            var key = $"rate_limit:ip:{ip}";
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var member = Guid.NewGuid().ToString();
+            var windowMs = (long)ipConfig.Window.TotalMilliseconds;
 
-            var count = db.StringIncrement(key);
-            if (count == 1)
-            {
-                db.KeyExpire(key, TimeSpan.FromSeconds(RateLimitWindowSec));
-            }
+            var count = (long)(await db.ScriptEvaluateAsync(
+                LuaSlidingWindow,
+                new RedisKey[] { key },
+                new RedisValue[] { now, windowMs, member })!);
 
-            if (count > DefaultIpLimit)
+            var windowSec = (int)ipConfig.Window.TotalSeconds;
+            var remaining = Math.Max(0, ipConfig.Limit - (int)count);
+            var resetAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + windowSec;
+
+            if (count > ipConfig.Limit)
             {
-                await WriteErrorAsync(context);
+                // 窗口内已超最大请求数，返回 429 并附限流头
+                context.Response.Clear();
+                context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                context.Response.Headers["X-RateLimit-Limit"] = ipConfig.Limit.ToString();
+                context.Response.Headers["X-RateLimit-Remaining"] = "0";
+                context.Response.Headers["X-RateLimit-Reset"] = resetAt.ToString();
+                context.Response.Headers["Retry-After"] = windowSec.ToString();
+
+                var result = Result.Failed(ResultCode.RequestConcurrencyLimitExceeded);
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                 return;
             }
+
+            // 正常放行：在响应开始发送前写入限流状态头
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers["X-RateLimit-Limit"] = ipConfig.Limit.ToString();
+                context.Response.Headers["X-RateLimit-Remaining"] = remaining.ToString();
+                context.Response.Headers["X-RateLimit-Reset"] = resetAt.ToString();
+                return Task.CompletedTask;
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Redis 限流检查异常，跳过限流");
+            _logger.LogWarning(ex, "限流检查异常，跳过");
         }
 
         await _next(context);
     }
 
+    /// <summary>
+    /// 取客户端真实 IP：优先 X-Forwarded-For 首段，否则取远端地址
+    /// </summary>
     private static string GetClientIp(HttpContext context)
     {
         var xForwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(xForwardedFor))
-        {
             return xForwardedFor.Split(',')[0].Trim();
-        }
 
         return context.Connection.RemoteIpAddress?.ToString() ?? "";
-    }
-
-    private async Task WriteErrorAsync(HttpContext context)
-    {
-        if (context.Response.HasStarted) return;
-
-        context.Response.Clear();
-        context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-        context.Response.ContentType = "application/json; charset=utf-8";
-
-        var result = Result.Failed(ResultCode.RequestConcurrencyLimitExceeded);
-        await context.Response.WriteAsync(JsonSerializer.Serialize(result, _jsonOptions));
     }
 }

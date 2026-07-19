@@ -7,14 +7,19 @@ public sealed class SysDept
 {
     public long Id { get; set; }
 
+    /// <summary>部门名称</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>部门编码</summary>
     public string Code { get; set; } = string.Empty;
 
+    /// <summary>父部门 ID（0 表示顶级）</summary>
     public long ParentId { get; set; }
 
+    /// <summary>部门树路径（逗号分隔的祖先 ID，含自身）</summary>
     public string TreePath { get; set; } = string.Empty;
 
+    /// <summary>排序</summary>
     public short? Sort { get; set; }
 
     /// <summary>
@@ -22,12 +27,16 @@ public sealed class SysDept
     /// </summary>
     public int? Status { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
     /// <summary>

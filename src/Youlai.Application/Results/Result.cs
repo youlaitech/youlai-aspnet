@@ -7,15 +7,19 @@ namespace Youlai.Application.Results;
 /// </summary>
 public sealed class Result<T>
 {
+    /// <summary>结果码（5 位业务码）</summary>
     [JsonPropertyName("code")]
     public string Code { get; init; } = ResultCode.Success.Code();
 
+    /// <summary>业务数据负载</summary>
     [JsonPropertyName("data")]
     public T? Data { get; init; }
 
+    /// <summary>提示信息</summary>
     [JsonPropertyName("msg")]
     public string Msg { get; init; } = ResultCode.Success.Msg();
 
+    /// <summary>成功响应，携带业务数据</summary>
     public static Result<T> Success(T? data = default)
     {
         return new Result<T>
@@ -26,6 +30,7 @@ public sealed class Result<T>
         };
     }
 
+    /// <summary>失败响应，msg 为空时取 code 对应默认文案</summary>
     public static Result<T> Failed(ResultCode code, string? msg = null, T? data = default)
     {
         return new Result<T>

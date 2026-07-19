@@ -16,34 +16,51 @@ public sealed class AppDbContext : DbContext, IDbContext
     {
     }
 
+    /// <summary>用户表</summary>
     public DbSet<SysUser> SysUsers => Set<SysUser>();
 
+    /// <summary>角色表</summary>
     public DbSet<SysRole> SysRoles => Set<SysRole>();
 
+    /// <summary>用户-角色关联表</summary>
     public DbSet<SysUserRole> SysUserRoles => Set<SysUserRole>();
 
+    /// <summary>部门表</summary>
     public DbSet<SysDept> SysDepts => Set<SysDept>();
 
+    /// <summary>菜单表</summary>
     public DbSet<SysMenu> SysMenus => Set<SysMenu>();
 
+    /// <summary>角色-菜单关联表</summary>
     public DbSet<SysRoleMenu> SysRoleMenus => Set<SysRoleMenu>();
 
+    /// <summary>角色-部门关联表</summary>
     public DbSet<SysRoleDept> SysRoleDepts => Set<SysRoleDept>();
 
+    /// <summary>字典表</summary>
     public DbSet<SysDict> SysDicts => Set<SysDict>();
 
+    /// <summary>字典项表</summary>
     public DbSet<SysDictItem> SysDictItems => Set<SysDictItem>();
 
+    /// <summary>通知公告表</summary>
     public DbSet<SysNotice> SysNotices => Set<SysNotice>();
 
+    /// <summary>用户-公告阅读记录表</summary>
     public DbSet<SysUserNotice> SysUserNotices => Set<SysUserNotice>();
 
+    /// <summary>系统配置表</summary>
     public DbSet<SysConfig> SysConfigs => Set<SysConfig>();
 
+    /// <summary>操作日志表</summary>
     public DbSet<SysLog> SysLogs => Set<SysLog>();
 
+    /// <summary>第三方账号绑定表</summary>
     public DbSet<SysUserSocial> SysUserSocials => Set<SysUserSocial>();
 
+    /// <summary>
+    /// 配置实体到表/列的映射；带 is_deleted 的表统一加逻辑删除过滤，查询默认只返回未删除数据
+    /// </summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<SysUser>(entity =>
@@ -140,6 +157,7 @@ public sealed class AppDbContext : DbContext, IDbContext
             entity.Property(e => e.Redirect).HasColumnName("redirect").HasMaxLength(128);
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
             entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+            // params 列在库中存 JSON 文本，实体侧用 JsonElement
             entity.Property(e => e.Params)
                 .HasColumnName("params")
                 .HasConversion(
@@ -309,11 +327,17 @@ public sealed class AppDbContext : DbContext, IDbContext
         });
     }
 
+    /// <summary>
+    /// JsonElement 转 JSON 文本
+    /// </summary>
     private static string? GetJsonRawText(JsonElement? value)
     {
         return value.HasValue ? value.Value.GetRawText() : null;
     }
 
+    /// <summary>
+    /// JSON 文本转 JsonElement，非法 JSON 返回 null
+    /// </summary>
     private static JsonElement? ParseJsonElement(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

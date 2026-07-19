@@ -7,10 +7,13 @@ public sealed class SysRole
 {
     public long Id { get; set; }
 
+    /// <summary>角色名称</summary>
     public string? Name { get; set; }
 
+    /// <summary>角色编码（唯一）</summary>
     public string? Code { get; set; }
 
+    /// <summary>排序</summary>
     public int? Sort { get; set; }
 
     /// <summary>
@@ -23,12 +26,16 @@ public sealed class SysRole
     /// </summary>
     public int? DataScope { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
     /// <summary>

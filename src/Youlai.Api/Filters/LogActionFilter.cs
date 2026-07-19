@@ -24,6 +24,9 @@ public sealed class LogActionFilter : IAsyncActionFilter
         _httpContextAccessor = httpContextAccessor;
     }
 
+    /// <summary>
+    /// 执行操作并记录耗时、操作人、IP、浏览器等信息；无 [Log] 特性则直接放行
+    /// </summary>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var endpoint = context.ActionDescriptor.EndpointMetadata;
@@ -95,10 +98,13 @@ public sealed class LogActionFilter : IAsyncActionFilter
         }
         catch
         {
-            // Log failure should not affect main request
+            // 写日志失败不影响主请求
         }
     }
 
+    /// <summary>
+    /// 读取枚举值上的 [Description] 文本，没有则返回枚举名
+    /// </summary>
     private static string GetEnumDescription<T>(T value) where T : Enum
     {
         var field = value.GetType().GetField(value.ToString());

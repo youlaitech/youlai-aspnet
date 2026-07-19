@@ -12,6 +12,9 @@ namespace Youlai.Api.Security;
 /// </summary>
 public static class JwtAuthenticationExtensions
 {
+    /// <summary>
+    /// 注册 JWT Bearer 认证方案；未配置密钥时跳过注册
+    /// </summary>
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         var jwtSecret = configuration["Security:Session:Jwt:SecretKey"];
@@ -37,6 +40,7 @@ public static class JwtAuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // 收到请求：打印 Authorization 头和令牌载荷，便于排查认证问题
                     OnMessageReceived = context =>
                     {
                         var logger = context.HttpContext.RequestServices
@@ -88,6 +92,7 @@ public static class JwtAuthenticationExtensions
 
                         return Task.CompletedTask;
                     },
+                    // 签名校验通过后再查黑名单，命中则拒绝（支持退出登录后立即失效）
                     OnTokenValidated = context =>
                     {
                         var logger = context.HttpContext.RequestServices
@@ -124,6 +129,7 @@ public static class JwtAuthenticationExtensions
 
                         return Task.CompletedTask;
                     },
+                    // 令牌解析或校验失败
                     OnAuthenticationFailed = context =>
                     {
                         var logger = context.HttpContext.RequestServices
@@ -132,6 +138,7 @@ public static class JwtAuthenticationExtensions
                         logger.LogWarning(context.Exception, "JWT authentication failed.");
                         return Task.CompletedTask;
                     },
+                    // 返回 401 前触发，记录未授权原因
                     OnChallenge = context =>
                     {
                         var logger = context.HttpContext.RequestServices

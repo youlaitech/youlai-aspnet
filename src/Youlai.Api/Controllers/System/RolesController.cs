@@ -147,6 +147,9 @@ public sealed class RolesController : ControllerBase
     }
 
     [HttpGet("{roleId:long}/dept-ids")]
+    /// <summary>
+    /// 取角色已分配的数据权限部门 ID 列表
+    /// </summary>
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleDeptIds([FromRoute] long roleId, CancellationToken cancellationToken)
     {
         var ids = await _roleService.GetRoleDeptIdsAsync(roleId, cancellationToken);

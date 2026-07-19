@@ -51,6 +51,9 @@ public sealed class JwtTokenManager
         };
     }
 
+    /// <summary>
+    /// 签发访问令牌与刷新令牌对，令牌内的 TokenVersion 取自 Redis 当前版本号
+    /// </summary>
     public AuthenticationTokenDto GenerateToken(AuthTokenSubject subject)
     {
         var accessTtl = _securityOptions.Session.AccessTokenTimeToLive;
@@ -67,6 +70,9 @@ public sealed class JwtTokenManager
         );
     }
 
+    /// <summary>
+    /// 用刷新令牌换新访问令牌，刷新令牌本身复用（不再重新签发）
+    /// </summary>
     public AuthenticationTokenDto RefreshToken(string refreshToken)
     {
         if (!ValidateToken(refreshToken, validateRefreshToken: true, out var payload))
@@ -138,6 +144,9 @@ public sealed class JwtTokenManager
         await db.StringSetAsync(key, "1");
     }
 
+    /// <summary>
+    /// 校验访问令牌（非刷新令牌），供认证中间件使用
+    /// </summary>
     public bool ValidateAccessToken(string token)
     {
         return ValidateToken(token, validateRefreshToken: false, out _);
@@ -154,6 +163,9 @@ public sealed class JwtTokenManager
         return ValidateToken(token, validateRefreshToken: false, out payload);
     }
 
+    /// <summary>
+    /// 递增用户令牌版本，使该用户所有历史令牌在下次校验时统一失效（踢下线）
+    /// </summary>
     public async Task InvalidateUserSessionsAsync(long userId, CancellationToken cancellationToken = default)
     {
         if (userId <= 0)
@@ -166,6 +178,9 @@ public sealed class JwtTokenManager
         await db.StringIncrementAsync(versionKey).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 生成 JWT：写入用户/部门/数据权限/版本号等声明，ttlSeconds=-1 表示永不过期
+    /// </summary>
     private string GenerateJwt(AuthTokenSubject subject, int ttlSeconds, bool isRefreshToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -206,6 +221,9 @@ public sealed class JwtTokenManager
         return _tokenHandler.WriteToken(token);
     }
 
+    /// <summary>
+    /// 签名校验通过后，再比 TokenVersion（旧版本失效）和黑名单（登出失效）
+    /// </summary>
     private bool ValidateToken(string token, bool validateRefreshToken, out JwtPayload payload)
     {
         payload = new JwtPayload();
@@ -286,6 +304,9 @@ public sealed class JwtTokenManager
         }
     }
 
+    /// <summary>
+    /// 从 JWT 声明值解析 long，兼容 JsonElement / long / int / 字符串
+    /// </summary>
     private static long TryParseInt64(object? value)
     {
         if (value is null)
@@ -311,6 +332,9 @@ public sealed class JwtTokenManager
         return long.TryParse(value.ToString(), out var parsed) ? parsed : 0;
     }
 
+    /// <summary>
+    /// 从 JWT 声明值解析 int，兼容 JsonElement / long / int / 字符串
+    /// </summary>
     private static int TryParseInt32(object? value)
     {
         if (value is null)

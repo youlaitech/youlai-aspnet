@@ -65,8 +65,12 @@ public sealed class CurrentUser : ICurrentUser
         }
     }
 
+    /// <summary>是否为超级管理员（拥有 ROOT 角色）</summary>
     public bool IsRoot => Roles.Contains(SecurityConstants.RootRoleCode, StringComparer.Ordinal);
 
+    /// <summary>
+    /// 从 Claims 读取指定类型的 long 值，缺失或非法返回 null
+    /// </summary>
     private long? TryGetInt64(string claimType)
     {
         var value = Principal?.FindFirstValue(claimType);

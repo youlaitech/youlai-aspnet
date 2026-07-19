@@ -273,6 +273,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         return true;
     }
 
+    /// <summary>
+    /// 递归构建部门列表树，时间字段格式化为 yyyy-MM-dd HH:mm
+    /// </summary>
     private List<DeptVo> RecurDeptList(long parentId, List<SysDept> deptList)
     {
         return deptList
@@ -292,6 +295,9 @@ internal sealed class SystemDeptService : ISystemDeptService
             .ToList();
     }
 
+    /// <summary>
+    /// 递归构建部门下拉选项树
+    /// </summary>
     private static List<Option<long>> RecurDeptOptions(long parentId, IReadOnlyCollection<DeptOptionRow> deptList)
     {
         var list = new List<Option<long>>();
@@ -312,6 +318,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         return list;
     }
 
+    /// <summary>
+    /// 生成部门树路径：根节点为 "0"，否则拼成「父路径,父ID」
+    /// </summary>
     private async Task<string> GenerateDeptTreePathAsync(long parentId, CancellationToken cancellationToken)
     {
         if (parentId == RootNodeId)

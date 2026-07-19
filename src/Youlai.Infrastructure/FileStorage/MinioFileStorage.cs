@@ -25,8 +25,12 @@ internal sealed class MinioFileStorage : IFileStorage
         _publicEndpoint = NormalizeEndpoint(_options.Endpoint);
     }
 
+    /// <summary>存储类型标识：minio</summary>
     public string Type => "minio";
 
+    /// <summary>
+    /// 上传对象到 MinIO，桶不存在时自动创建，返回可访问 URL
+    /// </summary>
     public async Task<FileInfoDto> UploadAsync(
         Stream content,
         string fileName,
@@ -66,6 +70,9 @@ internal sealed class MinioFileStorage : IFileStorage
         };
     }
 
+    /// <summary>
+    /// 从 URL 或路径解析出对象名后删除
+    /// </summary>
     public async Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -94,6 +101,9 @@ internal sealed class MinioFileStorage : IFileStorage
         }
     }
 
+    /// <summary>
+    /// 按 Endpoint 构建客户端，https 前缀时启用 SSL
+    /// </summary>
     private static IMinioClient BuildClient(OssOptions.MinioOptions options)
     {
         var builder = new MinioClient();
@@ -125,6 +135,9 @@ internal sealed class MinioFileStorage : IFileStorage
             .Build();
     }
 
+    /// <summary>
+    /// 归一 Endpoint：未带协议前缀时补 http://
+    /// </summary>
     private static string NormalizeEndpoint(string endpoint)
     {
         if (endpoint.StartsWith("http", StringComparison.OrdinalIgnoreCase))
@@ -135,6 +148,9 @@ internal sealed class MinioFileStorage : IFileStorage
         return $"http://{endpoint.TrimEnd('/')}";
     }
 
+    /// <summary>
+    /// 生成对象名「yyyyMMdd/GUID.ext」
+    /// </summary>
     private string BuildObjectName(string fileName)
     {
         var extension = Path.GetExtension(fileName);
@@ -143,6 +159,9 @@ internal sealed class MinioFileStorage : IFileStorage
         return $"{dateFolder}/{storedFileName}";
     }
 
+    /// <summary>
+    /// 桶不存在则创建
+    /// </summary>
     private async Task EnsureBucketAsync(CancellationToken cancellationToken)
     {
         var existsArgs = new BucketExistsArgs().WithBucket(_options.BucketName);
@@ -156,6 +175,9 @@ internal sealed class MinioFileStorage : IFileStorage
         await _client.MakeBucketAsync(makeArgs, cancellationToken);
     }
 
+    /// <summary>
+    /// 拼接对外访问 URL，优先用自定义域名
+    /// </summary>
     private string BuildPublicUrl(string objectName)
     {
         if (!string.IsNullOrWhiteSpace(_options.CustomDomain))
@@ -166,6 +188,9 @@ internal sealed class MinioFileStorage : IFileStorage
         return $"{_publicEndpoint}/{_options.BucketName}/{objectName}";
     }
 
+    /// <summary>
+    /// 从 URL 或路径中剥离桶名，得到对象名
+    /// </summary>
     private string ParseObjectName(string filePath)
     {
         if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri))

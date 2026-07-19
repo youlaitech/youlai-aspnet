@@ -77,6 +77,9 @@ internal sealed class CaptchaService : ICaptchaService
         await db.KeyDeleteAsync(key).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 用密码学随机数从易辨识字符集（去掉 0O1I 等）取 length 位验证码
+    /// </summary>
     private static string GenerateCode(int length)
     {
         var buffer = new byte[length];
@@ -91,6 +94,9 @@ internal sealed class CaptchaService : ICaptchaService
         return new string(chars);
     }
 
+    /// <summary>
+    /// 画出白底验证码图片：先干扰线后文字，输出 PNG 字节
+    /// </summary>
     private byte[] RenderPng(string code)
     {
         using var image = new Image<Rgba32>(_options.Width, _options.Height, new Rgba32(255, 255, 255));
@@ -106,6 +112,9 @@ internal sealed class CaptchaService : ICaptchaService
         return ms.ToArray();
     }
 
+    /// <summary>
+    /// 按字符数均分横向位置，逐个绘制验证码字符
+    /// </summary>
     private void DrawText(IImageProcessingContext ctx, string code)
     {
         var fontName = string.IsNullOrWhiteSpace(_options.FontName) ? SystemFonts.Families.First().Name : _options.FontName;
@@ -124,6 +133,9 @@ internal sealed class CaptchaService : ICaptchaService
         }
     }
 
+    /// <summary>
+    /// 绘制随机颜色和位置的干扰线，增加识别难度
+    /// </summary>
     private static void DrawInterferenceLines(IImageProcessingContext ctx, int count)
     {
         if (count <= 0)

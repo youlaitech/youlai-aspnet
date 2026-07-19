@@ -103,6 +103,9 @@ internal sealed class RolePermissionService : IRolePermissionService
         return perms.ToArray();
     }
 
+    /// <summary>
+    /// 解析缓存中的权限 JSON 数组，解析失败返回空集合
+    /// </summary>
     private static IReadOnlyCollection<string>? TryParsePerms(RedisValue value)
     {
         if (value.IsNullOrEmpty)
@@ -133,6 +136,9 @@ internal sealed class RolePermissionService : IRolePermissionService
         }
     }
 
+    /// <summary>
+    /// 取出 JSON 数组中的非空字符串项
+    /// </summary>
     private static IReadOnlyCollection<string> ParseArrayPerms(JsonElement arrayElement)
     {
         var list = new List<string>();
@@ -151,6 +157,9 @@ internal sealed class RolePermissionService : IRolePermissionService
         return list;
     }
 
+    /// <summary>
+    /// 按角色编码聚合按钮类菜单的权限码，返回「角色编码 → 权限码集合」
+    /// </summary>
     private async Task<Dictionary<string, IReadOnlyCollection<string>>> GetRolePermsFromDatabaseAsync(
         IReadOnlyCollection<string> roleCodes,
         CancellationToken cancellationToken)

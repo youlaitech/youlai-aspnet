@@ -7,8 +7,10 @@ public sealed class SysUserNotice
 {
     public long Id { get; set; }
 
+    /// <summary>公告 ID</summary>
     public long NoticeId { get; set; }
 
+    /// <summary>用户 ID</summary>
     public long UserId { get; set; }
 
     /// <summary>
@@ -16,10 +18,13 @@ public sealed class SysUserNotice
     /// </summary>
     public int IsRead { get; set; }
 
+    /// <summary>阅读时间</summary>
     public DateTime? ReadTime { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime CreateTime { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
     /// <summary>

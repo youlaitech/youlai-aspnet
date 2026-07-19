@@ -5,8 +5,10 @@ namespace Youlai.Application.Models;
 /// </summary>
 public abstract class BaseQuery
 {
+    /// <summary>页码，默认 1</summary>
     public int PageNum { get; set; } = 1;
 
+    /// <summary>每页条数，默认 10</summary>
     public int PageSize { get; set; } = 10;
 
     /// <summary>

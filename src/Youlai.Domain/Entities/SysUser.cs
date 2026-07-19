@@ -7,8 +7,10 @@ public sealed class SysUser
 {
     public long Id { get; set; }
 
+    /// <summary>用户名</summary>
     public string? Username { get; set; }
 
+    /// <summary>昵称</summary>
     public string? Nickname { get; set; }
 
     /// <summary>
@@ -21,10 +23,13 @@ public sealed class SysUser
     /// </summary>
     public string? Password { get; set; }
 
+    /// <summary>所属部门 ID</summary>
     public long? DeptId { get; set; }
 
+    /// <summary>头像地址</summary>
     public string? Avatar { get; set; }
 
+    /// <summary>手机号</summary>
     public string? Mobile { get; set; }
 
     /// <summary>
@@ -32,14 +37,19 @@ public sealed class SysUser
     /// </summary>
     public int Status { get; set; }
 
+    /// <summary>邮箱</summary>
     public string? Email { get; set; }
 
+    /// <summary>创建时间</summary>
     public DateTime? CreateTime { get; set; }
 
+    /// <summary>创建人 ID</summary>
     public long? CreateBy { get; set; }
 
+    /// <summary>更新时间</summary>
     public DateTime? UpdateTime { get; set; }
 
+    /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
 
     /// <summary>

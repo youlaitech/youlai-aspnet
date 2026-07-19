@@ -17,15 +17,19 @@ public sealed class Option<T>
         Label = label;
     }
 
+    /// <summary>选项值</summary>
     [JsonPropertyName("value")]
     public T? Value { get; init; }
 
+    /// <summary>显示文本</summary>
     [JsonPropertyName("label")]
     public string Label { get; init; } = string.Empty;
 
+    /// <summary>标签/颜色标记，可选</summary>
     [JsonPropertyName("tag")]
     public string? Tag { get; init; }
 
+    /// <summary>子选项，用于级联</summary>
     [JsonPropertyName("children")]
     public IReadOnlyCollection<Option<T>>? Children { get; init; }
 }

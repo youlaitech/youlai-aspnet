@@ -7,14 +7,19 @@ public sealed class OssOptions
 {
     public const string SectionName = "Oss";
 
+    /// <summary>存储类型：local / minio / aliyun，默认 local</summary>
     public string Type { get; init; } = "local";
 
+    /// <summary>上传限制配置</summary>
     public UploadOptions Upload { get; init; } = new();
 
+    /// <summary>本地存储配置</summary>
     public LocalOptions Local { get; init; } = new();
 
+    /// <summary>MinIO 配置</summary>
     public MinioOptions Minio { get; init; } = new();
 
+    /// <summary>阿里云 OSS 配置</summary>
     public AliyunOptions Aliyun { get; init; } = new();
 
     /// <summary>
@@ -53,8 +58,10 @@ public sealed class OssOptions
     /// </summary>
     public sealed class LocalOptions
     {
+        /// <summary>本地存储根目录</summary>
         public string StoragePath { get; init; } = string.Empty;
 
+        /// <summary>对外访问基址，null 用相对路径</summary>
         public string? PublicBaseUrl { get; init; }
     }
 
@@ -63,14 +70,19 @@ public sealed class OssOptions
     /// </summary>
     public sealed class MinioOptions
     {
+        /// <summary>服务端点（含协议与端口）</summary>
         public string Endpoint { get; init; } = string.Empty;
 
+        /// <summary>访问账号</summary>
         public string AccessKey { get; init; } = string.Empty;
 
+        /// <summary>访问密钥</summary>
         public string SecretKey { get; init; } = string.Empty;
 
+        /// <summary>存储桶名</summary>
         public string BucketName { get; init; } = string.Empty;
 
+        /// <summary>自定义域名，null 用端点拼接的 URL</summary>
         public string? CustomDomain { get; init; }
     }
 
@@ -79,12 +91,16 @@ public sealed class OssOptions
     /// </summary>
     public sealed class AliyunOptions
     {
+        /// <summary>服务端点（含协议与端口）</summary>
         public string Endpoint { get; init; } = string.Empty;
 
+        /// <summary>AccessKeyId</summary>
         public string AccessKeyId { get; init; } = string.Empty;
 
+        /// <summary>AccessKeySecret</summary>
         public string AccessKeySecret { get; init; } = string.Empty;
 
+        /// <summary>存储桶名</summary>
         public string BucketName { get; init; } = string.Empty;
     }
 }
