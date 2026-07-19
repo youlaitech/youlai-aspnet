@@ -9,6 +9,9 @@ using Youlai.Application.Options;
 
 namespace Youlai.Infrastructure.FileStorage;
 
+/// <summary>
+/// MinIO 文件存储实现
+/// </summary>
 internal sealed class MinioFileStorage : IFileStorage
 {
     private readonly OssOptions.MinioOptions _options;

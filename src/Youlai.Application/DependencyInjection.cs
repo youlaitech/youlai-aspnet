@@ -8,6 +8,9 @@ using Youlai.Application.Common;
 
 namespace Youlai.Application;
 
+/// <summary>
+/// 应用层服务注册（MediatR、AutoMapper、领域服务等）
+/// </summary>
 public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)

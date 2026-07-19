@@ -14,6 +14,9 @@ namespace Youlai.Api.Controllers.System;
 [Route("api/v1/logs")]
 [Authorize]
 [Tags("09.日志接口")]
+/// <summary>
+/// 系统日志接口
+/// </summary>
 public sealed class LogsController : ControllerBase
 {
     private readonly ISystemLogService _logService;

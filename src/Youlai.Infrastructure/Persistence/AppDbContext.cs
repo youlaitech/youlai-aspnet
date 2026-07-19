@@ -6,6 +6,9 @@ using Youlai.Application.Persistence;
 
 namespace Youlai.Infrastructure.Persistence;
 
+/// <summary>
+/// 应用数据库上下文（EF Core）：实体映射与全局过滤
+/// </summary>
 public sealed class AppDbContext : DbContext, IDbContext
 {
     public AppDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<AppDbContext> options)

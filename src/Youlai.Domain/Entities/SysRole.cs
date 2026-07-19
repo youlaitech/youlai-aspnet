@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 角色实体
+/// </summary>
 public sealed class SysRole
 {
     public long Id { get; set; }

@@ -77,6 +77,7 @@ var app = builder.Build();
 
 // 配置 HTTP 请求管道
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<RateLimitMiddleware>();
 
 app.UseStatusCodePages(async statusContext =>
 {
@@ -160,6 +161,9 @@ catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System
     throw;
 }
 
+/// <summary>
+/// 应用入口：注册服务、中间件与 HTTP 请求管道
+/// </summary>
 public partial class Program
 {
 }

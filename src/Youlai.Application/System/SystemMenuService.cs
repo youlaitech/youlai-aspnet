@@ -18,7 +18,13 @@ internal sealed class SystemMenuService : ISystemMenuService
 {
     private const string LayoutComponent = "Layout";
 
+    /// <summary>
+    /// 菜单下拉选项行
+    /// </summary>
     private sealed record MenuOptionRow(long Id, long ParentId, string Name);
+    /// <summary>
+    /// 菜单列表行
+    /// </summary>
     private sealed record MenuRow(long Id, long ParentId, string Name, string Type, string? RouteName, string? RoutePath, string? Component, int? Sort, int? Visible, string? Icon, string? Redirect, string? Perm);
 
     private readonly IDbContext _dbContext;

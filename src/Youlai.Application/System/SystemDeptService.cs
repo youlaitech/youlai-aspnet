@@ -17,6 +17,9 @@ internal sealed class SystemDeptService : ISystemDeptService
 {
     private const long RootNodeId = 0;
 
+    /// <summary>
+    /// 部门下拉选项行
+    /// </summary>
     private sealed record DeptOptionRow(long Id, long ParentId, string Name);
 
     private readonly IDbContext _dbContext;

@@ -15,6 +15,9 @@ namespace Youlai.Api.Controllers.System;
 [Route("api/v1/users")]
 [Authorize]
 [Tags("02.用户接口")]
+/// <summary>
+/// 用户管理接口
+/// </summary>
 public sealed class UsersController : ControllerBase
 {
     private readonly ISystemUserService _userService;

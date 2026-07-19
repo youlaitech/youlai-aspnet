@@ -1168,8 +1168,14 @@ ORDER BY ORDINAL_POSITION ASC";
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 代码生成模板配置
+    /// </summary>
     private sealed record TemplateConfig(string TemplatePath, string SubpackageName, string Extension);
 
+    /// <summary>
+    /// 模板配置行（类型、包名、作者等）
+    /// </summary>
     private sealed record ConfigRow
     {
         public long Id { get; init; }
@@ -1184,6 +1190,9 @@ ORDER BY ORDINAL_POSITION ASC";
         public string? RemoveTablePrefix { get; init; }
     }
 
+    /// <summary>
+    /// 模板字段配置（列名、类型、注释等）
+    /// </summary>
     private sealed class TemplateFieldConfig
     {
         public string ColumnName { get; init; } = string.Empty;

@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 系统配置实体
+/// </summary>
 public sealed class SysConfig
 {
     public long Id { get; set; }

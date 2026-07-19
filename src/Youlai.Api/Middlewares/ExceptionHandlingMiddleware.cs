@@ -8,6 +8,9 @@ using Youlai.Application.Results;
 
 namespace Youlai.Api.Middlewares;
 
+/// <summary>
+/// 全局异常捕获中间件：统一包装未处理异常为 Result
+/// </summary>
 public sealed class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;

@@ -22,6 +22,9 @@ namespace Youlai.Api.Controllers.Auth;
 [Route("api/v1/auth/qr-code")]
 [Authorize]
 [Tags("01.认证中心")]
+/// <summary>
+/// 扫码登录接口
+/// </summary>
 public sealed class QrCodeController : ControllerBase
 {
     private const int DefaultExpireSeconds = 300;

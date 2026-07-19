@@ -174,6 +174,9 @@ internal sealed class SseService : ISseService, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 单个 SSE 客户端连接（含心跳与发送）
+    /// </summary>
     private sealed class SseConnection
     {
         public required string Username { get; init; }

@@ -7,6 +7,8 @@ using Youlai.Domain.Enums;
 using Youlai.Application.Results;
 using Youlai.Application.Common;
 using Youlai.Api.Filters;
+using Microsoft.AspNetCore.Http;
+using StackExchange.Redis;
 
 namespace Youlai.Api.Controllers.Auth;
 
@@ -17,17 +19,22 @@ namespace Youlai.Api.Controllers.Auth;
 [Route("api/v1/auth")]
 [Authorize]
 [Tags("01.认证中心")]
+/// <summary>
+/// 认证接口（登录、刷新令牌、退出、验证码、短信登录）
+/// </summary>
 public sealed class AuthController : ControllerBase
 {
     private readonly ICaptchaService _captchaService;
     private readonly IAuthService _authService;
     private readonly ILoggingService _loggingService;
+    private readonly IConnectionMultiplexer _redis;
 
-    public AuthController(ICaptchaService captchaService, IAuthService authService, ILoggingService loggingService)
+    public AuthController(ICaptchaService captchaService, IAuthService authService, ILoggingService loggingService, IConnectionMultiplexer redis)
     {
         _captchaService = captchaService;
         _authService = authService;
         _loggingService = loggingService;
+        _redis = redis;
     }
 
     /// <summary>
@@ -63,10 +70,21 @@ public sealed class AuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("sms/code")]
-    public async Task<Result<object?>> SendSmsLoginCode([FromQuery] string mobile, CancellationToken cancellationToken)
+    public async Task<IActionResult> SendSmsLoginCode([FromQuery] string mobile, CancellationToken cancellationToken)
     {
+        // 同一手机号 60 秒内仅允许发送一次验证码
+        var db = _redis.GetDatabase();
+        var smsKey = $"rate_limit:api:sms:{mobile}";
+        if (!string.IsNullOrWhiteSpace(await db.StringGetAsync(smsKey)))
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                Result.Failed(ResultCode.RequestConcurrencyLimitExceeded));
+        }
+
+        await db.StringSetAsync(smsKey, "1", TimeSpan.FromSeconds(60));
+
         await _authService.SendSmsLoginCodeAsync(mobile, cancellationToken);
-        return Result.Success();
+        return Ok(Result.Success());
     }
 
     /// <summary>

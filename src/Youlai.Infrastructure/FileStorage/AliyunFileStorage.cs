@@ -7,6 +7,9 @@ using Youlai.Application.Options;
 
 namespace Youlai.Infrastructure.FileStorage;
 
+/// <summary>
+/// 阿里云 OSS 文件存储实现
+/// </summary>
 internal sealed class AliyunFileStorage : IFileStorage
 {
     private readonly OssOptions.AliyunOptions _options;

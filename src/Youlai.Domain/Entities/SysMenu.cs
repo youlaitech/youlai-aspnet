@@ -2,6 +2,9 @@ namespace Youlai.Domain.Entities;
 
 using System.Text.Json;
 
+/// <summary>
+/// 菜单实体
+/// </summary>
 public sealed class SysMenu
 {
     public long Id { get; set; }

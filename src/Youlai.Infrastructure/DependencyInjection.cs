@@ -12,6 +12,9 @@ using Youlai.Infrastructure.Persistence;
 
 namespace Youlai.Infrastructure;
 
+/// <summary>
+/// 基础设施层服务注册（DbContext、存储、Redis 等）
+/// </summary>
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -43,6 +46,10 @@ public static class DependencyInjection
 
         services.AddOptions<WxMaOptions>()
             .Bind(configuration.GetSection(WxMaOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddOptions<RateLimitOptions>()
+            .Bind(configuration.GetSection(RateLimitOptions.SectionName))
             .ValidateOnStart();
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);

@@ -14,6 +14,9 @@ using Youlai.Application.Extensions;
 
 namespace Youlai.Application.System;
 
+/// <summary>
+/// 系统日志服务（查询、清理、导出）
+/// </summary>
 internal sealed class SystemLogService : ISystemLogService
 {
     private readonly IDbContext _dbContext;

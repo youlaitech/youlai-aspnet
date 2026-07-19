@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 字典项实体
+/// </summary>
 public sealed class SysDictItem
 {
     public long Id { get; set; }

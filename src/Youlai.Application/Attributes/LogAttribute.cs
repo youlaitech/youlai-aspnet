@@ -7,6 +7,9 @@ namespace Youlai.Application.Attributes;
 /// 用于标注需要记录操作日志的控制器方法
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+/// <summary>
+/// 操作日志特性：标记接口以写入操作审计日志
+/// </summary>
 public class LogAttribute : Attribute
 {
     /// <summary>

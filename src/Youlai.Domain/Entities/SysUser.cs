@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 用户实体
+/// </summary>
 public sealed class SysUser
 {
     public long Id { get; set; }

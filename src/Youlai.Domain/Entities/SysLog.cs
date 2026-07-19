@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 系统日志实体
+/// </summary>
 public sealed class SysLog
 {
     public long Id { get; set; }

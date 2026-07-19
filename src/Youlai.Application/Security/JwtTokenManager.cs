@@ -88,7 +88,7 @@ public sealed class JwtTokenManager
     }
 
     /// <summary>
-    /// 作废当前令牌：将 JTI 写入 Redis 黑名单，TTL 对齐令牌剩余有效期，过期自动清理
+    /// 作废当前令牌：将 JTI 写入 Redis 黑名单，TTL 设为令牌剩余有效期，过期自动清理
     /// </summary>
     public async Task InvalidateTokenAsync(string? authorizationHeader)
     {
@@ -336,6 +336,9 @@ public sealed class JwtTokenManager
         return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
     }
 
+    /// <summary>
+    /// JWT 令牌主体信息（用户、部门、数据权限范围等）
+    /// </summary>
     public sealed record AuthTokenSubject(
         long UserId,
         long DeptId,

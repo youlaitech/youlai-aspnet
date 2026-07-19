@@ -377,6 +377,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
     #region 微信 API 响应模型
 
+    /// <summary>
+    /// 微信小程序 code2session 响应
+    /// </summary>
     private sealed class WechatSessionResponse
     {
         [JsonPropertyName("openid")]
@@ -395,6 +398,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         public string? ErrMsg { get; set; }
     }
 
+    /// <summary>
+    /// 微信小程序 access_token 响应
+    /// </summary>
     private sealed class WechatAccessTokenResponse
     {
         [JsonPropertyName("access_token")]
@@ -410,6 +416,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         public string? ErrMsg { get; set; }
     }
 
+    /// <summary>
+    /// 微信小程序手机号解密响应
+    /// </summary>
     private sealed class WechatPhoneNumberResponse
     {
         [JsonPropertyName("errcode")]
@@ -422,6 +431,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         public WechatPhoneInfo? PhoneInfo { get; set; }
     }
 
+    /// <summary>
+    /// 微信小程序解密后的手机号信息
+    /// </summary>
     private sealed class WechatPhoneInfo
     {
         [JsonPropertyName("phoneNumber")]

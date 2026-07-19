@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 通知公告实体
+/// </summary>
 public sealed class SysNotice
 {
     public long Id { get; set; }

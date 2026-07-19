@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Options;
 using Youlai.Application.Results;
 using Youlai.Application.File;
 
@@ -14,13 +16,18 @@ namespace Youlai.Api.Controllers.File;
 [Route("api/v1/files")]
 [Authorize]
 [Tags("10.文件接口")]
+/// <summary>
+/// 文件上传与下载接口
+/// </summary>
 public sealed class FilesController : ControllerBase
 {
     private readonly IFileService _fileService;
+    private readonly OssOptions _ossOptions;
 
-    public FilesController(IFileService fileService)
+    public FilesController(IFileService fileService, IOptions<OssOptions> ossOptions)
     {
         _fileService = fileService;
+        _ossOptions = ossOptions.Value;
     }
 
     /// <summary>
@@ -37,6 +44,8 @@ public sealed class FilesController : ControllerBase
         {
             throw new BusinessException(ResultCode.RequestRequiredParameterIsEmpty, "文件不能为空");
         }
+
+        ValidateUpload(file);
 
         await using var stream = file.OpenReadStream();
         var result = await _fileService.UploadAsync(
@@ -60,6 +69,34 @@ public sealed class FilesController : ControllerBase
         return Result.Judge(ok);
     }
 
+    /// <summary>
+    /// 上传校验：扩展名白名单（为空不限制）与单文件大小上限
+    /// </summary>
+    private void ValidateUpload(IFormFile file)
+    {
+        var upload = _ossOptions.Upload;
+
+        var allowed = upload.AllowedExtensionSet;
+        if (allowed.Count > 0)
+        {
+            var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext) || !allowed.Contains(ext))
+            {
+                throw new BusinessException(ResultCode.UploadFileException,
+                    "不支持的文件类型: " + (string.IsNullOrEmpty(ext) ? string.Empty : "." + ext));
+            }
+        }
+
+        if (upload.MaxFileSizeMb > 0 && file.Length > upload.MaxFileSizeBytes)
+        {
+            throw new BusinessException(ResultCode.UploadFileException,
+                "文件大小超过限制: " + upload.MaxFileSizeMb + "MB");
+        }
+    }
+
+    /// <summary>
+    /// 文件上传请求参数
+    /// </summary>
     public sealed class FileUploadRequest
     {
         public IFormFile? File { get; init; }

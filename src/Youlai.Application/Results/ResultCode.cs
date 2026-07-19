@@ -1,5 +1,8 @@
 namespace Youlai.Application.Results;
 
+/// <summary>
+/// 业务结果码枚举
+/// </summary>
 public enum ResultCode
 {
     Success,
@@ -48,6 +51,9 @@ public enum ResultCode
     DatabaseAccessDenied,
 }
 
+/// <summary>
+/// 结果码扩展：消息映射与 Result 构造
+/// </summary>
 public static class ResultCodeExtensions
 {
     public static string GetCode(this ResultCode code)

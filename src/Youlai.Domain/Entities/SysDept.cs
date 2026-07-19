@@ -1,5 +1,8 @@
 namespace Youlai.Domain.Entities;
 
+/// <summary>
+/// 部门实体
+/// </summary>
 public sealed class SysDept
 {
     public long Id { get; set; }

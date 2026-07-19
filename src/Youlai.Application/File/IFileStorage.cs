@@ -1,5 +1,8 @@
 namespace Youlai.Application.File;
 
+/// <summary>
+/// 文件存储抽象：屏蔽本地 / MinIO / 阿里云差异
+/// </summary>
 public interface IFileStorage
 {
     /// <summary>

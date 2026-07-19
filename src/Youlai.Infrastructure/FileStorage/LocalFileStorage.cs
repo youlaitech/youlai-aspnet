@@ -6,6 +6,9 @@ using Youlai.Application.Options;
 
 namespace Youlai.Infrastructure.FileStorage;
 
+/// <summary>
+/// 本地磁盘文件存储实现
+/// </summary>
 internal sealed class LocalFileStorage : IFileStorage
 {
     private readonly OssOptions.LocalOptions _options;

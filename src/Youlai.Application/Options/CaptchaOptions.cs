@@ -1,5 +1,8 @@
 namespace Youlai.Application.Options;
 
+/// <summary>
+/// 验证码配置项
+/// </summary>
 public sealed class CaptchaOptions
 {
     public const string SectionName = "Captcha";

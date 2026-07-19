@@ -7,6 +7,9 @@ using Youlai.Application.Security;
 
 namespace Youlai.Api.Security;
 
+/// <summary>
+/// JWT 认证方案与服务注册扩展
+/// </summary>
 public static class JwtAuthenticationExtensions
 {
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
