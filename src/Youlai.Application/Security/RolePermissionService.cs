@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Distributed;
 using Youlai.Application.Security;
 using Youlai.Application.Constants;
 using Youlai.Application.Persistence;
@@ -8,18 +8,18 @@ using Youlai.Application.Persistence;
 namespace Youlai.Application.Security;
 
 /// <summary>
-/// 角色权限服务（聚合权限码 + Redis 缓存）
+/// 角色权限服务（聚合权限码 + 分布式缓存）
 /// </summary>
 internal sealed class RolePermissionService : IRolePermissionService
 {
     private const string ButtonMenuType = "B";
 
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
     private readonly IDbContext _dbContext;
 
-    public RolePermissionService(IConnectionMultiplexer redis, IDbContext dbContext)
+    public RolePermissionService(IDistributedCache cache, IDbContext dbContext)
     {
-        _redis = redis;
+        _cache = cache;
         _dbContext = dbContext;
     }
 
@@ -43,26 +43,21 @@ internal sealed class RolePermissionService : IRolePermissionService
             return Array.Empty<string>();
         }
 
-        // 先从 Redis 批量取缓存，缺失的再回源 DB
-        var db = _redis.GetDatabase();
-        var roleValues = distinctRoles.Select(r => (RedisValue)r).ToArray();
-        var cachedValues = await db.HashGetAsync(RedisKeyConstants.System.RolePerms, roleValues).ConfigureAwait(false);
-
+        // 逐角色从缓存取权限，未命中的再回源 DB
         var perms = new HashSet<string>(StringComparer.Ordinal);
         var missingRoleCodes = new List<string>();
 
-        for (var i = 0; i < distinctRoles.Length; i++)
+        foreach (var roleCode in distinctRoles)
         {
-            var roleCode = distinctRoles[i];
-            var value = cachedValues[i];
+            var cached = await _cache.GetStringAsync(string.Format(RedisKeyConstants.System.RolePerms, roleCode), cancellationToken).ConfigureAwait(false);
 
-            if (value.IsNull)
+            if (string.IsNullOrEmpty(cached))
             {
                 missingRoleCodes.Add(roleCode);
                 continue;
             }
 
-            var parsed = TryParsePerms(value);
+            var parsed = TryParsePerms(cached);
             if (parsed is null || parsed.Count == 0)
             {
                 missingRoleCodes.Add(roleCode);
@@ -89,14 +84,10 @@ internal sealed class RolePermissionService : IRolePermissionService
 
         if (dbPerms.Count > 0)
         {
-            // 回写缓存，减少后续查询压力
-            var entries = dbPerms
-                .Select(kvp => new HashEntry(kvp.Key, JsonSerializer.Serialize(kvp.Value)))
-                .ToArray();
-
-            if (entries.Length > 0)
+            // 回写缓存，减少后续查询压力（按角色编码分键）
+            foreach (var kvp in dbPerms)
             {
-                await db.HashSetAsync(RedisKeyConstants.System.RolePerms, entries).ConfigureAwait(false);
+                await _cache.SetStringAsync(string.Format(RedisKeyConstants.System.RolePerms, kvp.Key), JsonSerializer.Serialize(kvp.Value), cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -106,17 +97,16 @@ internal sealed class RolePermissionService : IRolePermissionService
     /// <summary>
     /// 解析缓存中的权限 JSON 数组，解析失败返回空集合
     /// </summary>
-    private static IReadOnlyCollection<string>? TryParsePerms(RedisValue value)
+    private static IReadOnlyCollection<string>? TryParsePerms(string value)
     {
-        if (value.IsNullOrEmpty)
+        if (string.IsNullOrEmpty(value))
         {
             return Array.Empty<string>();
         }
 
         try
         {
-            var str = value.ToString();
-            if (string.IsNullOrWhiteSpace(str))
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return Array.Empty<string>();
             }

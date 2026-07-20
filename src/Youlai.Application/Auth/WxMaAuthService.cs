@@ -2,9 +2,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StackExchange.Redis;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
@@ -31,7 +31,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     private readonly IDbContext _dbContext;
     private readonly JwtTokenManager _tokenManager;
     private readonly WxMaOptions _options;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<WxMaAuthService> _logger;
 
@@ -39,14 +39,14 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         IDbContext dbContext,
         JwtTokenManager tokenManager,
         IOptions<WxMaOptions> options,
-        IConnectionMultiplexer redis,
+        IDistributedCache cache,
         IHttpClientFactory httpClientFactory,
         ILogger<WxMaAuthService> logger)
     {
         _dbContext = dbContext;
         _tokenManager = tokenManager;
         _options = options.Value;
-        _redis = redis;
+        _cache = cache;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
@@ -185,14 +185,13 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
-        var db = _redis.GetDatabase();
         var cacheKey = string.Format(RedisKeyConstants.Wechat.AccessToken, _options.AppId);
 
         // 先从缓存获取
-        var cached = await db.StringGetAsync(cacheKey);
-        if (cached.HasValue)
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
         {
-            return cached.ToString();
+            return cached;
         }
 
         // 请求 access_token
@@ -208,7 +207,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         // 缓存 token（提前 5 分钟过期）
         var expiresIn = Math.Max(response.ExpiresIn - 300, 60);
-        await db.StringSetAsync(cacheKey, response.AccessToken, TimeSpan.FromSeconds(expiresIn));
+        await _cache.SetStringAsync(cacheKey, response.AccessToken,
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(expiresIn) },
+            cancellationToken);
 
         return response.AccessToken;
     }
@@ -305,22 +306,21 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private async Task ValidateSmsCodeAsync(string mobile, string smsCode)
     {
-        var db = _redis.GetDatabase();
         var cacheKey = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
-        var cached = await db.StringGetAsync(cacheKey);
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
 
-        if (!cached.HasValue)
+        if (string.IsNullOrEmpty(cached))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        if (!string.Equals(cached.ToString(), smsCode, StringComparison.Ordinal))
+        if (!string.Equals(cached, smsCode, StringComparison.Ordinal))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
         // 验证成功后删除验证码
-        await db.KeyDeleteAsync(cacheKey);
+        await _cache.RemoveAsync(cacheKey, cancellationToken);
     }
 
     /// <summary>
@@ -398,18 +398,23 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private sealed class WechatSessionResponse
     {
+        /// <summary>微信用户唯一标识 openid</summary>
         [JsonPropertyName("openid")]
         public string? OpenId { get; set; }
 
+        /// <summary>会话密钥 session_key</summary>
         [JsonPropertyName("session_key")]
         public string? SessionKey { get; set; }
 
+        /// <summary>跨应用统一标识 unionid</summary>
         [JsonPropertyName("unionid")]
         public string? UnionId { get; set; }
 
+        /// <summary>错误码，0 或缺失表示成功</summary>
         [JsonPropertyName("errcode")]
         public string? ErrCode { get; set; }
 
+        /// <summary>错误信息</summary>
         [JsonPropertyName("errmsg")]
         public string? ErrMsg { get; set; }
     }
@@ -449,6 +454,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         [JsonPropertyName("errmsg")]
         public string ErrMsg { get; set; } = string.Empty;
 
+        /// <summary>解密后的手机号信息</summary>
         [JsonPropertyName("phone_info")]
         public WechatPhoneInfo? PhoneInfo { get; set; }
     }
@@ -458,12 +464,15 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private sealed class WechatPhoneInfo
     {
+        /// <summary>完整手机号</summary>
         [JsonPropertyName("phoneNumber")]
         public string? PhoneNumber { get; set; }
 
+        /// <summary>不含区号的手机号</summary>
         [JsonPropertyName("purePhoneNumber")]
         public string? PurePhoneNumber { get; set; }
 
+        /// <summary>区号（如 86）</summary>
         [JsonPropertyName("countryCode")]
         public string? CountryCode { get; set; }
     }

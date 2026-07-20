@@ -270,11 +270,19 @@ public sealed class QrCodeContext
 }
 
 /// <summary>generate 接口响应。</summary>
+/// <param name="Ticket">二维码票据</param>
+/// <param name="ExpireSeconds">票据有效秒数</param>
 public sealed record QrCodeGenerateVO(string Ticket, int ExpireSeconds);
 
 /// <summary>status 接口响应。</summary>
+/// <param name="Ticket">二维码票据</param>
+/// <param name="Status">扫码状态（待扫码/已扫码/已确认/已取消）</param>
+/// <param name="Nickname">扫码用户昵称（未扫码时为空）</param>
+/// <param name="Avatar">扫码用户头像（未扫码时为空）</param>
+/// <param name="ExpireSeconds">票据剩余有效秒数</param>
 public sealed record QrCodeStatusVO(string Ticket, string Status, string? Nickname, string? Avatar, int ExpireSeconds);
 
 /// <summary>scan/confirm/cancel/login 请求体。</summary>
+/// <param name="Ticket">二维码票据</param>
 public sealed record QrCodeTicketForm(string Ticket);
 

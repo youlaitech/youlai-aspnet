@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Youlai.Application.Converters;
 
 namespace Youlai.Application.System.Models.Notice;
 
@@ -47,8 +48,9 @@ public sealed class NoticeForm
     public int? PublishStatus { get; init; }
 
     /// <summary>
-    /// 指定用户ID列表
+    /// 指定用户ID列表，元素可为数字或字符串
     /// </summary>
+    [JsonConverter(typeof(StringListFlexibleConverter))]
     [JsonPropertyName("targetUserIds")]
     public IReadOnlyCollection<string>? TargetUserIds { get; init; }
 

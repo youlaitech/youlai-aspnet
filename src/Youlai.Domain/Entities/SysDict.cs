@@ -3,8 +3,9 @@ namespace Youlai.Domain.Entities;
 /// <summary>
 /// 字典实体
 /// </summary>
-public sealed class SysDict
+public sealed class SysDict : Youlai.Domain.IHasAudit
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>字典编码（唯一）</summary>

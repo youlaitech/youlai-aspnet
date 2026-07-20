@@ -213,6 +213,9 @@ public sealed class UsersController : ControllerBase
         return Result.Judge(ok);
     }
 
+    /// <summary>
+    /// 解绑手机号（需密码校验）
+    /// </summary>
     [HttpDelete("mobile")]
     public async Task<Result<object?>> UnbindMobile([FromBody] PasswordVerifyForm formData, CancellationToken cancellationToken)
     {
@@ -240,6 +243,9 @@ public sealed class UsersController : ControllerBase
         return Result.Judge(ok);
     }
 
+    /// <summary>
+    /// 解绑邮箱（需密码校验）
+    /// </summary>
     [HttpDelete("email")]
     public async Task<Result<object?>> UnbindEmail([FromBody] PasswordVerifyForm formData, CancellationToken cancellationToken)
     {

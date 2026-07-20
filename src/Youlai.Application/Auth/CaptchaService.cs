@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
@@ -6,7 +7,6 @@ using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using StackExchange.Redis;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
@@ -22,12 +22,12 @@ internal sealed class CaptchaService : ICaptchaService
 {
     private static readonly char[] AllowedChars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ".ToCharArray();
 
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
     private readonly CaptchaOptions _options;
 
-    public CaptchaService(IConnectionMultiplexer redis, IOptions<CaptchaOptions> options)
+    public CaptchaService(IDistributedCache cache, IOptions<CaptchaOptions> options)
     {
-        _redis = redis;
+        _cache = cache;
         _options = options.Value;
     }
 
@@ -42,9 +42,10 @@ internal sealed class CaptchaService : ICaptchaService
         var imageBytes = RenderPng(code);
         var captchaBase64 = "data:image/png;base64," + Convert.ToBase64String(imageBytes);
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
-        await db.StringSetAsync(key, code, TimeSpan.FromSeconds(_options.ExpireSeconds)).ConfigureAwait(false);
+        await _cache.SetStringAsync(key, code,
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.ExpireSeconds) },
+            cancellationToken).ConfigureAwait(false);
 
         return new CaptchaInfoDto(captchaId, captchaBase64, code);
     }
@@ -59,22 +60,21 @@ internal sealed class CaptchaService : ICaptchaService
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
-        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
+        var cached = await _cache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
 
-        if (!cached.HasValue)
+        if (string.IsNullOrEmpty(cached))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        var expected = cached.ToString();
+        var expected = cached;
         if (!string.Equals(expected, captchaCode.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
-        await db.KeyDeleteAsync(key).ConfigureAwait(false);
+        await _cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -89,6 +89,9 @@ public interface ISystemUserService
     /// </summary>
     Task<bool> BindOrChangeMobileAsync(MobileUpdateForm formData, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 解绑手机号（需密码校验）
+    /// </summary>
     Task<bool> UnbindMobileAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -101,6 +104,9 @@ public interface ISystemUserService
     /// </summary>
     Task<bool> BindOrChangeEmailAsync(EmailUpdateForm formData, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 解绑邮箱（需密码校验）
+    /// </summary>
     Task<bool> UnbindEmailAsync(PasswordVerifyForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>

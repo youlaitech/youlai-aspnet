@@ -17,9 +17,6 @@ namespace Youlai.Api.Controllers.System;
 [Route("api/v1/dicts")]
 [Authorize]
 [Tags("06.字典接口")]
-/// <summary>
-/// 字典管理接口
-/// </summary>
 public sealed class DictsController : ControllerBase
 {
     private readonly ISystemDictService _dictService;

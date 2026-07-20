@@ -7,6 +7,7 @@ using System.Text.Json;
 /// </summary>
 public sealed class SysMenu
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>父菜单 ID（0 表示顶级）</summary>

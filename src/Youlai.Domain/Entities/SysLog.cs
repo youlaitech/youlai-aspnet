@@ -5,6 +5,7 @@ namespace Youlai.Domain.Entities;
 /// </summary>
 public sealed class SysLog
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>业务模块</summary>

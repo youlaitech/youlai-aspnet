@@ -5,49 +5,87 @@ namespace Youlai.Application.Results;
 /// </summary>
 public enum ResultCode
 {
+    /// <summary>成功</summary>
     Success,
 
     // 用户端错误
+    /// <summary>用户端错误</summary>
     UserError,
+    /// <summary>用户注册错误</summary>
     UserRegistrationError,
+    /// <summary>用户未同意隐私协议</summary>
     UserNotAgreePrivacyAgreement,
+    /// <summary>校验码输入错误</summary>
     VerificationCodeInputError,
+    /// <summary>用户登录异常</summary>
     UserLoginException,
+    /// <summary>用户账户不存在</summary>
     AccountNotFound,
+    /// <summary>用户账户被冻结</summary>
     AccountFrozen,
+    /// <summary>用户名或密码错误</summary>
     UserPasswordError,
+    /// <summary>访问令牌无效或已过期</summary>
     AccessTokenInvalid,
+    /// <summary>刷新令牌无效或已过期</summary>
     RefreshTokenInvalid,
+    /// <summary>验证码错误</summary>
     UserVerificationCodeError,
+    /// <summary>用户验证码尝试次数超限</summary>
     UserVerificationCodeAttemptLimitExceeded,
+    /// <summary>用户验证码过期</summary>
     UserVerificationCodeExpired,
+    /// <summary>访问权限异常</summary>
     AccessPermissionException,
+    /// <summary>访问未授权</summary>
     AccessUnauthorized,
+    /// <summary>用户请求参数错误</summary>
     UserRequestParameterError,
+    /// <summary>无效的用户输入</summary>
     InvalidUserInput,
+    /// <summary>请求必填参数为空</summary>
     RequestRequiredParameterIsEmpty,
+    /// <summary>参数格式不匹配</summary>
     ParameterFormatMismatch,
+    /// <summary>用户请求服务异常</summary>
     UserRequestServiceException,
+    /// <summary>请求并发数超出限制</summary>
     RequestConcurrencyLimitExceeded,
+    /// <summary>请勿重复提交</summary>
     DuplicateSubmission,
+    /// <summary>上传文件异常</summary>
     UploadFileException,
+    /// <summary>删除文件异常</summary>
     DeleteFileException,
+    /// <summary>扫码登录票据不存在或已过期</summary>
     QrCodeNotFound,
+    /// <summary>扫码登录状态非法</summary>
     QrCodeStatusIllegal,
+    /// <summary>扫码用户与确认用户不一致</summary>
     QrCodeUserMismatch,
+    /// <summary>扫码登录票据已使用</summary>
     QrCodeAlreadyUsed,
 
     // 系统执行出错
+    /// <summary>系统执行出错</summary>
     SystemError,
+    /// <summary>系统执行超时</summary>
     SystemExecutionTimeout,
 
     // 调用第三方服务出错
+    /// <summary>调用第三方服务出错</summary>
     ThirdPartyServiceError,
+    /// <summary>接口不存在</summary>
     InterfaceNotExist,
+    /// <summary>数据库服务出错</summary>
     DatabaseServiceError,
+    /// <summary>数据库执行异常</summary>
     DatabaseExecutionError,
+    /// <summary>数据库执行语法错误</summary>
     DatabaseExecutionSyntaxError,
+    /// <summary>违反了完整性约束</summary>
     IntegrityConstraintViolation,
+    /// <summary>数据库拒绝访问</summary>
     DatabaseAccessDenied,
 }
 

@@ -49,7 +49,13 @@ public interface ISystemRoleService
     /// </summary>
     Task AssignMenusToRoleAsync(long roleId, IReadOnlyCollection<long> menuIds, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 角色已分配的数据权限部门 ID
+    /// </summary>
     Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 分配数据权限部门
+    /// </summary>
     Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default);
 }

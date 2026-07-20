@@ -9,9 +9,6 @@ using Youlai.Application.File;
 
 namespace Youlai.Api.Controllers.File;
 
-/// <summary>
-/// 文件接口
-/// </summary>
 [ApiController]
 [Route("api/v1/files")]
 [Authorize]
@@ -97,8 +94,9 @@ public sealed class FilesController : ControllerBase
     /// <summary>
     /// 文件上传请求参数
     /// </summary>
-    public sealed class FileUploadRequest
-    {
-        public IFormFile? File { get; init; }
-    }
+        public sealed class FileUploadRequest
+        {
+            /// <summary>上传的文件</summary>
+            public IFormFile? File { get; init; }
+        }
 }

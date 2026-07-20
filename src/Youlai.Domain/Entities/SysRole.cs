@@ -3,8 +3,9 @@ namespace Youlai.Domain.Entities;
 /// <summary>
 /// 角色实体
 /// </summary>
-public sealed class SysRole
+public sealed class SysRole : Youlai.Domain.IHasAudit
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>角色名称</summary>

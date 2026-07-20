@@ -7,6 +7,8 @@ using Youlai.Application.Persistence;
 using Youlai.Application.Options;
 using Youlai.Application.Security;
 using Youlai.Application.File;
+using Youlai.Application.Common;
+using Youlai.Infrastructure.Common;
 using Youlai.Infrastructure.FileStorage;
 using Youlai.Infrastructure.Persistence;
 
@@ -65,12 +67,22 @@ public static class DependencyInjection
         });
         services.AddScoped<IDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-        // Redis
+        // 端口 ↔ 实现绑定（与旧 IDbContext 并存，业务逐步迁移到下列抽象）
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+        services.AddScoped<IReadOnlyDbContext, EfReadOnlyDbContext>();
+        services.AddScoped<IExcelManager, ClosedXmlExcelManager>();
+
+        // Redis（直接类型仍供 JwtTokenManager 使用，待令牌管理迁移到 ITokenManager 后移除）
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<RedisOptions>>().Value;
             return ConnectionMultiplexer.Connect(options.ConnectionString);
         });
+
+        // 分布式缓存：业务通过 IDistributedCache 使用，不依赖 StackExchange.Redis 具体类型
+        // 不设置 InstanceName，键名与原有直连 Redis 保持一致
+        services.AddStackExchangeRedisCache(opt => opt.Configuration = redisOptions.ConnectionString);
 
         // JWT / 令牌管理
         services.AddScoped<JwtTokenManager>();

@@ -1,6 +1,6 @@
-using StackExchange.Redis;
-using Youlai.Application.Security;
+using Microsoft.Extensions.Caching.Distributed;
 using Youlai.Application.Constants;
+using Youlai.Application.Security;
 
 namespace Youlai.Application.Security;
 
@@ -9,15 +9,15 @@ namespace Youlai.Application.Security;
 /// </summary>
 internal sealed class RolePermsCacheInvalidator : IRolePermsCacheInvalidator
 {
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
 
-    public RolePermsCacheInvalidator(IConnectionMultiplexer redis)
+    public RolePermsCacheInvalidator(IDistributedCache cache)
     {
-        _redis = redis;
+        _cache = cache;
     }
 
     /// <summary>
-    /// 清理指定角色的权限缓存
+    /// 清理指定角色的权限缓存（角色权限按角色编码分键存储）
     /// </summary>
     public async Task InvalidateAsync(IReadOnlyCollection<string> roleCodes, CancellationToken cancellationToken = default)
     {
@@ -37,8 +37,9 @@ internal sealed class RolePermsCacheInvalidator : IRolePermsCacheInvalidator
             return;
         }
 
-        var db = _redis.GetDatabase();
-        var fields = distinctRoleCodes.Select(r => (RedisValue)r).ToArray();
-        await db.HashDeleteAsync(RedisKeyConstants.System.RolePerms, fields).ConfigureAwait(false);
+        foreach (var roleCode in distinctRoleCodes)
+        {
+            await _cache.RemoveAsync(string.Format(RedisKeyConstants.System.RolePerms, roleCode), cancellationToken).ConfigureAwait(false);
+        }
     }
 }

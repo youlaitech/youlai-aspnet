@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Youlai.Domain.Entities;
+using Youlai.Domain;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Youlai.Application.Persistence;
+using Youlai.Application.Security;
 
 namespace Youlai.Infrastructure.Persistence;
 
@@ -11,9 +13,14 @@ namespace Youlai.Infrastructure.Persistence;
 /// </summary>
 public sealed class AppDbContext : DbContext, IDbContext
 {
-    public AppDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<AppDbContext> options)
+    private readonly ICurrentUser? _currentUser;
+
+    public AppDbContext(
+        Microsoft.EntityFrameworkCore.DbContextOptions<AppDbContext> options,
+        ICurrentUser? currentUser = null)
         : base(options)
     {
+        _currentUser = currentUser;
     }
 
     /// <summary>用户表</summary>
@@ -328,14 +335,6 @@ public sealed class AppDbContext : DbContext, IDbContext
     }
 
     /// <summary>
-    /// JsonElement 转 JSON 文本
-    /// </summary>
-    private static string? GetJsonRawText(JsonElement? value)
-    {
-        return value.HasValue ? value.Value.GetRawText() : null;
-    }
-
-    /// <summary>
     /// JSON 文本转 JsonElement，非法 JSON 返回 null
     /// </summary>
     private static JsonElement? ParseJsonElement(string? value)
@@ -351,6 +350,38 @@ public sealed class AppDbContext : DbContext, IDbContext
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 保存时统一填充审计字段（创建/更新人、时间）；仅补未显式赋值的字段，避免覆盖业务代码设置
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        StampAudit();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void StampAudit()
+    {
+        var now = DateTime.UtcNow;
+        var userId = _currentUser?.UserId;
+
+        foreach (var entry in ChangeTracker.Entries<IHasAudit>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.CreateTime ??= now;
+                    entry.Entity.CreateBy ??= userId;
+                    entry.Entity.UpdateTime ??= now;
+                    entry.Entity.UpdateBy ??= userId;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdateTime ??= now;
+                    entry.Entity.UpdateBy ??= userId;
+                    break;
+            }
         }
     }
 }

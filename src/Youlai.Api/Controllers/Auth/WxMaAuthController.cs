@@ -6,9 +6,6 @@ using Youlai.Application.Results;
 
 namespace Youlai.Api.Controllers.Auth;
 
-/// <summary>
-/// 微信小程序认证接口
-/// </summary>
 [ApiController]
 [Route("api/v1/wxma/auth")]
 [Tags("12.微信小程序认证")]

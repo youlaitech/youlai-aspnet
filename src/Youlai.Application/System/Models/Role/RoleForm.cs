@@ -53,6 +53,7 @@ public sealed class RoleForm
     [JsonPropertyName("remark")]
     public string? Remark { get; init; }
 
+    /// <summary>数据权限部门 ID 列表</summary>
     [JsonPropertyName("deptIds")]
     public List<long>? DeptIds { get; init; }
 }

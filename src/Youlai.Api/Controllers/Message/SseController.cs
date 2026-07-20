@@ -7,9 +7,6 @@ using Youlai.Application.Common;
 
 namespace Youlai.Api.Controllers.Message;
 
-/// <summary>
-/// SSE 推送接口
-/// </summary>
 [ApiController]
 [Route("api/v1/sse")]
 [Tags("13.SSE Connection")]

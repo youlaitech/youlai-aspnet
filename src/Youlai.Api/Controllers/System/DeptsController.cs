@@ -17,9 +17,6 @@ namespace Youlai.Api.Controllers.System;
 [Route("api/v1/depts")]
 [Authorize]
 [Tags("05.部门接口")]
-/// <summary>
-/// 部门管理接口
-/// </summary>
 public sealed class DeptsController : ControllerBase
 {
     private readonly ISystemDeptService _deptService;

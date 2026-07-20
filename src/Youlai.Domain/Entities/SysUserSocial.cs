@@ -5,6 +5,7 @@ namespace Youlai.Domain.Entities;
 /// </summary>
 public sealed class SysUserSocial
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>绑定用户 ID</summary>

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Extensions;
 using Youlai.Application.Results;
@@ -19,13 +20,13 @@ internal sealed class SystemConfigService : ISystemConfigService
 {
     private readonly IDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
 
-    public SystemConfigService(IDbContext dbContext, ICurrentUser currentUser, IConnectionMultiplexer redis)
+    public SystemConfigService(IDbContext dbContext, ICurrentUser currentUser, IDistributedCache cache)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
-        _redis = redis;
+        _cache = cache;
     }
 
     /// <summary>
@@ -222,23 +223,19 @@ internal sealed class SystemConfigService : ISystemConfigService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var db = _redis.GetDatabase();
-        await db.KeyDeleteAsync(RedisKeyConstants.System.Config).ConfigureAwait(false);
+        await _cache.RemoveAsync(RedisKeyConstants.System.Config, cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
         {
             return true;
         }
 
-        var entries = list
+        // 整份配置以「配置键 → 配置值」的 JSON 形式缓存，便于整体失效与重建
+        var dict = list
             .Where(x => !string.IsNullOrWhiteSpace(x.ConfigKey))
-            .Select(x => new HashEntry(x.ConfigKey, x.ConfigValue ?? string.Empty))
-            .ToArray();
+            .ToDictionary(x => x.ConfigKey!, x => x.ConfigValue ?? string.Empty);
 
-        if (entries.Length > 0)
-        {
-            await db.HashSetAsync(RedisKeyConstants.System.Config, entries).ConfigureAwait(false);
-        }
+        await _cache.SetStringAsync(RedisKeyConstants.System.Config, JsonSerializer.Serialize(dict), cancellationToken).ConfigureAwait(false);
 
         return true;
     }

@@ -3,8 +3,8 @@ using System.IO;
 using System.Linq;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Extensions;
 using Youlai.Application.Models;
@@ -30,7 +30,7 @@ internal sealed class SystemUserService : ISystemUserService
     private readonly IRolePermissionService _rolePermissionService;
     private readonly IDataPermissionService _dataPermissionService;
     private readonly JwtTokenManager _tokenManager;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
     private readonly ILogger<SystemUserService> _logger;
 
     public SystemUserService(
@@ -39,7 +39,7 @@ internal sealed class SystemUserService : ISystemUserService
         IRolePermissionService rolePermissionService,
         IDataPermissionService dataPermissionService,
         JwtTokenManager tokenManager,
-        IConnectionMultiplexer redis,
+        IDistributedCache cache,
         ILogger<SystemUserService> logger)
     {
         _dbContext = dbContext;
@@ -47,7 +47,7 @@ internal sealed class SystemUserService : ISystemUserService
         _rolePermissionService = rolePermissionService;
         _dataPermissionService = dataPermissionService;
         _tokenManager = tokenManager;
-        _redis = redis;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -342,12 +342,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         // 删除时排除超管用户
-        var rootUserIds =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
-            select ur.UserId;
-        var rootUserIdSet = (await rootUserIds.ToListAsync(cancellationToken).ConfigureAwait(false)).ToHashSet();
+        var rootUserIdSet = (await GetRootUserIdsQuery().ToListAsync(cancellationToken).ConfigureAwait(false)).ToHashSet();
         users = users.Where(u => !rootUserIdSet.Contains(u.Id)).ToList();
 
         if (users.Count == 0)
@@ -606,6 +601,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
+        var importRows = new List<(SysUser User, List<long> RoleIds)>();
         for (var row = 2; row <= lastRow; row++)
         {
             var username = worksheet.Cell(row, 1).GetValue<string>()?.Trim();
@@ -703,18 +699,32 @@ internal sealed class SystemUserService : ISystemUserService
                 IsDeleted = false,
             };
 
-            _dbContext.SysUsers.Add(user);
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            // 保存用户角色关联
-            foreach (var roleId in roleIds.Distinct())
-            {
-                _dbContext.SysUserRoles.Add(new SysUserRole { UserId = user.Id, RoleId = roleId });
-            }
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            valid++;
+            // 先收集待插入数据，循环结束后再统一提交，避免逐行多次往返数据库
+            importRows.Add((user, roleIds.Distinct().ToList()));
         }
+
+        // 先批量插入用户（自增 ID 回填），再批量插入用户-角色关联，整批仅两次提交
+        foreach (var (user, _) in importRows)
+        {
+            _dbContext.SysUsers.Add(user);
+        }
+
+        if (importRows.Count > 0)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            foreach (var (user, roleIds) in importRows)
+            {
+                foreach (var roleId in roleIds)
+                {
+                    _dbContext.SysUserRoles.Add(new SysUserRole { UserId = user.Id, RoleId = roleId });
+                }
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        valid = importRows.Count;
 
         return new ExcelResult
         {
@@ -881,9 +891,10 @@ internal sealed class SystemUserService : ISystemUserService
         var code = DevDefaults.VerifyCode;
         _logger.LogInformation("[SendMobileCode] mobile={Mobile}", mobile);
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
-        await db.StringSetAsync(key, code, VerifyCodeTtl).ConfigureAwait(false);
+        await _cache.SetStringAsync(key, code,
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = VerifyCodeTtl },
+            cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -937,9 +948,10 @@ internal sealed class SystemUserService : ISystemUserService
         var code = DevDefaults.VerifyCode;
         _logger.LogInformation("[SendEmailCode] email={Email}", email);
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.EmailCode, email.Trim());
-        await db.StringSetAsync(key, code, VerifyCodeTtl).ConfigureAwait(false);
+        await _cache.SetStringAsync(key, code,
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = VerifyCodeTtl },
+            cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -985,15 +997,9 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<long>>> GetUserOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var rootUserIds =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
-            select ur.UserId;
-
         var rows = await _dbContext.SysUsers
             .AsNoTracking()
-            .Where(u => !u.IsDeleted && u.Status == 1 && !rootUserIds.Contains(u.Id))
+            .Where(u => !u.IsDeleted && u.Status == 1 && !GetRootUserIdsQuery().Contains(u.Id))
             .OrderBy(u => u.Id)
             .Select(u => new { u.Id, u.Nickname, u.Username })
             .ToListAsync(cancellationToken)
@@ -1027,18 +1033,23 @@ internal sealed class SystemUserService : ISystemUserService
     }
 
     /// <summary>
+    /// 拥有超管角色的用户 ID 查询（排除超管，避免被删除/列表/导出）
+    /// </summary>
+    private IQueryable<long> GetRootUserIdsQuery()
+    {
+        return from ur in _dbContext.SysUserRoles.AsNoTracking()
+               join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+               where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
+               select ur.UserId;
+    }
+
+    /// <summary>
     /// 应用用户查询过滤条件（GetUserPageAsync 和 ExportUsersAsync 共用）
     /// </summary>
     private IQueryable<SysUser> ApplyUserFilters(IQueryable<SysUser> users, UserQuery query)
     {
-        // 排除 ROOT 用户
-        var rootUserIds =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
-            where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
-            select ur.UserId;
-
-        users = users.Where(u => !rootUserIds.Contains(u.Id));
+        // 排除超管用户
+        users = users.Where(u => !GetRootUserIdsQuery().Contains(u.Id));
 
         // 数据权限过滤
         users = _dataPermissionService.Apply(users, u => u.DeptId ?? 0, u => u.CreateBy ?? 0);
@@ -1134,7 +1145,8 @@ internal sealed class SystemUserService : ISystemUserService
         var start = TryParseDateTime(parts[0]);
         var end = TryParseDateTime(parts[1]);
 
-        // 结束日期拼接 23:59:59，包含当天所有数据        if (end.HasValue && parts[1].Length == 10)
+        // 结束日期为纯日期(yyyy-MM-dd，长度 10)时，补到 23:59:59，包含当天所有数据
+        if (end.HasValue && parts[1].Length == 10)
         {
             end = end.Value.Date.AddDays(1).AddSeconds(-1);
         }
@@ -1224,19 +1236,18 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     private async Task VerifyCodeAsync(string cacheKey, string code)
     {
-        var db = _redis.GetDatabase();
-        var cached = await db.StringGetAsync(cacheKey).ConfigureAwait(false);
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken).ConfigureAwait(false);
 
-        if (!cached.HasValue)
+        if (string.IsNullOrEmpty(cached))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        if (!string.Equals(cached.ToString(), code, StringComparison.Ordinal))
+        if (!string.Equals(cached, code, StringComparison.Ordinal))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
-        await db.KeyDeleteAsync(cacheKey).ConfigureAwait(false);
+        await _cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
     }
 }

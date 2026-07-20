@@ -1,6 +1,6 @@
 ﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Distributed;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
@@ -21,19 +21,19 @@ internal sealed class AuthService : IAuthService
     private readonly IDbContext _dbContext;
     private readonly ICaptchaService _captchaService;
     private readonly JwtTokenManager _tokenManager;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IDistributedCache _cache;
 
     public AuthService(
         IDbContext dbContext,
         ICaptchaService captchaService,
         JwtTokenManager tokenManager,
-        IConnectionMultiplexer redis
+        IDistributedCache cache
     )
     {
         _dbContext = dbContext;
         _captchaService = captchaService;
         _tokenManager = tokenManager;
-        _redis = redis;
+        _cache = cache;
     }
 
     /// <summary>
@@ -80,9 +80,10 @@ internal sealed class AuthService : IAuthService
 
         var code = "1234";
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
-        await db.StringSetAsync(key, code, SmsCodeTtl).ConfigureAwait(false);
+        await _cache.SetStringAsync(key, code,
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = SmsCodeTtl },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -95,20 +96,19 @@ internal sealed class AuthService : IAuthService
             throw new BusinessException(ResultCode.InvalidUserInput, "手机号或验证码不能为空");
         }
 
-        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
-        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
-        if (!cached.HasValue)
+        var cached = await _cache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(cached))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        if (!string.Equals(cached.ToString(), code, StringComparison.Ordinal))
+        if (!string.Equals(cached, code, StringComparison.Ordinal))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
-        await db.KeyDeleteAsync(key).ConfigureAwait(false);
+        await _cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
 
         var user = await _dbContext.SysUsers
             .AsNoTracking()

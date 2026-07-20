@@ -14,9 +14,6 @@ namespace Youlai.Api.Controllers.System;
 [Route("api/v1/notices")]
 [Authorize]
 [Tags("08.通知公告")]
-/// <summary>
-/// 通知公告接口
-/// </summary>
 public sealed class NoticesController : ControllerBase
 {
     private readonly ISystemNoticeService _noticeService;

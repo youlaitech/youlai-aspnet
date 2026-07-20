@@ -3,8 +3,9 @@ namespace Youlai.Domain.Entities;
 /// <summary>
 /// 系统配置实体
 /// </summary>
-public sealed class SysConfig
+public sealed class SysConfig : Youlai.Domain.IHasAudit
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>配置名称</summary>

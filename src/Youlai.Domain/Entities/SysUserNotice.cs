@@ -5,6 +5,7 @@ namespace Youlai.Domain.Entities;
 /// </summary>
 public sealed class SysUserNotice
 {
+    /// <summary>主键 ID</summary>
     public long Id { get; set; }
 
     /// <summary>公告 ID</summary>

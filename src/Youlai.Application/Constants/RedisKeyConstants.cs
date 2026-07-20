@@ -10,7 +10,7 @@ internal static class RedisKeyConstants
     /// </summary>
     internal static class System
     {
-        internal const string RolePerms = "system:role:perms";
+        internal const string RolePerms = "system:role:perms:{0}";
 
         internal const string Config = "system:config";
     }
