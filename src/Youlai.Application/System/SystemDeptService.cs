@@ -1,11 +1,10 @@
-using Microsoft.EntityFrameworkCore;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.System.Models.Dept;
 using Youlai.Application.System;
-using Youlai.Application.Persistence;
+using Youlai.Application.System.Models.Dept;
 using Youlai.Domain.Entities;
 
 namespace Youlai.Application.System;
@@ -22,13 +21,22 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// </summary>
     private sealed record DeptOptionRow(long Id, long ParentId, string Name);
 
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysDept> _deptRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IDataPermissionService _dataPermissionService;
 
-    public SystemDeptService(IDbContext dbContext, ICurrentUser currentUser, IDataPermissionService dataPermissionService)
+    public SystemDeptService(
+        IReadOnlyDbContext readDb,
+        IRepository<SysDept> deptRepo,
+        IUnitOfWork unitOfWork,
+        ICurrentUser currentUser,
+        IDataPermissionService dataPermissionService)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _deptRepo = deptRepo;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _dataPermissionService = dataPermissionService;
     }
@@ -38,9 +46,7 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// </summary>
     public async Task<IReadOnlyCollection<DeptVo>> GetDeptListAsync(DeptQuery query, CancellationToken cancellationToken = default)
     {
-        var q = _dbContext.SysDepts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted);
+        var q = _readDb.Query<SysDept>().Where(d => !d.IsDeleted);
 
         // 数据权限过滤：按部门ID过滤，CreateBy 字段用于 SELF(本人) 口径
         q = _dataPermissionService.Apply(q, d => d.Id, d => d.CreateBy ?? 0);
@@ -56,10 +62,9 @@ internal sealed class SystemDeptService : ISystemDeptService
             q = q.Where(d => d.Status == query.Status.Value);
         }
 
-        var list = await q
-            .OrderBy(d => d.Sort ?? 0)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            q.OrderBy(d => d.Sort ?? 0),
+            cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
         {
@@ -84,18 +89,15 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<long>>> GetDeptOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var q = _dbContext.SysDepts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted && d.Status == 1);
+        var q = _readDb.Query<SysDept>().Where(d => !d.IsDeleted && d.Status == 1);
 
         // 数据权限过滤：下拉选项也需要过滤，避免越权拿到部门数据
         q = _dataPermissionService.Apply(q, d => d.Id, d => d.CreateBy ?? 0);
 
-        var list = await q
-            .OrderBy(d => d.Sort ?? 0)
-            .Select(d => new DeptOptionRow(d.Id, d.ParentId, d.Name))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            q.OrderBy(d => d.Sort ?? 0)
+                .Select(d => new DeptOptionRow(d.Id, d.ParentId, d.Name)),
+            cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
         {
@@ -128,10 +130,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         }
 
         var code = formData.Code.Trim();
-        var exists = await _dbContext.SysDepts
-            .AsNoTracking()
-            .AnyAsync(d => !d.IsDeleted && d.Code == code, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysDept>().Where(d => !d.IsDeleted && d.Code == code),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -151,8 +152,8 @@ internal sealed class SystemDeptService : ISystemDeptService
             IsDeleted = false,
         };
 
-        _dbContext.SysDepts.Add(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _deptRepo.Add(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return entity.Id;
     }
 
@@ -161,10 +162,9 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// </summary>
     public async Task<DeptForm> GetDeptFormAsync(long deptId, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysDepts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == deptId && !d.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysDept>().Where(d => d.Id == deptId && !d.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (entity is null)
         {
@@ -187,11 +187,9 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// </summary>
     public async Task<long> UpdateDeptAsync(long deptId, DeptForm formData, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysDepts
-            .FirstOrDefaultAsync(d => d.Id == deptId && !d.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _deptRepo.FindByIdAsync(deptId, cancellationToken).ConfigureAwait(false);
 
-        if (entity is null)
+        if (entity is null || entity.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "部门不存在");
         }
@@ -204,10 +202,9 @@ internal sealed class SystemDeptService : ISystemDeptService
         }
 
         var code = formData.Code.Trim();
-        var exists = await _dbContext.SysDepts
-            .AsNoTracking()
-            .AnyAsync(d => !d.IsDeleted && d.Id != deptId && d.Code == code, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysDept>().Where(d => !d.IsDeleted && d.Id != deptId && d.Code == code),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -223,7 +220,8 @@ internal sealed class SystemDeptService : ISystemDeptService
         entity.UpdateBy = _currentUser.UserId;
         entity.UpdateTime = DateTime.Now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _deptRepo.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return entity.Id;
     }
 
@@ -252,22 +250,21 @@ internal sealed class SystemDeptService : ISystemDeptService
         foreach (var deptId in deptIds)
         {
             var deptIdStr = deptId.ToString();
-            var patten = "%," + deptIdStr + ",%";
 
-            var matched = await _dbContext.SysDepts
-                .Where(d => d.Id == deptId
-                    || EF.Functions.Like(string.Concat(",", d.TreePath, ","), patten))
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            // 自身 + 子树（TreePath 包含 ",deptId," / "deptId," / ",deptId"），统一逻辑删除
+            var matched = await _readDb.ToListAsync(
+                _readDb.Query<SysDept>().Where(d => d.Id == deptId || d.TreePath.Contains("," + deptIdStr + ",")),
+                cancellationToken).ConfigureAwait(false);
 
             foreach (var d in matched)
             {
                 d.IsDeleted = true;
                 d.UpdateBy = _currentUser.UserId;
                 d.UpdateTime = DateTime.Now;
+                _deptRepo.Update(d);
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -328,10 +325,9 @@ internal sealed class SystemDeptService : ISystemDeptService
             return RootNodeId.ToString();
         }
 
-        var parent = await _dbContext.SysDepts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == parentId && !d.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var parent = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysDept>().Where(d => d.Id == parentId && !d.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         return parent is null ? RootNodeId.ToString() : parent.TreePath + "," + parent.Id;
     }

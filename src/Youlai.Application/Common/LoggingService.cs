@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Youlai.Domain.Enums;
-using Youlai.Domain.Entities;
 using Youlai.Application.Persistence;
+using Youlai.Domain.Entities;
+using Youlai.Domain.Enums;
 
 namespace Youlai.Application.Common;
 
@@ -11,12 +10,14 @@ namespace Youlai.Application.Common;
 /// </summary>
 internal sealed class LoggingService : ILoggingService
 {
-    private readonly IDbContext _dbContext;
+    private readonly IRepository<SysLog> _logRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public LoggingService(IDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    public LoggingService(IRepository<SysLog> logRepo, IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
     {
-        _dbContext = dbContext;
+        _logRepo = logRepo;
+        _unitOfWork = unitOfWork;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -45,8 +46,8 @@ internal sealed class LoggingService : ILoggingService
                 CreateTime = DateTime.Now,
             };
 
-            _dbContext.SysLogs.Add(log);
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _logRepo.Add(log);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {

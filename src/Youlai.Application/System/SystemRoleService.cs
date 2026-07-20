@@ -1,15 +1,14 @@
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
 using Youlai.Application.Models;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.Security.Models;
 using Youlai.Application.System.Models.Role;
-using Youlai.Application.System;
 using Youlai.Domain.Entities;
-using Youlai.Application.Persistence;
+
+using Youlai.Application.Extensions;
 
 namespace Youlai.Application.System;
 
@@ -18,17 +17,36 @@ namespace Youlai.Application.System;
 /// </summary>
 internal sealed class SystemRoleService : ISystemRoleService
 {
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
-    private readonly JwtTokenManager _jwtTokenManager;
+    private readonly ITokenManager _tokenManager;
+    private readonly IRepository<SysRole> _roleRepo;
+    private readonly IRepository<SysRoleMenu> _roleMenuRepo;
+    private readonly IRepository<SysRoleDept> _roleDeptRepo;
+    private readonly IRepository<SysUserRole> _userRoleRepo;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public SystemRoleService(IDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator, JwtTokenManager jwtTokenManager)
+    public SystemRoleService(
+        IReadOnlyDbContext readDb,
+        ICurrentUser currentUser,
+        IRolePermsCacheInvalidator rolePermsCacheInvalidator,
+        ITokenManager tokenManager,
+        IRepository<SysRole> roleRepo,
+        IRepository<SysRoleMenu> roleMenuRepo,
+        IRepository<SysRoleDept> roleDeptRepo,
+        IRepository<SysUserRole> userRoleRepo,
+        IUnitOfWork unitOfWork)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
         _currentUser = currentUser;
         _rolePermsCacheInvalidator = rolePermsCacheInvalidator;
-        _jwtTokenManager = jwtTokenManager;
+        _tokenManager = tokenManager;
+        _roleRepo = roleRepo;
+        _roleMenuRepo = roleMenuRepo;
+        _roleDeptRepo = roleDeptRepo;
+        _userRoleRepo = userRoleRepo;
+        _unitOfWork = unitOfWork;
     }
 
     /// <summary>
@@ -38,8 +56,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var roles = _dbContext.SysRoles
-            .AsNoTracking()
+        var roles = _readDb.Query<SysRole>()
             .Where(r => !r.IsDeleted && r.Code != SecurityConstants.RootRoleCode);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
@@ -54,8 +71,8 @@ internal sealed class SystemRoleService : ISystemRoleService
             .ThenByDescending(r => r.CreateTime)
             .ThenByDescending(r => r.UpdateTime);
 
-        var list = await roles
-            .Select(r => new RolePageVo
+        var list = await _readDb.PageAsync(
+            roles.Select(r => new RolePageVo
             {
                 Id = r.Id,
                 Name = r.Name ?? string.Empty,
@@ -66,9 +83,8 @@ internal sealed class SystemRoleService : ISystemRoleService
                 DataScopeLabel = DataScopeExtensions.GetLabel(r.DataScope),
                 CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
                 UpdateTime = r.UpdateTime.HasValue ? r.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : null,
-            })
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
+            }),
+            pageNum, pageSize, cancellationToken).ConfigureAwait(false);
 
         return list;
     }
@@ -78,15 +94,14 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<long>>> GetRoleOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var roles = _dbContext.SysRoles
-            .AsNoTracking()
+        var roles = _readDb.Query<SysRole>()
             .Where(r => !r.IsDeleted && r.Status == 1 && r.Code != SecurityConstants.RootRoleCode);
 
-        var list = await roles
-            .OrderBy(r => r.Sort ?? 0)
-            .Select(r => new Option<long>(r.Id, r.Name ?? string.Empty))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            roles
+                .OrderBy(r => r.Sort ?? 0)
+                .Select(r => new Option<long>(r.Id, r.Name ?? string.Empty)),
+            cancellationToken).ConfigureAwait(false);
 
         return list;
     }
@@ -114,9 +129,7 @@ internal sealed class SystemRoleService : ISystemRoleService
         SysRole? oldRole = null;
         if (roleId.HasValue)
         {
-            oldRole = await _dbContext.SysRoles
-                .FirstOrDefaultAsync(r => r.Id == roleId.Value && !r.IsDeleted, cancellationToken)
-                .ConfigureAwait(false);
+            oldRole = await _roleRepo.FindByIdAsync(roleId.Value, cancellationToken).ConfigureAwait(false);
 
             if (oldRole is null)
             {
@@ -124,12 +137,11 @@ internal sealed class SystemRoleService : ISystemRoleService
             }
         }
 
-        var exists = await _dbContext.SysRoles
-            .AsNoTracking()
-            .AnyAsync(r => !r.IsDeleted
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysRole>().Where(r => !r.IsDeleted
                 && (!roleId.HasValue || r.Id != roleId.Value)
-                && ((r.Code != null && r.Code == code) || (r.Name != null && r.Name == name)), cancellationToken)
-            .ConfigureAwait(false);
+                && ((r.Code != null && r.Code == code) || (r.Name != null && r.Name == name))),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -150,8 +162,8 @@ internal sealed class SystemRoleService : ISystemRoleService
                 IsDeleted = false,
             };
 
-            _dbContext.SysRoles.Add(entity);
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _roleRepo.Add(entity);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             await SaveRoleDeptsAsync(entity.Id, entity.DataScope, formData.DeptIds, cancellationToken)
                 .ConfigureAwait(false);
@@ -170,7 +182,8 @@ internal sealed class SystemRoleService : ISystemRoleService
         oldRole.UpdateBy = _currentUser.UserId;
         oldRole.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _roleRepo.Update(oldRole);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         await SaveRoleDeptsAsync(oldRole.Id, oldRole.DataScope, formData.DeptIds, cancellationToken)
             .ConfigureAwait(false);
@@ -193,17 +206,14 @@ internal sealed class SystemRoleService : ISystemRoleService
         // 数据权限发生变化时，失效该角色关联用户的登录态（JWT tokenVersion）
         if (oldDataScope != oldRole.DataScope)
         {
-            var userIds = await _dbContext.SysUserRoles
-                .AsNoTracking()
-                .Where(ur => ur.RoleId == oldRole.Id)
-                .Select(ur => ur.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var userIds = await _readDb.ToListAsync(
+                _readDb.Query<SysUserRole>().Where(ur => ur.RoleId == oldRole.Id)
+                    .Select(ur => ur.UserId).Distinct(),
+                cancellationToken).ConfigureAwait(false);
 
             foreach (var userId in userIds)
             {
-                await _jwtTokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
+                await _tokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -220,9 +230,7 @@ internal sealed class SystemRoleService : ISystemRoleService
             throw new BusinessException(ResultCode.InvalidUserInput, "状态值不正确");
         }
 
-        var role = await _dbContext.SysRoles
-            .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var role = await _roleRepo.FindByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
 
         if (role is null)
         {
@@ -233,7 +241,8 @@ internal sealed class SystemRoleService : ISystemRoleService
         role.UpdateBy = _currentUser.UserId;
         role.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _roleRepo.Update(role);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(role.Code))
         {
@@ -248,10 +257,9 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<RoleForm> GetRoleFormAsync(long roleId, CancellationToken cancellationToken = default)
     {
-        var role = await _dbContext.SysRoles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var role = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysRole>().Where(r => r.Id == roleId && !r.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (role is null)
         {
@@ -261,12 +269,9 @@ internal sealed class SystemRoleService : ISystemRoleService
         List<long>? deptIds = null;
         if (role.DataScope == (int)DataScope.Custom)
         {
-            deptIds = await _dbContext.SysRoleDepts
-                .AsNoTracking()
-                .Where(rd => rd.RoleId == roleId)
-                .Select(rd => rd.DeptId)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            deptIds = await _readDb.ToListAsync(
+                _readDb.Query<SysRoleDept>().Where(rd => rd.RoleId == roleId).Select(rd => rd.DeptId),
+                cancellationToken).ConfigureAwait(false);
         }
 
         return new RoleForm
@@ -298,25 +303,18 @@ internal sealed class SystemRoleService : ISystemRoleService
                 .Distinct()
                 .ToArray();
 
-            await ReplaceRelatedEntitiesAsync(
-                _dbContext.SysRoleDepts,
-                rd => rd.RoleId == roleId,
-                distinctDeptIds,
-                deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId },
-                cancellationToken).ConfigureAwait(false);
+            var newDepts = distinctDeptIds.Select(deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId });
+            await ReplaceRelatedAsync(_roleDeptRepo, rd => rd.RoleId == roleId, newDepts, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             // 非自定义数据权限时清空角色-部门关联
-            var existing = await _dbContext.SysRoleDepts
-                .Where(rd => rd.RoleId == roleId)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var existing = await _roleDeptRepo.ListAsync(rd => rd.RoleId == roleId, cancellationToken).ConfigureAwait(false);
 
             if (existing.Count > 0)
             {
-                _dbContext.SysRoleDepts.RemoveRange(existing);
-                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                _roleDeptRepo.RemoveRange(existing);
+                await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -336,19 +334,16 @@ internal sealed class SystemRoleService : ISystemRoleService
 
         foreach (var roleId in roleIds)
         {
-            var role = await _dbContext.SysRoles
-                .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
-                .ConfigureAwait(false);
+            var role = await _roleRepo.FindByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
 
             if (role is null)
             {
                 throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
             }
 
-            var hasAssignedUsers = await _dbContext.SysUserRoles
-                .AsNoTracking()
-                .AnyAsync(ur => ur.RoleId == roleId, cancellationToken)
-                .ConfigureAwait(false);
+            var hasAssignedUsers = await _readDb.AnyAsync(
+                _readDb.Query<SysUserRole>().Where(ur => ur.RoleId == roleId),
+                cancellationToken).ConfigureAwait(false);
 
             if (hasAssignedUsers)
             {
@@ -365,7 +360,7 @@ internal sealed class SystemRoleService : ISystemRoleService
             }
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         if (invalidateCodes.Count > 0)
         {
@@ -380,12 +375,9 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<IReadOnlyCollection<long>> GetRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default)
     {
-        var list = await _dbContext.SysRoleMenus
-            .AsNoTracking()
-            .Where(rm => rm.RoleId == roleId)
-            .Select(rm => rm.MenuId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            _readDb.Query<SysRoleMenu>().Where(rm => rm.RoleId == roleId).Select(rm => rm.MenuId),
+            cancellationToken).ConfigureAwait(false);
 
         return list;
     }
@@ -395,9 +387,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task AssignMenusToRoleAsync(long roleId, IReadOnlyCollection<long> menuIds, CancellationToken cancellationToken = default)
     {
-        var role = await _dbContext.SysRoles
-            .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var role = await _roleRepo.FindByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
 
         if (role is null)
         {
@@ -409,12 +399,8 @@ internal sealed class SystemRoleService : ISystemRoleService
             .Distinct()
             .ToArray();
 
-        await ReplaceRelatedEntitiesAsync(
-            _dbContext.SysRoleMenus,
-            rm => rm.RoleId == roleId,
-            distinctMenuIds,
-            menuId => new SysRoleMenu { RoleId = roleId, MenuId = menuId },
-            cancellationToken).ConfigureAwait(false);
+        var newMenus = distinctMenuIds.Select(menuId => new SysRoleMenu { RoleId = roleId, MenuId = menuId });
+        await ReplaceRelatedAsync(_roleMenuRepo, rm => rm.RoleId == roleId, newMenus, cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(role.Code))
         {
@@ -427,12 +413,9 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
     {
-        var list = await _dbContext.SysRoleDepts
-            .AsNoTracking()
-            .Where(rd => rd.RoleId == roleId)
-            .Select(rd => rd.DeptId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            _readDb.Query<SysRoleDept>().Where(rd => rd.RoleId == roleId).Select(rd => rd.DeptId),
+            cancellationToken).ConfigureAwait(false);
 
         return list;
     }
@@ -442,9 +425,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// </summary>
     public async Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default)
     {
-        var role = await _dbContext.SysRoles
-            .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var role = await _roleRepo.FindByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
 
         if (role is null)
         {
@@ -456,54 +437,37 @@ internal sealed class SystemRoleService : ISystemRoleService
             .Distinct()
             .ToArray();
 
-        await ReplaceRelatedEntitiesAsync(
-            _dbContext.SysRoleDepts,
-            rd => rd.RoleId == roleId,
-            distinctDeptIds,
-            deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId },
-            cancellationToken).ConfigureAwait(false);
+        var newDepts = distinctDeptIds.Select(deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId });
+        await ReplaceRelatedAsync(_roleDeptRepo, rd => rd.RoleId == roleId, newDepts, cancellationToken).ConfigureAwait(false);
 
-        var userIds = await _dbContext.SysUserRoles
-            .AsNoTracking()
-            .Where(ur => ur.RoleId == roleId)
-            .Select(ur => ur.UserId)
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var userIds = await _readDb.ToListAsync(
+            _readDb.Query<SysUserRole>().Where(ur => ur.RoleId == roleId).Select(ur => ur.UserId).Distinct(),
+            cancellationToken).ConfigureAwait(false);
 
         foreach (var userId in userIds)
         {
-            await _jwtTokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
+            await _tokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>
-    /// 以新键集合整体替换某角色的关联行：先删旧再插新
+    /// 以新键集合整体替换某角色的关联行：先删旧再插新，统一落库
     /// </summary>
-    private async Task ReplaceRelatedEntitiesAsync<TEntity, TKey>(
-        DbSet<TEntity> dbSet,
+    private async Task ReplaceRelatedAsync<TEntity>(
+        IRepository<TEntity> repo,
         Expression<Func<TEntity, bool>> predicate,
-        IReadOnlyCollection<TKey> newKeys,
-        Func<TKey, TEntity> createEntity,
+        IEnumerable<TEntity> newEntities,
         CancellationToken cancellationToken)
         where TEntity : class
     {
-        var existing = await dbSet
-            .Where(predicate)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
+        var existing = await repo.ListAsync(predicate, cancellationToken).ConfigureAwait(false);
         if (existing.Count > 0)
         {
-            dbSet.RemoveRange(existing);
+            repo.RemoveRange(existing);
         }
 
-        foreach (var key in newKeys)
-        {
-            dbSet.Add(createEntity(key));
-        }
+        repo.AddRange(newEntities);
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
-
 }

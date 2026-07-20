@@ -1,7 +1,7 @@
 namespace Youlai.Application.Persistence;
 
 /// <summary>
-/// 工作单元端口：由业务显式控制落库时机与事务边界
+/// 统一落库与事务边界
 /// </summary>
 public interface IUnitOfWork : IDisposable
 {
@@ -10,7 +10,7 @@ public interface IUnitOfWork : IDisposable
 }
 
 /// <summary>
-/// 事务端口：由业务通过 await using 控制提交或回滚
+/// 数据库事务，通过 await using 控制提交/回滚
 /// </summary>
 public interface ITransaction : IAsyncDisposable
 {

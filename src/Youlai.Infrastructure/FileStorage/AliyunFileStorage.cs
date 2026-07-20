@@ -12,10 +12,10 @@ namespace Youlai.Infrastructure.FileStorage;
 /// </summary>
 internal sealed class AliyunFileStorage : IFileStorage
 {
-    private readonly OssOptions.AliyunOptions _options;
+    private readonly FileStorageOptions.AliyunOptions _options;
     private readonly OssClient _client;
 
-    public AliyunFileStorage(OssOptions options)
+    public AliyunFileStorage(FileStorageOptions options)
     {
         _options = options.Aliyun;
         _client = new OssClient(_options.Endpoint, _options.AccessKeyId, _options.AccessKeySecret);

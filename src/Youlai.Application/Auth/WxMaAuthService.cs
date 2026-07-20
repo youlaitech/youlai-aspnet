@@ -1,19 +1,18 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youlai.Application.Auth.Models;
+using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Options;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.Security.Models;
 using Youlai.Domain.Entities;
-using Youlai.Application.Constants;
-using Youlai.Application.Options;
-using Youlai.Application.Persistence;
 
 namespace Youlai.Application.Auth;
 
@@ -25,25 +24,38 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     private const string JsCode2SessionUrl = "https://api.weixin.qq.com/sns/jscode2session?appid={0}&secret={1}&js_code={2}&grant_type=authorization_code";
     private const string GetPhoneNumberUrl = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={0}&code={1}";
     private const string GetAccessTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={0}&secret={1}";
+    private const string WechatPlatform = "WECHAT_MINI";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    private readonly IDbContext _dbContext;
-    private readonly JwtTokenManager _tokenManager;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysUser> _userRepo;
+    private readonly IRepository<SysUserSocial> _userSocialRepo;
+    private readonly IRepository<SysUserRole> _userRoleRepo;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ITokenManager _tokenManager;
     private readonly WxMaOptions _options;
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<WxMaAuthService> _logger;
 
     public WxMaAuthService(
-        IDbContext dbContext,
-        JwtTokenManager tokenManager,
+        IReadOnlyDbContext readDb,
+        IRepository<SysUser> userRepo,
+        IRepository<SysUserSocial> userSocialRepo,
+        IRepository<SysUserRole> userRoleRepo,
+        IUnitOfWork unitOfWork,
+        ITokenManager tokenManager,
         IOptions<WxMaOptions> options,
         IDistributedCache cache,
         IHttpClientFactory httpClientFactory,
         ILogger<WxMaAuthService> logger)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _userRepo = userRepo;
+        _userSocialRepo = userSocialRepo;
+        _userRoleRepo = userRoleRepo;
+        _unitOfWork = unitOfWork;
         _tokenManager = tokenManager;
         _options = options.Value;
         _cache = cache;
@@ -64,9 +76,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
         }
 
-        var social = await _dbContext.SysUserSocials
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Platform == "WECHAT_MINI" && s.OpenId == openId, cancellationToken);
+        var social = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUserSocial>().Where(s => s.Platform == WechatPlatform && s.OpenId == openId),
+            cancellationToken);
 
         if (social is not null)
         {
@@ -107,7 +119,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     public async Task<AuthenticationTokenDto> BindMobileAsync(string openId, string mobile, string smsCode, CancellationToken cancellationToken = default)
     {
-        await ValidateSmsCodeAsync(mobile, smsCode);
+        await ValidateSmsCodeAsync(mobile, smsCode, cancellationToken);
 
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
@@ -219,8 +231,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private async Task<SysUser> FindOrCreateUserAsync(string mobile, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.SysUsers
-            .FirstOrDefaultAsync(u => u.Mobile == mobile && !u.IsDeleted, cancellationToken);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Mobile == mobile && !u.IsDeleted),
+            cancellationToken);
 
         if (user is not null)
         {
@@ -239,18 +252,18 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             UpdateTime = DateTime.Now
         };
 
-        _dbContext.SysUsers.Add(user);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        _userRepo.Add(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 分配默认角色
         if (_options.DefaultRoleId > 0)
         {
-            _dbContext.SysUserRoles.Add(new SysUserRole
+            _userRoleRepo.Add(new SysUserRole
             {
                 UserId = user.Id,
                 RoleId = _options.DefaultRoleId
             });
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         _logger.LogInformation("微信小程序登录：创建新用户，mobile={Mobile}, userId={UserId}", mobile, user.Id);
@@ -265,8 +278,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     {
         try
         {
-            var existing = await _dbContext.SysUserSocials
-                .FirstOrDefaultAsync(s => s.Platform == "WECHAT_MINI" && s.OpenId == openId, cancellationToken);
+            var existing = await _readDb.FirstOrDefaultAsync(
+                _readDb.Query<SysUserSocial>().Where(s => s.Platform == WechatPlatform && s.OpenId == openId),
+                cancellationToken);
 
             if (existing is not null)
             {
@@ -275,14 +289,15 @@ internal sealed class WxMaAuthService : IWxMaAuthService
                 existing.UnionId = unionId;
                 existing.SessionKey = sessionKey;
                 existing.UpdateTime = DateTime.Now;
+                _userSocialRepo.Update(existing);
             }
             else
             {
                 // 新增绑定
-                _dbContext.SysUserSocials.Add(new SysUserSocial
+                _userSocialRepo.Add(new SysUserSocial
                 {
                     UserId = userId,
-                    Platform = "WECHAT_MINI",
+                    Platform = WechatPlatform,
                     OpenId = openId,
                     UnionId = unionId,
                     SessionKey = sessionKey,
@@ -292,7 +307,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
                 });
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -304,7 +319,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// <summary>
     /// 校验短信验证码，正确则删除缓存防止重放
     /// </summary>
-    private async Task ValidateSmsCodeAsync(string mobile, string smsCode)
+    private async Task ValidateSmsCodeAsync(string mobile, string smsCode, CancellationToken cancellationToken = default)
     {
         var cacheKey = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile.Trim());
         var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
@@ -328,11 +343,10 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// </summary>
     private async Task<AuthenticationTokenDto> GenerateTokenByUserIdAsync(long userId, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Username, u.DeptId })
-            .FirstOrDefaultAsync(cancellationToken);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => new { u.Id, u.Username, u.DeptId }),
+            cancellationToken);
 
         if (user is null)
         {
@@ -341,12 +355,12 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         // 取用户启用的角色编码与各自数据权限范围
         var rolesQuery =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+            from ur in _readDb.Query<SysUserRole>()
+            join r in _readDb.Query<SysRole>() on ur.RoleId equals r.Id
             where ur.UserId == user.Id && !r.IsDeleted && r.Status == 1
             select new { r.Id, r.Code, r.DataScope };
 
-        var roles = await rolesQuery.ToListAsync(cancellationToken);
+        var roles = await _readDb.ToListAsync(rolesQuery, cancellationToken);
 
         // 角色编码加 ROLE_ 前缀作为权限点
         var authorities = roles
@@ -368,11 +382,9 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
             if (role.DataScope == 5 && role.Id != 0)
             {
-                var customDeptIds = await _dbContext.SysRoleDepts
-                    .AsNoTracking()
-                    .Where(rd => rd.RoleId == role.Id)
-                    .Select(rd => rd.DeptId)
-                    .ToListAsync(cancellationToken);
+                var customDeptIds = await _readDb.ToListAsync(
+                    _readDb.Query<SysRoleDept>().Where(rd => rd.RoleId == role.Id).Select(rd => rd.DeptId),
+                    cancellationToken);
 
                 roleDataScope.CustomDeptIds = customDeptIds;
             }
@@ -380,7 +392,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             dataScopes.Add(roleDataScope);
         }
 
-        var subject = new JwtTokenManager.AuthTokenSubject(
+        var subject = new AuthTokenSubject(
             UserId: user.Id,
             DeptId: user.DeptId ?? 0,
             DataScopes: dataScopes,

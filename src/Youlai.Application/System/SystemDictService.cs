@@ -1,14 +1,14 @@
-using Microsoft.EntityFrameworkCore;
+using Youlai.Application.Common;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
 using Youlai.Application.Models;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Common;
-using Youlai.Application.System.Models.Dict;
 using Youlai.Application.System;
+using Youlai.Application.System.Models.Dict;
 using Youlai.Domain.Entities;
-using Youlai.Application.Persistence;
+
+using Youlai.Application.Extensions;
 
 namespace Youlai.Application.System;
 
@@ -17,13 +17,25 @@ namespace Youlai.Application.System;
 /// </summary>
 internal sealed class SystemDictService : ISystemDictService
 {
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysDict> _dictRepo;
+    private readonly IRepository<SysDictItem> _dictItemRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly ISseService _sseService;
 
-    public SystemDictService(IDbContext dbContext, ICurrentUser currentUser, ISseService sseService)
+    public SystemDictService(
+        IReadOnlyDbContext readDb,
+        IRepository<SysDict> dictRepo,
+        IRepository<SysDictItem> dictItemRepo,
+        IUnitOfWork unitOfWork,
+        ICurrentUser currentUser,
+        ISseService sseService)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _dictRepo = dictRepo;
+        _dictItemRepo = dictItemRepo;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _sseService = sseService;
     }
@@ -35,7 +47,7 @@ internal sealed class SystemDictService : ISystemDictService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var dicts = _dbContext.SysDicts.AsNoTracking().Where(d => !d.IsDeleted);
+        var dicts = _readDb.Query<SysDict>().Where(d => !d.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -51,18 +63,15 @@ internal sealed class SystemDictService : ISystemDictService
 
         dicts = dicts.OrderByDescending(d => d.Id);
 
-        var rows = await dicts
-            .Select(d => new DictPageVo
+        return await _readDb.PageAsync(
+            dicts.Select(d => new DictPageVo
             {
                 Id = d.Id,
                 Name = d.Name ?? string.Empty,
                 DictCode = d.DictCode ?? string.Empty,
                 Status = d.Status ?? 0,
-            })
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
-
-        return rows;
+            }),
+            pageNum, pageSize, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -70,13 +79,12 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<string>>> GetDictListAsync(CancellationToken cancellationToken = default)
     {
-        var rows = await _dbContext.SysDicts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted && d.Status == 1)
-            .OrderBy(d => d.Id)
-            .Select(d => new { d.DictCode, d.Name })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            _readDb.Query<SysDict>()
+                .Where(d => !d.IsDeleted && d.Status == 1)
+                .OrderBy(d => d.Id)
+                .Select(d => new { d.DictCode, d.Name }),
+            cancellationToken).ConfigureAwait(false);
 
         return rows
             .Where(d => !string.IsNullOrWhiteSpace(d.DictCode))
@@ -89,11 +97,9 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<DictForm> GetDictFormAsync(long id, CancellationToken cancellationToken = default)
     {
-        var dict = await _dbContext.SysDicts
-            .AsNoTracking()
-            .Where(d => d.Id == id && !d.IsDeleted)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var dict = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysDict>().Where(d => d.Id == id && !d.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (dict is null)
         {
@@ -121,10 +127,9 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "字典编码不能为空");
         }
 
-        var exists = await _dbContext.SysDicts
-            .AsNoTracking()
-            .AnyAsync(d => !d.IsDeleted && d.DictCode == dictCode, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysDict>().Where(d => !d.IsDeleted && d.DictCode == dictCode),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -147,8 +152,8 @@ internal sealed class SystemDictService : ISystemDictService
             IsDeleted = false,
         };
 
-        _dbContext.SysDicts.Add(dict);
-        var saved = await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
+        _dictRepo.Add(dict);
+        var saved = await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (saved)
         {
             await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
@@ -162,11 +167,9 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<bool> UpdateDictAsync(long id, DictForm formData, CancellationToken cancellationToken = default)
     {
-        var dict = await _dbContext.SysDicts
-            .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var dict = await _dictRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (dict is null)
+        if (dict is null || dict.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "字典不存在");
         }
@@ -181,10 +184,9 @@ internal sealed class SystemDictService : ISystemDictService
 
         if (!string.Equals(oldDictCode, newDictCode, StringComparison.Ordinal))
         {
-            var exists = await _dbContext.SysDicts
-                .AsNoTracking()
-                .AnyAsync(d => !d.IsDeleted && d.DictCode == newDictCode, cancellationToken)
-                .ConfigureAwait(false);
+            var exists = await _readDb.AnyAsync(
+                _readDb.Query<SysDict>().Where(d => !d.IsDeleted && d.DictCode == newDictCode),
+                cancellationToken).ConfigureAwait(false);
 
             if (exists)
             {
@@ -192,7 +194,7 @@ internal sealed class SystemDictService : ISystemDictService
             }
         }
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         dict.DictCode = newDictCode;
         dict.Name = formData.Name?.Trim();
@@ -201,14 +203,15 @@ internal sealed class SystemDictService : ISystemDictService
         dict.UpdateBy = _currentUser.UserId;
         dict.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _dictRepo.Update(dict);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(oldDictCode) && !string.Equals(oldDictCode, newDictCode, StringComparison.Ordinal))
         {
-            await _dbContext.SysDictItems
-                .Where(i => i.DictCode == oldDictCode)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.DictCode, newDictCode), cancellationToken)
-                .ConfigureAwait(false);
+            await _dictItemRepo.BatchUpdateAsync(
+                i => i.DictCode == oldDictCode,
+                i => i.DictCode = newDictCode,
+                cancellationToken).ConfigureAwait(false);
         }
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -233,30 +236,28 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典数据为空");
         }
 
-        var dictCodes = await _dbContext.SysDicts
-            .AsNoTracking()
-            .Where(d => idList.Contains(d.Id) && !d.IsDeleted)
-            .Select(d => d.DictCode)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var dictCodes = await _readDb.ToListAsync(
+            _readDb.Query<SysDict>()
+                .Where(d => idList.Contains(d.Id) && !d.IsDeleted)
+                .Select(d => d.DictCode),
+            cancellationToken).ConfigureAwait(false);
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SysDicts
-            .Where(d => idList.Contains(d.Id) && !d.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(x => x.IsDeleted, true)
-                .SetProperty(x => x.UpdateBy, _currentUser.UserId)
-                .SetProperty(x => x.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        await _dictRepo.BatchUpdateAsync(
+            d => idList.Contains(d.Id) && !d.IsDeleted,
+            d =>
+            {
+                d.IsDeleted = true;
+                d.UpdateBy = _currentUser.UserId;
+                d.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         var codeList = dictCodes.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.Ordinal).ToArray();
         if (codeList.Length > 0)
         {
-            await _dbContext.SysDictItems
-                .Where(i => i.DictCode != null && codeList.Contains(i.DictCode))
-                .ExecuteDeleteAsync(cancellationToken)
-                .ConfigureAwait(false);
+            await _dictItemRepo.DeleteAsync(i => i.DictCode != null && codeList.Contains(i.DictCode), cancellationToken).ConfigureAwait(false);
         }
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -268,8 +269,7 @@ internal sealed class SystemDictService : ISystemDictService
                 continue;
             }
 
-            var dictCode = code;
-            await _sseService.BroadcastDictChangeAsync(dictCode!, cancellationToken).ConfigureAwait(false);
+            await _sseService.BroadcastDictChangeAsync(code!, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -282,7 +282,7 @@ internal sealed class SystemDictService : ISystemDictService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var items = _dbContext.SysDictItems.AsNoTracking().Where(i => i.DictCode == dictCode);
+        var items = _readDb.Query<SysDictItem>().Where(i => i.DictCode == dictCode);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -293,8 +293,8 @@ internal sealed class SystemDictService : ISystemDictService
 
         items = items.OrderBy(i => i.Sort).ThenBy(i => i.Id);
 
-        var rows = await items
-            .Select(i => new DictItemPageVo
+        return await _readDb.PageAsync(
+            items.Select(i => new DictItemPageVo
             {
                 Id = i.Id,
                 DictCode = i.DictCode ?? string.Empty,
@@ -302,11 +302,8 @@ internal sealed class SystemDictService : ISystemDictService
                 Value = i.Value ?? string.Empty,
                 Status = i.Status ?? 0,
                 Sort = i.Sort,
-            })
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
-
-        return rows;
+            }),
+            pageNum, pageSize, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -314,19 +311,18 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<IReadOnlyCollection<DictItemOption>> GetDictItemsAsync(string dictCode, CancellationToken cancellationToken = default)
     {
-        var rows = await _dbContext.SysDictItems
-            .AsNoTracking()
-            .Where(i => i.DictCode == dictCode && i.Status == 1)
-            .OrderBy(i => i.Sort)
-            .ThenBy(i => i.Id)
-            .Select(i => new DictItemOption
-            {
-                Value = i.Value ?? string.Empty,
-                Label = i.Label ?? string.Empty,
-                TagType = i.TagType,
-            })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            _readDb.Query<SysDictItem>()
+                .Where(i => i.DictCode == dictCode && i.Status == 1)
+                .OrderBy(i => i.Sort)
+                .ThenBy(i => i.Id)
+                .Select(i => new DictItemOption
+                {
+                    Value = i.Value ?? string.Empty,
+                    Label = i.Label ?? string.Empty,
+                    TagType = i.TagType,
+                }),
+            cancellationToken).ConfigureAwait(false);
 
         return rows;
     }
@@ -336,11 +332,9 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<DictItemForm> GetDictItemFormAsync(string dictCode, long itemId, CancellationToken cancellationToken = default)
     {
-        var item = await _dbContext.SysDictItems
-            .AsNoTracking()
-            .Where(i => i.Id == itemId && i.DictCode == dictCode)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var item = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysDictItem>().Where(i => i.Id == itemId && i.DictCode == dictCode),
+            cancellationToken).ConfigureAwait(false);
 
         if (item is null)
         {
@@ -378,8 +372,8 @@ internal sealed class SystemDictService : ISystemDictService
             UpdateTime = DateTime.UtcNow,
         };
 
-        _dbContext.SysDictItems.Add(item);
-        var ok = await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
+        _dictItemRepo.Add(item);
+        var ok = await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (ok)
         {
             await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
@@ -393,11 +387,9 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<bool> UpdateDictItemAsync(string dictCode, long itemId, DictItemForm formData, CancellationToken cancellationToken = default)
     {
-        var item = await _dbContext.SysDictItems
-            .FirstOrDefaultAsync(i => i.Id == itemId && i.DictCode == dictCode, cancellationToken)
-            .ConfigureAwait(false);
+        var item = await _dictItemRepo.FindByIdAsync(itemId, cancellationToken).ConfigureAwait(false);
 
-        if (item is null)
+        if (item is null || item.DictCode != dictCode)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "字典项不存在");
         }
@@ -410,7 +402,8 @@ internal sealed class SystemDictService : ISystemDictService
         item.UpdateBy = _currentUser.UserId;
         item.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _dictItemRepo.Update(item);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -426,13 +419,9 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典项数据为空");
         }
 
-        await _dbContext.SysDictItems
-            .Where(i => i.DictCode == dictCode && idList.Contains(i.Id))
-            .ExecuteDeleteAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await _dictItemRepo.DeleteAsync(i => i.DictCode == dictCode && idList.Contains(i.Id), cancellationToken).ConfigureAwait(false);
 
         await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
-
 }

@@ -14,11 +14,11 @@ namespace Youlai.Infrastructure.FileStorage;
 /// </summary>
 internal sealed class MinioFileStorage : IFileStorage
 {
-    private readonly OssOptions.MinioOptions _options;
+    private readonly FileStorageOptions.MinioOptions _options;
     private readonly IMinioClient _client;
     private readonly string _publicEndpoint;
 
-    public MinioFileStorage(OssOptions options)
+    public MinioFileStorage(FileStorageOptions options)
     {
         _options = options.Minio;
         _client = BuildClient(_options);
@@ -104,7 +104,7 @@ internal sealed class MinioFileStorage : IFileStorage
     /// <summary>
     /// 按 Endpoint 构建客户端，https 前缀时启用 SSL
     /// </summary>
-    private static IMinioClient BuildClient(OssOptions.MinioOptions options)
+    private static IMinioClient BuildClient(FileStorageOptions.MinioOptions options)
     {
         var builder = new MinioClient();
         if (Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var uri))

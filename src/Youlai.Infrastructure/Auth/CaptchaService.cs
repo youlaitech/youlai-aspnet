@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
@@ -7,32 +6,35 @@ using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using StackExchange.Redis;
+using Youlai.Application.Auth;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Options;
 using Youlai.Application.Results;
 
-namespace Youlai.Application.Auth;
+namespace Youlai.Infrastructure.Auth;
 
 /// <summary>
-/// 图形验证码服务
+/// 图形验证码服务：生成验证码图片，将答案缓存到 Redis，验证后立即删除
 /// </summary>
 internal sealed class CaptchaService : ICaptchaService
 {
+    /// <summary>验证码可选字符集，去掉 0/O/1/I 等易混淆字符</summary>
     private static readonly char[] AllowedChars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ".ToCharArray();
 
-    private readonly IDistributedCache _cache;
+    private readonly IConnectionMultiplexer _redis;
     private readonly CaptchaOptions _options;
 
-    public CaptchaService(IDistributedCache cache, IOptions<CaptchaOptions> options)
+    public CaptchaService(IConnectionMultiplexer redis, IOptions<CaptchaOptions> options)
     {
-        _cache = cache;
+        _redis = redis;
         _options = options.Value;
     }
 
     /// <summary>
-    /// 生成图形验证码（图片 + Redis 缓存）
+    /// 生成验证码图片（Base64 PNG）并将答案以 <c>captcha:image:{id}</c> 键存入 Redis
     /// </summary>
     public async Task<CaptchaInfoDto> GenerateAsync(CancellationToken cancellationToken = default)
     {
@@ -43,15 +45,14 @@ internal sealed class CaptchaService : ICaptchaService
         var captchaBase64 = "data:image/png;base64," + Convert.ToBase64String(imageBytes);
 
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
-        await _cache.SetStringAsync(key, code,
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.ExpireSeconds) },
-            cancellationToken).ConfigureAwait(false);
+        var db = _redis.GetDatabase();
+        await db.StringSetAsync(key, code, TimeSpan.FromSeconds(_options.ExpireSeconds)).ConfigureAwait(false);
 
         return new CaptchaInfoDto(captchaId, captchaBase64, code);
     }
 
     /// <summary>
-    /// 校验验证码（不区分大小写，验证后立即删除）
+    /// 校验验证码，不区分大小写，匹配成功后从 Redis 删除（一次性）
     /// </summary>
     public async Task ValidateAsync(string captchaId, string captchaCode, CancellationToken cancellationToken = default)
     {
@@ -60,89 +61,66 @@ internal sealed class CaptchaService : ICaptchaService
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
+        var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
-        var cached = await _cache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
+        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
 
-        if (string.IsNullOrEmpty(cached))
+        if (!cached.HasValue)
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        var expected = cached;
+        var expected = cached.ToString();
         if (!string.Equals(expected, captchaCode.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
 
-        await _cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+        await db.KeyDeleteAsync(key).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// 用密码学随机数从易辨识字符集（去掉 0O1I 等）取 length 位验证码
-    /// </summary>
+    /// <summary>从易辨识字符集中随机取 length 位验证码</summary>
     private static string GenerateCode(int length)
     {
         var buffer = new byte[length];
         RandomNumberGenerator.Fill(buffer);
-
         var chars = new char[length];
         for (var i = 0; i < length; i++)
-        {
             chars[i] = AllowedChars[buffer[i] % AllowedChars.Length];
-        }
-
         return new string(chars);
     }
 
-    /// <summary>
-    /// 画出白底验证码图片：先干扰线后文字，输出 PNG 字节
-    /// </summary>
     private byte[] RenderPng(string code)
     {
         using var image = new Image<Rgba32>(_options.Width, _options.Height, new Rgba32(255, 255, 255));
-
         image.Mutate(ctx =>
         {
             DrawInterferenceLines(ctx, _options.InterfereCount);
             DrawText(ctx, code);
         });
-
         using var ms = new MemoryStream();
         image.Save(ms, new PngEncoder());
         return ms.ToArray();
     }
 
-    /// <summary>
-    /// 按字符数均分横向位置，逐个绘制验证码字符
-    /// </summary>
     private void DrawText(IImageProcessingContext ctx, string code)
     {
         var fontName = string.IsNullOrWhiteSpace(_options.FontName) ? SystemFonts.Families.First().Name : _options.FontName;
         var family = SystemFonts.Get(fontName);
         var font = family.CreateFont(_options.FontSize, FontStyle.Bold);
-
         var color = Color.FromRgb(30, 30, 30);
-
         var step = _options.Width / (code.Length + 1f);
         for (var i = 0; i < code.Length; i++)
         {
             var x = (i + 0.5f) * step;
             var y = _options.Height / 2f - _options.FontSize / 2f;
-
             ctx.DrawText(code[i].ToString(), font, color, new PointF(x, y));
         }
     }
 
-    /// <summary>
-    /// 绘制随机颜色和位置的干扰线，增加识别难度
-    /// </summary>
     private static void DrawInterferenceLines(IImageProcessingContext ctx, int count)
     {
-        if (count <= 0)
-        {
-            return;
-        }
-
+        if (count <= 0) return;
         var rand = Random.Shared;
         for (var i = 0; i < count; i++)
         {

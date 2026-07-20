@@ -8,19 +8,19 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using Youlai.Application.Auth;
 using Youlai.Application.Auth.Models;
+using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Options;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.Security.Models;
-using Youlai.Application.Constants;
-using Youlai.Application.Options;
 
-namespace Youlai.Application.Security;
+namespace Youlai.Infrastructure.Security;
 
 /// <summary>
-/// JWT 令牌管理器（签发、校验、Redis 会话作废）
+/// JWT 令牌管理器（签发、校验、Redis 会话作废）；调用方只依赖 ITokenManager 接口
 /// </summary>
-public sealed class JwtTokenManager
+internal sealed class JwtTokenManager : ITokenManager
 {
     private const string BearerPrefix = "Bearer ";
 
@@ -80,7 +80,7 @@ public sealed class JwtTokenManager
             throw new BusinessException(ResultCode.RefreshTokenInvalid);
         }
 
-        var subject = AuthTokenSubject.FromPayload(payload);
+        var subject = FromPayload(payload);
 
         var accessTtl = _securityOptions.Session.AccessTokenTimeToLive;
         var newAccessToken = GenerateJwt(subject, accessTtl, isRefreshToken: false);
@@ -96,7 +96,7 @@ public sealed class JwtTokenManager
     /// <summary>
     /// 作废当前令牌：将 JTI 写入 Redis 黑名单，TTL 设为令牌剩余有效期，过期自动清理
     /// </summary>
-    public async Task InvalidateTokenAsync(string? authorizationHeader)
+    public async Task InvalidateTokenAsync(string? authorizationHeader, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(authorizationHeader) || !authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
@@ -145,7 +145,8 @@ public sealed class JwtTokenManager
     }
 
     /// <summary>
-    /// 校验访问令牌（非刷新令牌），供认证中间件使用
+    /// 校验访问令牌签名与版本（非刷新令牌）
+    /// </summary>
     /// </summary>
     public bool ValidateAccessToken(string token)
     {
@@ -155,9 +156,6 @@ public sealed class JwtTokenManager
     /// <summary>
     /// 校验访问令牌并解析载荷
     /// </summary>
-    /// <remarks>
-    /// 校验通过时返回访问令牌的载荷数据
-    /// </remarks>
     public bool TryGetAccessTokenPayload(string token, out JwtPayload payload)
     {
         return ValidateToken(token, validateRefreshToken: false, out payload);
@@ -199,7 +197,7 @@ public sealed class JwtTokenManager
         {
             { JwtClaimConstants.UserId, subject.UserId },
             { JwtClaimConstants.DeptId, subject.DeptId },
-            { JwtClaimConstants.DataScopes, global::System.Text.Json.JsonSerializer.Serialize(subject.DataScopes) },
+            { JwtClaimConstants.DataScopes, JsonSerializer.Serialize(subject.DataScopes) },
             { JwtClaimConstants.TokenType, isRefreshToken },
             { JwtClaimConstants.TokenVersion, tokenVersion },
             { JwtRegisteredClaimNames.Sub, subject.Username },
@@ -305,6 +303,75 @@ public sealed class JwtTokenManager
     }
 
     /// <summary>
+    /// 从 JWT 载荷还原 token 主体信息
+    /// </summary>
+    private static AuthTokenSubject FromPayload(JwtPayload payload)
+    {
+        var userId = TryGetInt64(payload, JwtClaimConstants.UserId);
+        var deptId = TryGetInt64(payload, JwtClaimConstants.DeptId);
+        var username = payload.TryGetValue(JwtRegisteredClaimNames.Sub, out var sub) ? sub?.ToString() ?? string.Empty : string.Empty;
+
+        // dataScopes: 写入时做了 JSON 序列化，读取时需区分 JsonElement 和普通对象
+        List<RoleDataScope> dataScopes = new();
+        if (payload.TryGetValue(JwtClaimConstants.DataScopes, out var dataScopesObj))
+        {
+            try
+            {
+                string? json = dataScopesObj switch
+                {
+                    JsonElement dsJe => dsJe.ValueKind == JsonValueKind.String ? dsJe.GetString() : dsJe.ToString(),
+                    _ => dataScopesObj?.ToString()
+                };
+
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    dataScopes = JsonSerializer.Deserialize<List<RoleDataScope>>(json) ?? new();
+                }
+            }
+            catch
+            {
+                // 反序列化失败则留空
+            }
+        }
+
+        // authorities: JWT 反序列化后为 JsonElement 数组，不能用 ToString() 否则会拿到原始 JSON 字符串
+        var authorities = new List<string>();
+        if (payload.TryGetValue(JwtClaimConstants.Authorities, out var authObj))
+        {
+            switch (authObj)
+            {
+                case JsonElement je when je.ValueKind == JsonValueKind.Array:
+                    foreach (var item in je.EnumerateArray())
+                    {
+                        var val = item.ValueKind == JsonValueKind.String ? item.GetString() : item.ToString();
+                        if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
+                    }
+                    break;
+                case JsonElement je when je.ValueKind == JsonValueKind.String:
+                    {
+                        var val = je.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
+                    }
+                    break;
+                case string s when !string.IsNullOrWhiteSpace(s):
+                    authorities.Add(s);
+                    break;
+                case IEnumerable<object> arr:
+                    authorities.AddRange(arr.Select(a => a.ToString()).Where(a => !string.IsNullOrWhiteSpace(a))!);
+                    break;
+                default:
+                    {
+                        var single = authObj?.ToString();
+                        if (!string.IsNullOrWhiteSpace(single)) authorities.Add(single);
+                    }
+                    break;
+            }
+        }
+
+        return new AuthTokenSubject(userId, deptId, dataScopes, username, authorities);
+    }
+
+    /// <summary>
     /// 从 JWT 声明值解析 long，兼容 JsonElement / long / int / 字符串
     /// </summary>
     private static long TryParseInt64(object? value)
@@ -360,149 +427,34 @@ public sealed class JwtTokenManager
         return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
     }
 
-    /// <summary>
-    /// JWT 令牌主体信息（用户、部门、数据权限范围等）
-    /// </summary>
-    /// <param name="UserId">用户 ID</param>
-    /// <param name="DeptId">部门 ID</param>
-    /// <param name="DataScopes">数据权限范围列表</param>
-    /// <param name="Username">用户名</param>
-    /// <param name="Authorities">权限标识集合</param>
-    public sealed record AuthTokenSubject(
-        long UserId,
-        long DeptId,
-        IReadOnlyList<RoleDataScope> DataScopes,
-        string Username,
-        IReadOnlyCollection<string> Authorities)
+    private static long TryGetInt64(JwtPayload payload, string key)
     {
-        /// <summary>
-        /// 从 JWT payload 还原 token 主体信息
-        /// </summary>
-        public static AuthTokenSubject FromPayload(JwtPayload payload)
+        if (!payload.TryGetValue(key, out var obj) || obj is null)
         {
-            var userId = TryGetInt64(payload, JwtClaimConstants.UserId);
-            var deptId = TryGetInt64(payload, JwtClaimConstants.DeptId);
-            var username = payload.TryGetValue(JwtRegisteredClaimNames.Sub, out var sub) ? sub?.ToString() ?? string.Empty : string.Empty;
-
-            // dataScopes: 写入时做了 JSON 序列化，读取时需区分 JsonElement 和普通对象
-            List<RoleDataScope> dataScopes = new();
-            if (payload.TryGetValue(JwtClaimConstants.DataScopes, out var dataScopesObj))
-            {
-                try
-                {
-                    string? json = dataScopesObj switch
-                    {
-                        JsonElement dsJe => dsJe.ValueKind == JsonValueKind.String ? dsJe.GetString() : dsJe.ToString(),
-                        _ => dataScopesObj?.ToString()
-                    };
-
-                    if (!string.IsNullOrWhiteSpace(json))
-                    {
-                        dataScopes = global::System.Text.Json.JsonSerializer.Deserialize<List<RoleDataScope>>(json) ?? new();
-                    }
-                }
-                catch
-                {
-                    // 反序列化失败则留空
-                }
-            }
-
-            // authorities: JWT 反序列化后为 JsonElement 数组，不能用 ToString() 否则会拿到原始 JSON 字符串
-            var authorities = new List<string>();
-            if (payload.TryGetValue(JwtClaimConstants.Authorities, out var authObj))
-            {
-                switch (authObj)
-                {
-                    case JsonElement je when je.ValueKind == JsonValueKind.Array:
-                        foreach (var item in je.EnumerateArray())
-                        {
-                            var val = item.ValueKind == JsonValueKind.String ? item.GetString() : item.ToString();
-                            if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
-                        }
-                        break;
-                    case JsonElement je when je.ValueKind == JsonValueKind.String:
-                        {
-                            var val = je.GetString();
-                            if (!string.IsNullOrWhiteSpace(val)) authorities.Add(val);
-                        }
-                        break;
-                    case string s when !string.IsNullOrWhiteSpace(s):
-                        authorities.Add(s);
-                        break;
-                    case IEnumerable<object> arr:
-                        authorities.AddRange(arr.Select(a => a.ToString()).Where(a => !string.IsNullOrWhiteSpace(a))!);
-                        break;
-                    default:
-                        {
-                            var single = authObj?.ToString();
-                            if (!string.IsNullOrWhiteSpace(single)) authorities.Add(single);
-                        }
-                        break;
-                }
-            }
-
-            return new AuthTokenSubject(userId, deptId, dataScopes, username, authorities);
-        }
-
-        private static long TryGetInt64(JwtPayload payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var obj) || obj is null)
-            {
-                return 0;
-            }
-
-            // JWT 反序列化后数值类型为 JsonElement
-            if (obj is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt64(out var jeVal))
-            {
-                return jeVal;
-            }
-
-            if (obj is long l)
-            {
-                return l;
-            }
-
-            if (obj is int i)
-            {
-                return i;
-            }
-
-            if (long.TryParse(obj.ToString(), out var parsed))
-            {
-                return parsed;
-            }
-
             return 0;
         }
 
-        private static int? TryGetInt32(JwtPayload payload, string key)
+        // JWT 反序列化后数值类型为 JsonElement
+        if (obj is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt64(out var jeVal))
         {
-            if (!payload.TryGetValue(key, out var obj) || obj is null)
-            {
-                return null;
-            }
-
-            if (obj is JsonElement je && je.ValueKind == JsonValueKind.Number && je.TryGetInt32(out var jeVal))
-            {
-                return jeVal;
-            }
-
-            if (obj is int i)
-            {
-                return i;
-            }
-
-            if (obj is long l)
-            {
-                return checked((int)l);
-            }
-
-            if (int.TryParse(obj.ToString(), out var parsed))
-            {
-                return parsed;
-            }
-
-            return null;
+            return jeVal;
         }
+
+        if (obj is long l)
+        {
+            return l;
+        }
+
+        if (obj is int i)
+        {
+            return i;
+        }
+
+        if (long.TryParse(obj.ToString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return 0;
     }
 }

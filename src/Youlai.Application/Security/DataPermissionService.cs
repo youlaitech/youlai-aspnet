@@ -1,8 +1,7 @@
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
-using Youlai.Application.Security;
-using Youlai.Application.Security.Models;
 using Youlai.Application.Persistence;
+using Youlai.Application.Security.Models;
+using Youlai.Domain.Entities;
 
 namespace Youlai.Application.Security;
 
@@ -12,12 +11,12 @@ namespace Youlai.Application.Security;
 internal sealed class DataPermissionService : IDataPermissionService
 {
     private readonly ICurrentUser _currentUser;
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
 
-    public DataPermissionService(ICurrentUser currentUser, IDbContext dbContext)
+    public DataPermissionService(ICurrentUser currentUser, IReadOnlyDbContext readDb)
     {
         _currentUser = currentUser;
-        _dbContext = dbContext;
+        _readDb = readDb;
     }
 
     /// <summary>
@@ -130,24 +129,23 @@ internal sealed class DataPermissionService : IDataPermissionService
     }
 
     /// <summary>
-    /// 构建部门及子部门数据权限条件
+    /// 构建部门及子部门数据权限条件：匹配本部门、本部门为路径根/中间/叶的所有祖先链
     /// </summary>
     private Expression<Func<TEntity, bool>> BuildDeptAndSubExpression<TEntity>(
         Expression<Func<TEntity, long>> deptIdSelector,
         long deptId)
     {
         var deptIdStr = deptId.ToString();
-        var likeMiddle = "%," + deptIdStr + ",%";
-        var likeTail = "%," + deptIdStr;
-        var likeHead = deptIdStr + ",%";
+        var likeMiddle = "," + deptIdStr + ",";
+        var likeHead = deptIdStr + ",";
+        var likeTail = "," + deptIdStr;
 
-        var deptIdsQuery = _dbContext.SysDepts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted && (d.Id == deptId
+        var deptIdsQuery = _readDb.Query<SysDept>()
+            .Where(d => d.Id == deptId
                 || d.TreePath == deptIdStr
-                || EF.Functions.Like(d.TreePath, likeMiddle)
-                || EF.Functions.Like(d.TreePath, likeHead)
-                || EF.Functions.Like(d.TreePath, likeTail)))
+                || d.TreePath.Contains(likeMiddle)
+                || d.TreePath.StartsWith(likeHead)
+                || d.TreePath.EndsWith(likeTail))
             .Select(d => d.Id);
 
         return BuildContains(deptIdsQuery, deptIdSelector);
@@ -166,9 +164,8 @@ internal sealed class DataPermissionService : IDataPermissionService
             return e => false;
         }
 
-        var deptIdsQuery = _dbContext.SysDepts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted && customDeptIds.Contains(d.Id))
+        var deptIdsQuery = _readDb.Query<SysDept>()
+            .Where(d => customDeptIds.Contains(d.Id))
             .Select(d => d.Id);
 
         return BuildContains(deptIdsQuery, deptIdSelector);

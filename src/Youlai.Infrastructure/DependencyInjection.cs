@@ -1,16 +1,25 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Youlai.Application.Persistence;
+using Youlai.Application.Auth;
+using Youlai.Application.Codegen;
 using Youlai.Application.Options;
+using Youlai.Application.Persistence;
 using Youlai.Application.Security;
-using Youlai.Application.File;
 using Youlai.Application.Common;
+using Youlai.Application.File;
+using Youlai.Domain.Entities;
+using Youlai.Infrastructure.Auth;
+using Youlai.Infrastructure.Codegen;
 using Youlai.Infrastructure.Common;
 using Youlai.Infrastructure.FileStorage;
 using Youlai.Infrastructure.Persistence;
+using Youlai.Infrastructure.Security;
 
 namespace Youlai.Infrastructure;
 
@@ -44,9 +53,9 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(CaptchaOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddOptions<OssOptions>()
-            .Bind(configuration.GetSection(OssOptions.SectionName))
-            .Validate(o => !string.IsNullOrWhiteSpace(o.Type), "Oss:Type is required")
+        services.AddOptions<FileStorageOptions>()
+            .Bind(configuration.GetSection(FileStorageOptions.SectionName))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.Type), "FileStorage:Type is required")
             .ValidateOnStart();
 
         services.AddOptions<WxMaOptions>()
@@ -57,7 +66,7 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(RateLimitOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<OssOptions>>().Value);
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<FileStorageOptions>>().Value);
 
         // 数据库上下文
         services.AddDbContext<AppDbContext>((sp, options) =>
@@ -65,32 +74,39 @@ public static class DependencyInjection
             var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             options.UseMySql(dbOptions.ConnectionString, ServerVersion.AutoDetect(dbOptions.ConnectionString));
         });
-        services.AddScoped<IDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-
-        // 端口 ↔ 实现绑定（与旧 IDbContext 并存，业务逐步迁移到下列抽象）
+        // 工作单元与仓储
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IReadOnlyDbContext, EfReadOnlyDbContext>();
         services.AddScoped<IExcelManager, ClosedXmlExcelManager>();
+        services.AddScoped<ISqlExecutor, EfSqlExecutor>();
+        services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();
+        services.AddScoped<IPasswordHasher<SysUser>, BCryptPasswordHasher>();
 
-        // Redis（直接类型仍供 JwtTokenManager 使用，待令牌管理迁移到 ITokenManager 后移除）
+        // Redis 连接（令牌管理与缓存共用）
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<RedisOptions>>().Value;
             return ConnectionMultiplexer.Connect(options.ConnectionString);
         });
 
-        // 分布式缓存：业务通过 IDistributedCache 使用，不依赖 StackExchange.Redis 具体类型
-        // 不设置 InstanceName，键名与原有直连 Redis 保持一致
-        services.AddStackExchangeRedisCache(opt => opt.Configuration = redisOptions.ConnectionString);
+        // IDistributedCache（AuthService 短信验证码等场景使用）
+        services.AddStackExchangeRedisCache(opt =>
+        {
+            var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
+            opt.Configuration = redisOptions?.ConnectionString ?? string.Empty;
+        });
+
+        // 验证码服务
+        services.AddScoped<ICaptchaService, CaptchaService>();
 
         // JWT / 令牌管理
-        services.AddScoped<JwtTokenManager>();
+        services.AddScoped<ITokenManager, JwtTokenManager>();
 
-        // 文件存储：按 OssOptions.Type 选择具体实现（策略模式）
+        // 文件存储：按 Type 路由到对应的存储实现
         services.AddScoped<IFileStorage>(sp =>
         {
-            var options = sp.GetRequiredService<IOptions<OssOptions>>().Value;
+            var options = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
             return options.Type switch
             {
                 "minio" => new MinioFileStorage(options),

@@ -4,7 +4,7 @@ using Youlai.Application.Persistence;
 namespace Youlai.Infrastructure.Persistence;
 
 /// <summary>
-/// 基于 EF Core 的工作单元实现；DbContext 由 DI 管理生命周期，此处不释放
+/// EF Core 工作单元（DbContext 由 DI 管理，此处不释放）
 /// </summary>
 internal sealed class UnitOfWork : IUnitOfWork
 {
@@ -25,7 +25,7 @@ internal sealed class UnitOfWork : IUnitOfWork
 }
 
 /// <summary>
-/// 基于 EF Core 的事务实现
+/// EF Core 事务
 /// </summary>
 internal sealed class EfTransaction : ITransaction
 {

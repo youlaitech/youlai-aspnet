@@ -1,13 +1,13 @@
-﻿using BCrypt.Net;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Youlai.Application.Auth.Models;
+using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.Security.Models;
-using Youlai.Application.Constants;
-using Youlai.Application.Persistence;
+using Youlai.Domain.Entities;
 
 namespace Youlai.Application.Auth;
 
@@ -18,22 +18,24 @@ internal sealed class AuthService : IAuthService
 {
     private static readonly TimeSpan SmsCodeTtl = TimeSpan.FromMinutes(5);
 
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
     private readonly ICaptchaService _captchaService;
-    private readonly JwtTokenManager _tokenManager;
+    private readonly ITokenManager _tokenManager;
     private readonly IDistributedCache _cache;
+    private readonly IPasswordHasher<SysUser> _passwordHasher;
 
     public AuthService(
-        IDbContext dbContext,
+        IReadOnlyDbContext readDb,
         ICaptchaService captchaService,
-        JwtTokenManager tokenManager,
-        IDistributedCache cache
-    )
+        ITokenManager tokenManager,
+        IDistributedCache cache,
+        IPasswordHasher<SysUser> passwordHasher)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
         _captchaService = captchaService;
         _tokenManager = tokenManager;
         _cache = cache;
+        _passwordHasher = passwordHasher;
     }
 
     /// <summary>
@@ -45,9 +47,9 @@ internal sealed class AuthService : IAuthService
 
         var username = request.Username.Trim();
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Username == username && !u.IsDeleted, cancellationToken);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Username == username && !u.IsDeleted),
+            cancellationToken);
 
         if (user is null)
         {
@@ -59,7 +61,8 @@ internal sealed class AuthService : IAuthService
             throw new BusinessException(ResultCode.UserLoginException, "账号已禁用");
         }
 
-        if (string.IsNullOrWhiteSpace(user.Password) || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+        if (string.IsNullOrWhiteSpace(user.Password)
+            || _passwordHasher.VerifyHashedPassword(user, user.Password, request.Password) != PasswordVerificationResult.Success)
         {
             throw new BusinessException(ResultCode.UserPasswordError);
         }
@@ -110,10 +113,9 @@ internal sealed class AuthService : IAuthService
 
         await _cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Mobile == mobile.Trim() && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Mobile == mobile.Trim() && !u.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -157,12 +159,10 @@ internal sealed class AuthService : IAuthService
     /// </summary>
     private async Task<AuthenticationTokenDto> GenerateTokenAsync(long userId, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Username, u.DeptId })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => new { u.Id, u.Username, u.DeptId }),
+            cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -171,12 +171,12 @@ internal sealed class AuthService : IAuthService
 
         // 查询用户的所有角色及其数据权限
         var rolesQuery =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+            from ur in _readDb.Query<SysUserRole>()
+            join r in _readDb.Query<SysRole>() on ur.RoleId equals r.Id
             where ur.UserId == user.Id && !r.IsDeleted && r.Status == 1
             select new { r.Id, r.Code, r.DataScope };
 
-        var roles = await rolesQuery.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var roles = await _readDb.ToListAsync(rolesQuery, cancellationToken).ConfigureAwait(false);
 
         // 构建角色权限集合
         var authorities = roles
@@ -197,12 +197,9 @@ internal sealed class AuthService : IAuthService
             // 如果是自定义部门权限，查询该角色的自定义部门列表
             if (role.DataScope == 5 && role.Id != 0)
             {
-                var customDeptIds = await _dbContext.SysRoleDepts
-                    .AsNoTracking()
-                    .Where(rd => rd.RoleId == role.Id)
-                    .Select(rd => rd.DeptId)
-                    .ToListAsync(cancellationToken)
-                    .ConfigureAwait(false);
+                var customDeptIds = await _readDb.ToListAsync(
+                    _readDb.Query<SysRoleDept>().Where(rd => rd.RoleId == role.Id).Select(rd => rd.DeptId),
+                    cancellationToken).ConfigureAwait(false);
 
                 roleDataScope.CustomDeptIds = customDeptIds;
             }
@@ -210,7 +207,7 @@ internal sealed class AuthService : IAuthService
             dataScopes.Add(roleDataScope);
         }
 
-        var subject = new JwtTokenManager.AuthTokenSubject(
+        var subject = new AuthTokenSubject(
             UserId: user.Id,
             DeptId: user.DeptId ?? 0,
             DataScopes: dataScopes,

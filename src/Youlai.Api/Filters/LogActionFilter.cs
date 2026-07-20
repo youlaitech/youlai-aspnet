@@ -15,12 +15,14 @@ namespace Youlai.Api.Filters;
 /// </summary>
 public sealed class LogActionFilter : IAsyncActionFilter
 {
-    private readonly IDbContext _dbContext;
+    private readonly IRepository<SysLog> _logRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public LogActionFilter(IDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    public LogActionFilter(IRepository<SysLog> logRepository, IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
     {
-        _dbContext = dbContext;
+        _logRepository = logRepository;
+        _unitOfWork = unitOfWork;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -93,8 +95,8 @@ public sealed class LogActionFilter : IAsyncActionFilter
                 CreateTime = DateTime.Now,
             };
 
-            _dbContext.SysLogs.Add(log);
-            await _dbContext.SaveChangesAsync();
+            _logRepository.Add(log);
+            await _unitOfWork.SaveChangesAsync();
         }
         catch
         {

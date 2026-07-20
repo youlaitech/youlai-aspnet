@@ -5,7 +5,7 @@ using Youlai.Application.Common;
 namespace Youlai.Infrastructure.Common;
 
 /// <summary>
-/// 基于 ClosedXML 的 Excel 读写实现；列映射由 ExcelSheetSpec / ExcelImportSpec 驱动
+/// ClosedXML Excel 读写。列映射由 ExcelSheetSpec / ExcelImportSpec 驱动
 /// </summary>
 internal sealed class ClosedXmlExcelManager : IExcelManager
 {

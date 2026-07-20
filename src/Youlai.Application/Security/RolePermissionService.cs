@@ -1,9 +1,9 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using Youlai.Application.Security;
 using Youlai.Application.Constants;
 using Youlai.Application.Persistence;
+using Youlai.Application.Security;
+using Youlai.Domain.Entities;
 
 namespace Youlai.Application.Security;
 
@@ -15,12 +15,12 @@ internal sealed class RolePermissionService : IRolePermissionService
     private const string ButtonMenuType = "B";
 
     private readonly IDistributedCache _cache;
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
 
-    public RolePermissionService(IDistributedCache cache, IDbContext dbContext)
+    public RolePermissionService(IDistributedCache cache, IReadOnlyDbContext readDb)
     {
         _cache = cache;
-        _dbContext = dbContext;
+        _readDb = readDb;
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ internal sealed class RolePermissionService : IRolePermissionService
                 return Array.Empty<string>();
             }
 
-            using var doc = JsonDocument.Parse(str);
+            using var doc = JsonDocument.Parse(value);
 
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
@@ -156,12 +156,11 @@ internal sealed class RolePermissionService : IRolePermissionService
     {
         var roleSet = roleCodes.ToHashSet(StringComparer.Ordinal);
 
-        var roles = await _dbContext.SysRoles
-            .AsNoTracking()
-            .Where(r => roleSet.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
-            .Select(r => new { r.Id, Code = r.Code! })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var roles = await _readDb.ToListAsync(
+            _readDb.Query<SysRole>()
+                .Where(r => roleSet.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
+                .Select(r => new { r.Id, Code = r.Code! }),
+            cancellationToken).ConfigureAwait(false);
 
         if (roles.Count == 0)
         {
@@ -172,23 +171,22 @@ internal sealed class RolePermissionService : IRolePermissionService
         var roleIds = roles.Select(r => r.Id).ToList();
 
         // 第二步：查询角色菜单关联和权限
-        var rows = await (
-            from rm in _dbContext.SysRoleMenus.AsNoTracking()
-            join m in _dbContext.SysMenus.AsNoTracking() on rm.MenuId equals m.Id
-            where roleIds.Contains(rm.RoleId)
-                && m.Type == ButtonMenuType
-                && m.Perm != null
-            select new { rm.RoleId, Perm = m.Perm }
-        ).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            (from rm in _readDb.Query<SysRoleMenu>()
+             join m in _readDb.Query<SysMenu>() on rm.MenuId equals m.Id
+             where roleIds.Contains(rm.RoleId)
+                 && m.Type == ButtonMenuType
+                 && m.Perm != null
+             select new { rm.RoleId, Perm = m.Perm! }),
+            cancellationToken).ConfigureAwait(false);
 
         return rows
             .Where(x => roleIdToCode.ContainsKey(x.RoleId))
-            .Select(x => new { RoleCode = roleIdToCode[x.RoleId], x.Perm })
-            .GroupBy(x => x.RoleCode, StringComparer.Ordinal)
+            .GroupBy(x => roleIdToCode[x.RoleId], StringComparer.Ordinal)
             .ToDictionary(
                 g => g.Key,
                 g => (IReadOnlyCollection<string>)g
-                    .Select(x => x.Perm!)
+                    .Select(x => x.Perm)
                     .Where(p => !string.IsNullOrWhiteSpace(p))
                     .Distinct(StringComparer.Ordinal)
                     .ToArray(),

@@ -11,9 +11,9 @@ namespace Youlai.Infrastructure.FileStorage;
 /// </summary>
 internal sealed class LocalFileStorage : IFileStorage
 {
-    private readonly OssOptions.LocalOptions _options;
+    private readonly FileStorageOptions.LocalOptions _options;
 
-    public LocalFileStorage(OssOptions options)
+    public LocalFileStorage(FileStorageOptions options)
     {
         _options = options.Local;
     }
@@ -45,7 +45,7 @@ internal sealed class LocalFileStorage : IFileStorage
         var storagePath = _options.StoragePath.Trim();
         if (string.IsNullOrWhiteSpace(storagePath))
         {
-            throw new BusinessException(ResultCode.SystemError, "Oss:Local:StoragePath 未配置");
+            throw new BusinessException(ResultCode.SystemError, "FileStorage:Local:StoragePath 未配置");
         }
 
         var absolutePath = Path.Combine(storagePath, relativePath);

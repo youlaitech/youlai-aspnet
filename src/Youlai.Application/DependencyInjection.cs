@@ -18,9 +18,8 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // 认证相关
+        // 认证
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<ICaptchaService, CaptchaService>();
         services.AddScoped<IWxMaAuthService, WxMaAuthService>();
 
         // 系统管理相关

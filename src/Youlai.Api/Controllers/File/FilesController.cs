@@ -19,12 +19,12 @@ namespace Youlai.Api.Controllers.File;
 public sealed class FilesController : ControllerBase
 {
     private readonly IFileService _fileService;
-    private readonly OssOptions _ossOptions;
+    private readonly FileStorageOptions _fileStorageOptions;
 
-    public FilesController(IFileService fileService, IOptions<OssOptions> ossOptions)
+    public FilesController(IFileService fileService, IOptions<FileStorageOptions> fileStorageOptions)
     {
         _fileService = fileService;
-        _ossOptions = ossOptions.Value;
+        _fileStorageOptions = fileStorageOptions.Value;
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public sealed class FilesController : ControllerBase
     /// </summary>
     private void ValidateUpload(IFormFile file)
     {
-        var upload = _ossOptions.Upload;
+        var upload = _fileStorageOptions.Upload;
 
         var allowed = upload.AllowedExtensionSet;
         if (allowed.Count > 0)

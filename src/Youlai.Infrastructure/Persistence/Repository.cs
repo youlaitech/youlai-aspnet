@@ -7,7 +7,7 @@ using Youlai.Domain.Entities;
 namespace Youlai.Infrastructure.Persistence;
 
 /// <summary>
-/// 基于 EF Core 的仓储实现；与 AppDbContext 同生命周期（均 scoped）
+/// EF Core 仓储（与 AppDbContext 同生命周期，均 scoped）
 /// </summary>
 internal sealed class Repository<T> : IRepository<T> where T : class
 {
@@ -20,6 +20,9 @@ internal sealed class Repository<T> : IRepository<T> where T : class
 
     public Task<List<T>> ListAsync(CancellationToken cancellationToken = default)
         => _ctx.Set<T>().ToListAsync(cancellationToken);
+
+    public Task<List<T>> ListAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        => _ctx.Set<T>().Where(predicate).ToListAsync(cancellationToken);
 
     public Task<bool> AnyAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
         => _ctx.Set<T>().AnyAsync(predicate, cancellationToken);
@@ -58,4 +61,8 @@ internal sealed class Repository<T> : IRepository<T> where T : class
 
         return await _ctx.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>按条件物理删除，走 ExecuteDelete 直接操作数据库，不触发审计与导航加载</summary>
+    public Task<int> DeleteAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        => _ctx.Set<T>().Where(predicate).ExecuteDeleteAsync(cancellationToken);
 }

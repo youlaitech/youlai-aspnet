@@ -13,7 +13,7 @@ public sealed record ExcelImportSpec<T>(string SheetName, IReadOnlyList<ExcelCol
 public sealed record ExcelImportResult<T>(int ValidCount, int InvalidCount, IReadOnlyList<string> Messages, IReadOnlyList<T> Rows) where T : class;
 
 /// <summary>
-/// Excel 读写端口：业务只准备列定义与行数据，不接触具体 Excel 库
+/// Excel 文件读写
 /// </summary>
 public interface IExcelManager
 {

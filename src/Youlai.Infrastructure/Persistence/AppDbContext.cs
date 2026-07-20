@@ -3,7 +3,6 @@ using Youlai.Domain.Entities;
 using Youlai.Domain;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Youlai.Application.Persistence;
 using Youlai.Application.Security;
 
 namespace Youlai.Infrastructure.Persistence;
@@ -11,7 +10,7 @@ namespace Youlai.Infrastructure.Persistence;
 /// <summary>
 /// 应用数据库上下文（EF Core）：实体映射与全局过滤
 /// </summary>
-public sealed class AppDbContext : DbContext, IDbContext
+public sealed class AppDbContext : DbContext
 {
     private readonly ICurrentUser? _currentUser;
 

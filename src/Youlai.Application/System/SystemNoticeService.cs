@@ -1,14 +1,14 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Youlai.Application.Common;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Common;
-using Youlai.Application.System.Models.Notice;
 using Youlai.Application.System;
+using Youlai.Application.System.Models.Notice;
 using Youlai.Domain.Entities;
-using Youlai.Application.Persistence;
+
+using Youlai.Application.Extensions;
 
 namespace Youlai.Application.System;
 
@@ -24,14 +24,27 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     private const int TargetAll = 1;
     private const int TargetSpecified = 2;
 
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysNotice> _noticeRepo;
+    private readonly IRepository<SysUserNotice> _userNoticeRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly ISseService _sseService;
     private readonly ILogger<SystemNoticeService> _logger;
 
-    public SystemNoticeService(IDbContext dbContext, ICurrentUser currentUser, ISseService sseService, ILogger<SystemNoticeService> logger)
+    public SystemNoticeService(
+        IReadOnlyDbContext readDb,
+        IRepository<SysNotice> noticeRepo,
+        IRepository<SysUserNotice> userNoticeRepo,
+        IUnitOfWork unitOfWork,
+        ICurrentUser currentUser,
+        ISseService sseService,
+        ILogger<SystemNoticeService> logger)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _noticeRepo = noticeRepo;
+        _userNoticeRepo = userNoticeRepo;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _sseService = sseService;
         _logger = logger;
@@ -44,7 +57,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var notices = _dbContext.SysNotices.AsNoTracking().Where(n => !n.IsDeleted);
+        var notices = _readDb.Query<SysNotice>().Where(n => !n.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(query.Title))
         {
@@ -59,36 +72,33 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         notices = notices.OrderByDescending(n => n.Id);
 
-        var total = await notices.CountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await _readDb.CountAsync(notices, cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<NoticePageVo>.Success(Array.Empty<NoticePageVo>(), 0, pageNum, pageSize);
         }
 
-        var rowsQuery =
-            from n in notices
-            join u in _dbContext.SysUsers.AsNoTracking() on n.PublisherId equals u.Id into pubJoin
-            from u in pubJoin.DefaultIfEmpty()
-            select new
-            {
-                n.Id,
-                n.Title,
-                n.Content,
-                n.Type,
-                n.Level,
-                n.TargetType,
-                n.PublishStatus,
-                n.PublishTime,
-                n.RevokeTime,
-                n.CreateTime,
-                PublisherName = u != null ? (u.Nickname ?? u.Username) : null,
-            };
-
-        var rows = await rowsQuery
+        var rows = await _readDb.ToListAsync(
+            (from n in notices
+             join u in _readDb.Query<SysUser>() on n.PublisherId equals u.Id into pubJoin
+             from u in pubJoin.DefaultIfEmpty()
+             select new
+             {
+                 n.Id,
+                 n.Title,
+                 n.Content,
+                 n.Type,
+                 n.Level,
+                 n.TargetType,
+                 n.PublishStatus,
+                 n.PublishTime,
+                 n.RevokeTime,
+                 n.CreateTime,
+                 PublisherName = u != null ? (u.Nickname ?? u.Username) : null,
+             })
             .Skip((pageNum - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .Take(pageSize),
+            cancellationToken).ConfigureAwait(false);
 
         var list = rows
             .Select(r => new NoticePageVo
@@ -116,11 +126,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<NoticeForm> GetNoticeFormAsync(long id, CancellationToken cancellationToken = default)
     {
-        var notice = await _dbContext.SysNotices
-            .AsNoTracking()
-            .Where(n => n.Id == id && !n.IsDeleted)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var notice = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysNotice>().Where(n => n.Id == id && !n.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (notice is null)
         {
@@ -169,8 +177,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             IsDeleted = false,
         };
 
-        _dbContext.SysNotices.Add(notice);
-        return await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
+        _noticeRepo.Add(notice);
+        return await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <summary>
@@ -180,11 +188,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     {
         ValidateTargets(formData);
 
-        var notice = await _dbContext.SysNotices
-            .FirstOrDefaultAsync(n => n.Id == id && !n.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var notice = await _noticeRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (notice is null)
+        if (notice is null || notice.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "通知公告不存在");
         }
@@ -203,7 +209,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         notice.UpdateBy = _currentUser.GetRequiredUserId();
         notice.UpdateTime = DateTime.UtcNow;
 
-        return await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
+        _noticeRepo.Update(notice);
+        return await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <summary>
@@ -217,20 +224,22 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的通知公告数据为空");
         }
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SysNotices
-            .Where(n => idList.Contains(n.Id) && !n.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(x => x.IsDeleted, true)
-                .SetProperty(x => x.UpdateBy, _currentUser.GetRequiredUserId())
-                .SetProperty(x => x.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        await _noticeRepo.BatchUpdateAsync(
+            n => idList.Contains(n.Id) && !n.IsDeleted,
+            n =>
+            {
+                n.IsDeleted = true;
+                n.UpdateBy = _currentUser.GetRequiredUserId();
+                n.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SysUserNotices
-            .Where(un => idList.Contains(un.NoticeId) && !un.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsDeleted, true), cancellationToken)
-            .ConfigureAwait(false);
+        await _userNoticeRepo.BatchUpdateAsync(
+            un => idList.Contains(un.NoticeId) && !un.IsDeleted,
+            un => un.IsDeleted = true,
+            cancellationToken).ConfigureAwait(false);
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
         return true;
@@ -241,11 +250,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<bool> PublishNoticeAsync(long id, CancellationToken cancellationToken = default)
     {
-        var notice = await _dbContext.SysNotices
-            .FirstOrDefaultAsync(n => n.Id == id && !n.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var notice = await _noticeRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (notice is null)
+        if (notice is null || notice.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "通知公告不存在");
         }
@@ -263,7 +270,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         var now = DateTime.UtcNow;
         var uid = _currentUser.GetRequiredUserId();
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         notice.PublishStatus = PublishStatusPublished;
         notice.PublisherId = uid;
@@ -272,27 +279,22 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         notice.UpdateBy = uid;
         notice.UpdateTime = now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _noticeRepo.Update(notice);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SysUserNotices
-            .Where(un => un.NoticeId == id)
-            .ExecuteDeleteAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await _userNoticeRepo.DeleteAsync(un => un.NoticeId == id, cancellationToken).ConfigureAwait(false);
 
         var targetUserIds = notice.TargetType == TargetSpecified
             ? IdCollectionExtensions.ParsePositiveLongIds(notice.TargetUserIds)
             : new HashSet<long>();
 
-        var usersQuery = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted && u.Status == 1);
+        var usersQuery = _readDb.Query<SysUser>().Where(u => !u.IsDeleted && u.Status == 1);
         if (notice.TargetType == TargetSpecified)
         {
             usersQuery = usersQuery.Where(u => targetUserIds.Contains(u.Id));
         }
 
-        var users = await usersQuery
-            .Select(u => new { u.Id })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var users = await _readDb.ToListAsync(usersQuery.Select(u => new { u.Id }), cancellationToken).ConfigureAwait(false);
 
         var userNotices = users
             .Select(u => new SysUserNotice
@@ -308,8 +310,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         if (userNotices.Length > 0)
         {
-            _dbContext.SysUserNotices.AddRange(userNotices);
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _userNoticeRepo.AddRange(userNotices);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -340,11 +342,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// </summary>
     public async Task<bool> RevokeNoticeAsync(long id, CancellationToken cancellationToken = default)
     {
-        var notice = await _dbContext.SysNotices
-            .FirstOrDefaultAsync(n => n.Id == id && !n.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var notice = await _noticeRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (notice is null)
+        if (notice is null || notice.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "通知公告不存在");
         }
@@ -357,19 +357,17 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         var now = DateTime.UtcNow;
         var uid = _currentUser.GetRequiredUserId();
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         notice.PublishStatus = PublishStatusRevoked;
         notice.RevokeTime = now;
         notice.UpdateBy = uid;
         notice.UpdateTime = now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _noticeRepo.Update(notice);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SysUserNotices
-            .Where(un => un.NoticeId == id)
-            .ExecuteDeleteAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await _userNoticeRepo.DeleteAsync(un => un.NoticeId == id, cancellationToken).ConfigureAwait(false);
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -389,8 +387,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     public async Task<NoticeDetailVo> GetNoticeDetailAsync(long id, CancellationToken cancellationToken = default)
     {
         var noticeQuery =
-            from n in _dbContext.SysNotices.AsNoTracking()
-            join u in _dbContext.SysUsers.AsNoTracking() on n.PublisherId equals u.Id into pubJoin
+            from n in _readDb.Query<SysNotice>()
+            join u in _readDb.Query<SysUser>() on n.PublisherId equals u.Id into pubJoin
             from u in pubJoin.DefaultIfEmpty()
             where n.Id == id && !n.IsDeleted
             select new
@@ -406,7 +404,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
                 n.PublishTime,
             };
 
-        var row = await noticeQuery.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var row = await _readDb.FirstOrDefaultAsync(noticeQuery, cancellationToken).ConfigureAwait(false);
         if (row is null)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "通知公告不存在");
@@ -415,13 +413,15 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         var userId = _currentUser.UserId;
         if (userId.HasValue && userId.Value > 0)
         {
-            await _dbContext.SysUserNotices
-                .Where(un => un.NoticeId == id && un.UserId == userId.Value && un.IsRead == 0)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(x => x.IsRead, 1)
-                    .SetProperty(x => x.ReadTime, DateTime.UtcNow)
-                    .SetProperty(x => x.UpdateTime, DateTime.UtcNow), cancellationToken)
-                .ConfigureAwait(false);
+            await _userNoticeRepo.BatchUpdateAsync(
+                un => un.NoticeId == id && un.UserId == userId.Value && un.IsRead == 0,
+                un =>
+                {
+                    un.IsRead = 1;
+                    un.ReadTime = DateTime.UtcNow;
+                    un.UpdateTime = DateTime.UtcNow;
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         return new NoticeDetailVo
@@ -446,13 +446,15 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         var userId = _currentUser.GetRequiredUserId();
         var now = DateTime.UtcNow;
 
-        await _dbContext.SysUserNotices
-            .Where(un => un.UserId == userId && un.IsRead == 0)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(x => x.IsRead, 1)
-                .SetProperty(x => x.ReadTime, now)
-                .SetProperty(x => x.UpdateTime, now), cancellationToken)
-            .ConfigureAwait(false);
+        await _userNoticeRepo.BatchUpdateAsync(
+            un => un.UserId == userId && un.IsRead == 0,
+            un =>
+            {
+                un.IsRead = 1;
+                un.ReadTime = now;
+                un.UpdateTime = now;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return true;
     }
@@ -466,8 +468,8 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         var (pageNum, pageSize) = query.Normalize();
 
         var baseQuery =
-            from un in _dbContext.SysUserNotices.AsNoTracking()
-            join n in _dbContext.SysNotices.AsNoTracking() on un.NoticeId equals n.Id
+            from un in _readDb.Query<SysUserNotice>()
+            join n in _readDb.Query<SysNotice>() on un.NoticeId equals n.Id
             where un.UserId == userId
                 && !un.IsDeleted
                 && !n.IsDeleted
@@ -491,17 +493,15 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         baseQuery = baseQuery.OrderByDescending(x => x.PublishTime).ThenByDescending(x => x.Id);
 
-        var total = await baseQuery.CountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await _readDb.CountAsync(baseQuery, cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<NoticePageVo>.Success(Array.Empty<NoticePageVo>(), 0, pageNum, pageSize);
         }
 
-        var rows = await baseQuery
-            .Skip((pageNum - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            baseQuery.Skip((pageNum - 1) * pageSize).Take(pageSize),
+            cancellationToken).ConfigureAwait(false);
 
         var list = rows
             .Select(r => new NoticePageVo
@@ -577,12 +577,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         string? targetUserIds,
         CancellationToken cancellationToken)
     {
-        var allUsers = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => !u.IsDeleted && u.Status == 1)
-            .Select(u => u.Id)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var allUsers = await _readDb.ToListAsync(
+            _readDb.Query<SysUser>().Where(u => !u.IsDeleted && u.Status == 1).Select(u => u.Id),
+            cancellationToken).ConfigureAwait(false);
 
         if (targetType == TargetSpecified)
         {
@@ -590,7 +587,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             return allUsers
                 .Where(id => specifiedIds.Contains(id))
                 .Select(id => id.ToString())
-            .Distinct(StringComparer.Ordinal)
+                .Distinct(StringComparer.Ordinal)
                 .ToList();
         }
 

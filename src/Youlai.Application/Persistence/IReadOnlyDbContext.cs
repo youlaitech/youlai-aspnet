@@ -4,7 +4,7 @@ using Youlai.Application.Results;
 namespace Youlai.Application.Persistence;
 
 /// <summary>
-/// 只读数据访问端口：业务用标准 LINQ 组合查询，不向业务层暴露任何 EF 具体类型
+/// 只读数据访问。Query 方法返回的 IQueryable 已应用全局过滤且不跟踪
 /// </summary>
 public interface IReadOnlyDbContext
 {
@@ -23,6 +23,6 @@ public interface IReadOnlyDbContext
     /// <summary>取查询的首条结果，无匹配返回 null</summary>
     Task<T?> FirstOrDefaultAsync<T>(IQueryable<T> query, CancellationToken cancellationToken = default);
 
-    /// <summary>分页：先计数再 Skip/Take 取页，封装为 PageResult</summary>
+    /// <summary>分页：先计数再 Skip/Take 取页，返回 PageResult</summary>
     Task<PageResult<T>> PageAsync<T>(IQueryable<T> query, int pageNum, int pageSize, CancellationToken cancellationToken = default);
 }

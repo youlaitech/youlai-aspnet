@@ -1,15 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using System.Text.Json;
 using Youlai.Application.Auth;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
+using Youlai.Domain.Entities;
+
+using Youlai.Application.Extensions;
 
 namespace Youlai.Api.Controllers.Auth;
 
@@ -39,18 +40,18 @@ public sealed class QrCodeController : ControllerBase
 
     private readonly IConnectionMultiplexer _redis;
     private readonly IAuthService _authService;
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
     private readonly ICurrentUser _currentUser;
 
     public QrCodeController(
         IConnectionMultiplexer redis,
         IAuthService authService,
-        IDbContext dbContext,
+        IReadOnlyDbContext readDb,
         ICurrentUser currentUser)
     {
         _redis = redis;
         _authService = authService;
-        _dbContext = dbContext;
+        _readDb = readDb;
         _currentUser = currentUser;
     }
 
@@ -97,10 +98,10 @@ public sealed class QrCodeController : ControllerBase
         var ctx = await LoadContextAsync(form.Ticket);
         if (ctx.Status != StatusWaiting)
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
-        var user = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Nickname, u.Avatar })
-            .FirstOrDefaultAsync();
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>()
+                .Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => new { u.Nickname, u.Avatar }));
         if (user is null)
             throw new BusinessException(ResultCode.AccountNotFound);
         ctx.UserId = userId;
@@ -159,11 +160,10 @@ public sealed class QrCodeController : ControllerBase
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
         if (ctx.UserId is null)
             throw new BusinessException(ResultCode.AccountNotFound);
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == ctx.UserId.Value && !u.IsDeleted)
-            .Select(u => new { u.Status })
-            .FirstOrDefaultAsync();
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>()
+                .Where(u => u.Id == ctx.UserId.Value && !u.IsDeleted)
+                .Select(u => new { u.Status }));
         if (user is null)
             throw new BusinessException(ResultCode.AccountNotFound);
         if (user.Status != 1)

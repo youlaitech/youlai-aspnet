@@ -1,20 +1,20 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Youlai.Application.Common;
+using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
 using Youlai.Application.Models;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Application.System.Models.User;
-using Youlai.Application.System;
 using Youlai.Domain.Entities;
-using Youlai.Application.Constants;
-using Youlai.Application.Persistence;
+
+using Youlai.Application.Extensions;
 
 namespace Youlai.Application.System;
 
@@ -25,29 +25,44 @@ internal sealed class SystemUserService : ISystemUserService
 {
     private static readonly TimeSpan VerifyCodeTtl = TimeSpan.FromMinutes(5);
 
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysUser> _userRepo;
+    private readonly IRepository<SysUserRole> _userRoleRepo;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermissionService _rolePermissionService;
     private readonly IDataPermissionService _dataPermissionService;
-    private readonly JwtTokenManager _tokenManager;
+    private readonly ITokenManager _tokenManager;
     private readonly IDistributedCache _cache;
+    private readonly IPasswordHasher<SysUser> _passwordHasher;
+    private readonly IExcelManager _excelManager;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SystemUserService> _logger;
 
     public SystemUserService(
-        IDbContext dbContext,
+        IReadOnlyDbContext readDb,
+        IRepository<SysUser> userRepo,
+        IRepository<SysUserRole> userRoleRepo,
         ICurrentUser currentUser,
         IRolePermissionService rolePermissionService,
         IDataPermissionService dataPermissionService,
-        JwtTokenManager tokenManager,
+        ITokenManager tokenManager,
         IDistributedCache cache,
+        IPasswordHasher<SysUser> passwordHasher,
+        IExcelManager excelManager,
+        IUnitOfWork unitOfWork,
         ILogger<SystemUserService> logger)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _userRepo = userRepo;
+        _userRoleRepo = userRoleRepo;
         _currentUser = currentUser;
         _rolePermissionService = rolePermissionService;
         _dataPermissionService = dataPermissionService;
         _tokenManager = tokenManager;
         _cache = cache;
+        _passwordHasher = passwordHasher;
+        _excelManager = excelManager;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -62,12 +77,10 @@ internal sealed class SystemUserService : ISystemUserService
             return new CurrentUserDto();
         }
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId.Value && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Username, u.Nickname, u.Avatar })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id == userId.Value && !u.IsDeleted)
+                .Select(u => new { u.Id, u.Username, u.Nickname, u.Avatar }),
+            cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -109,10 +122,10 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
+        var users = _readDb.Query<SysUser>().Where(u => !u.IsDeleted);
         users = ApplyUserFilters(users, query);
 
-        var total = await users.CountAsync(cancellationToken).ConfigureAwait(false);
+        var total = await _readDb.CountAsync(users, cancellationToken).ConfigureAwait(false);
         if (total == 0)
         {
             return PageResult<UserPageVo>.Success(Array.Empty<UserPageVo>(), 0, pageNum, pageSize);
@@ -120,7 +133,7 @@ internal sealed class SystemUserService : ISystemUserService
 
         var pageRowsQuery =
             from u in users
-            join d in _dbContext.SysDepts.AsNoTracking() on u.DeptId equals d.Id into deptJoin
+            join d in _readDb.Query<SysDept>() on u.DeptId equals d.Id into deptJoin
             from d in deptJoin.DefaultIfEmpty()
             select new
             {
@@ -136,11 +149,11 @@ internal sealed class SystemUserService : ISystemUserService
                 u.CreateTime,
             };
 
-        var pageRows = await pageRowsQuery
-            .Skip((pageNum - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var pageRows = await _readDb.ToListAsync(
+            pageRowsQuery
+                .Skip((pageNum - 1) * pageSize)
+                .Take(pageSize),
+            cancellationToken).ConfigureAwait(false);
 
         // 角色名称需要单独聚合，避免在主查询里引入过多join
         var userIds = pageRows.Select(x => x.Id).ToArray();
@@ -171,35 +184,30 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<UserForm> GetUserFormAsync(long userId, CancellationToken cancellationToken = default)
     {
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new
-            {
-                u.Id,
-                u.Username,
-                u.Nickname,
-                u.Gender,
-                u.Mobile,
-                u.Email,
-                u.Avatar,
-                u.DeptId,
-                u.Status,
-            })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    u.Nickname,
+                    u.Gender,
+                    u.Mobile,
+                    u.Email,
+                    u.Avatar,
+                    u.DeptId,
+                    u.Status,
+                }),
+            cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
         }
 
-        var roleIds = await _dbContext.SysUserRoles
-            .AsNoTracking()
-            .Where(ur => ur.UserId == userId)
-            .Select(ur => ur.RoleId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var roleIds = await _readDb.ToListAsync(
+            _readDb.Query<SysUserRole>().Where(ur => ur.UserId == userId).Select(ur => ur.RoleId),
+            cancellationToken).ConfigureAwait(false);
 
         return new UserForm
         {
@@ -227,10 +235,9 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "用户名不能为空");
         }
 
-        var exists = await _dbContext.SysUsers
-            .AsNoTracking()
-            .AnyAsync(u => u.Username == username && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysUser>().Where(u => u.Username == username && !u.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -250,7 +257,6 @@ internal sealed class SystemUserService : ISystemUserService
             Avatar = formData.Avatar?.Trim(),
             DeptId = formData.DeptId,
             Status = formData.Status ?? 1,
-            Password = BCrypt.Net.BCrypt.HashPassword(DevDefaults.DefaultPassword),
             CreateBy = createBy,
             CreateTime = now,
             UpdateBy = createBy,
@@ -258,10 +264,13 @@ internal sealed class SystemUserService : ISystemUserService
             IsDeleted = false,
         };
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        // 哈希基于 BCrypt，不依赖实体字段，签名要求传入用户实例
+        user.Password = _passwordHasher.HashPassword(user, DevDefaults.DefaultPassword);
 
-        _dbContext.SysUsers.Add(user);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        _userRepo.Add(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         await SaveUserRolesAsync(user.Id, formData.RoleIds, cancellationToken).ConfigureAwait(false);
 
@@ -274,9 +283,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<bool> UpdateUserAsync(long userId, UserForm formData, CancellationToken cancellationToken = default)
     {
-        var user = await _dbContext.SysUsers
-            .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _userRepo.FindByIdAsync(userId, cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -289,10 +296,9 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "用户名不能为空");
         }
 
-        var exists = await _dbContext.SysUsers
-            .AsNoTracking()
-            .AnyAsync(u => u.Id != userId && u.Username == username && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id != userId && u.Username == username && !u.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -311,9 +317,10 @@ internal sealed class SystemUserService : ISystemUserService
         user.UpdateTime = DateTime.UtcNow;
 
         // 角色关系更新与用户更新放在同一事务
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _userRepo.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await SaveUserRolesAsync(userId, formData.RoleIds, cancellationToken).ConfigureAwait(false);
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -331,10 +338,7 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的用户数据为空");
         }
 
-        var users = await _dbContext.SysUsers
-            .Where(u => idList.Contains(u.Id) && !u.IsDeleted)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var users = await _userRepo.ListAsync(u => idList.Contains(u.Id) && !u.IsDeleted, cancellationToken).ConfigureAwait(false);
 
         if (users.Count == 0)
         {
@@ -342,7 +346,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         // 删除时排除超管用户
-        var rootUserIdSet = (await GetRootUserIdsQuery().ToListAsync(cancellationToken).ConfigureAwait(false)).ToHashSet();
+        var rootUserIdSet = (await GetRootUserIdsAsync(cancellationToken).ConfigureAwait(false)).ToHashSet();
         users = users.Where(u => !rootUserIdSet.Contains(u.Id)).ToList();
 
         if (users.Count == 0)
@@ -360,13 +364,10 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         // 一并删除用户的角色关联
-        var roles = await _dbContext.SysUserRoles
-            .Where(ur => idList.Contains(ur.UserId))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        _dbContext.SysUserRoles.RemoveRange(roles);
+        var roles = await _userRoleRepo.ListAsync(ur => idList.Contains(ur.UserId), cancellationToken).ConfigureAwait(false);
+        _userRoleRepo.RemoveRange(roles);
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -380,13 +381,15 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "用户状态不正确");
         }
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Status, status)
-                .SetProperty(u => u.UpdateBy, _currentUser.UserId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Status = status;
+                u.UpdateBy = _currentUser.UserId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return ok > 0;
     }
@@ -398,13 +401,15 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Mobile, (string?)null)
-                .SetProperty(u => u.UpdateBy, userId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Mobile = null;
+                u.UpdateBy = userId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return ok > 0;
     }
@@ -416,13 +421,15 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Email, (string?)null)
-                .SetProperty(u => u.UpdateBy, userId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Email = null;
+                u.UpdateBy = userId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return ok > 0;
     }
@@ -437,13 +444,15 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "密码不能为空");
         }
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Password, BCrypt.Net.BCrypt.HashPassword(password))
-                .SetProperty(u => u.UpdateBy, _currentUser.UserId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Password = _passwordHasher.HashPassword(u, password);
+                u.UpdateBy = _currentUser.UserId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         if (ok > 0)
         {
@@ -456,25 +465,10 @@ internal sealed class SystemUserService : ISystemUserService
     /// <summary>
     /// 下载导入模板
     /// </summary>
-    public Task<IReadOnlyCollection<byte>> DownloadUserImportTemplateAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<byte>> DownloadUserImportTemplateAsync(CancellationToken cancellationToken = default)
     {
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("用户导入模板");
-        var headers = new[]
-        {
-            "用户名", "昵称", "手机号", "邮箱", "性别", "角色", "部门"
-        };
-
-        for (var i = 0; i < headers.Length; i++)
-        {
-            worksheet.Cell(1, i + 1).Value = headers[i];
-        }
-
-        worksheet.Columns().AdjustToContents();
-
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return Task.FromResult<IReadOnlyCollection<byte>>(stream.ToArray());
+        var bytes = await _excelManager.ExportAsync(Array.Empty<UserImportRow>(), UserImportTemplateSpec, cancellationToken).ConfigureAwait(false);
+        return bytes;
     }
 
     /// <summary>
@@ -482,12 +476,12 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<IReadOnlyCollection<byte>> ExportUsersAsync(UserQuery query, CancellationToken cancellationToken = default)
     {
-        var users = _dbContext.SysUsers.AsNoTracking().Where(u => !u.IsDeleted);
+        var users = _readDb.Query<SysUser>().Where(u => !u.IsDeleted);
         users = ApplyUserFilters(users, query);
 
         var rowsQuery =
             from u in users
-            join d in _dbContext.SysDepts.AsNoTracking() on u.DeptId equals d.Id into deptJoin
+            join d in _readDb.Query<SysDept>() on u.DeptId equals d.Id into deptJoin
             from d in deptJoin.DefaultIfEmpty()
             select new
             {
@@ -500,55 +494,35 @@ internal sealed class SystemUserService : ISystemUserService
                 u.CreateTime,
             };
 
-        var rows = await rowsQuery
-            // 导出最多取 5000 行，防止数据量过大拖垮响应
-            .Take(5000)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            rowsQuery.Take(5000),
+            cancellationToken).ConfigureAwait(false);
 
-        var genderMap = await _dbContext.SysDictItems
-            .AsNoTracking()
-            .Where(i => i.DictCode == "gender" && i.Status == 1)
-            .OrderBy(i => i.Sort)
-            .ThenBy(i => i.Id)
-            .ToDictionaryAsync(i => i.Value ?? string.Empty, i => i.Label ?? string.Empty, cancellationToken)
-            .ConfigureAwait(false);
+        var genderItems = await _readDb.ToListAsync(
+            _readDb.Query<SysDictItem>().Where(i => i.DictCode == "gender" && i.Status == 1)
+                .OrderBy(i => i.Sort).ThenBy(i => i.Id),
+            cancellationToken).ConfigureAwait(false);
+        var genderMap = genderItems
+            .Where(i => !string.IsNullOrWhiteSpace(i.Value))
+            .ToDictionary(i => i.Value!, i => i.Label ?? string.Empty, StringComparer.Ordinal);
 
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("用户列表");
-        var headers = new[]
+        var exportRows = rows.Select(r => new UserExportRow
         {
-            "用户名", "昵称", "部门", "性别", "手机号", "邮箱", "创建时间"
-        };
-
-        for (var i = 0; i < headers.Length; i++)
-        {
-            worksheet.Cell(1, i + 1).Value = headers[i];
-        }
-
-        var rowIndex = 2;
-        foreach (var r in rows)
-        {
-            worksheet.Cell(rowIndex, 1).Value = r.Username ?? string.Empty;
-            worksheet.Cell(rowIndex, 2).Value = r.Nickname ?? string.Empty;
-            worksheet.Cell(rowIndex, 3).Value = r.DeptName ?? string.Empty;
-            worksheet.Cell(rowIndex, 4).Value = r.Gender.HasValue
-                && genderMap.TryGetValue(r.Gender.Value.ToString(), out var genderLabel)
-                    ? genderLabel
-                    : string.Empty;
-            worksheet.Cell(rowIndex, 5).Value = r.Mobile ?? string.Empty;
-            worksheet.Cell(rowIndex, 6).Value = r.Email ?? string.Empty;
-            worksheet.Cell(rowIndex, 7).Value = r.CreateTime.HasValue
+            Username = r.Username ?? string.Empty,
+            Nickname = r.Nickname ?? string.Empty,
+            Dept = r.DeptName ?? string.Empty,
+            Gender = r.Gender.HasValue && genderMap.TryGetValue(r.Gender.Value.ToString(), out var genderLabel)
+                ? genderLabel
+                : string.Empty,
+            Mobile = r.Mobile ?? string.Empty,
+            Email = r.Email ?? string.Empty,
+            CreateTime = r.CreateTime.HasValue
                 ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm")
-                : string.Empty;
-            rowIndex++;
-        }
+                : string.Empty,
+        }).ToList();
 
-        worksheet.Columns().AdjustToContents();
-
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
+        var bytes = await _excelManager.ExportAsync(exportRows, UserExportSpec, cancellationToken).ConfigureAwait(false);
+        return bytes;
     }
 
     /// <summary>
@@ -561,12 +535,10 @@ internal sealed class SystemUserService : ISystemUserService
         var invalid = 0;
 
         // 预加载角色和部门数据（支持编码或名称匹配）
-        var roles = await _dbContext.SysRoles
-            .AsNoTracking()
-            .Where(r => !r.IsDeleted && r.Status == 1)
-            .Select(r => new { r.Id, r.Code, r.Name })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var roles = await _readDb.ToListAsync(
+            _readDb.Query<SysRole>().Where(r => !r.IsDeleted && r.Status == 1)
+                .Select(r => new { r.Id, r.Code, r.Name }),
+            cancellationToken).ConfigureAwait(false);
         var roleMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in roles)
         {
@@ -574,12 +546,10 @@ internal sealed class SystemUserService : ISystemUserService
             if (!string.IsNullOrEmpty(r.Name)) roleMap[r.Name] = r.Id;
         }
 
-        var depts = await _dbContext.SysDepts
-            .AsNoTracking()
-            .Where(d => !d.IsDeleted)
-            .Select(d => new { d.Id, d.Code, d.Name })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var depts = await _readDb.ToListAsync(
+            _readDb.Query<SysDept>().Where(d => !d.IsDeleted)
+                .Select(d => new { d.Id, d.Code, d.Name }),
+            cancellationToken).ConfigureAwait(false);
         var deptMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         foreach (var d in depts)
         {
@@ -587,36 +557,28 @@ internal sealed class SystemUserService : ISystemUserService
             if (!string.IsNullOrEmpty(d.Name)) deptMap[d.Name] = d.Id;
         }
 
-        using var workbook = new XLWorkbook(content);
-        var worksheet = workbook.Worksheets.FirstOrDefault();
-        if (worksheet is null)
-        {
-            return new ExcelResult
-            {
-                Code = ResultCode.Success.Code(),
-                ValidCount = 0,
-                InvalidCount = 0,
-                MessageList = Array.Empty<string>(),
-            };
-        }
+        var importResult = await _excelManager.ImportAsync(
+            content,
+            new ExcelImportSpec<UserImportRow>(UserImportTemplateSpec.SheetName, UserImportTemplateSpec.Columns),
+            cancellationToken).ConfigureAwait(false);
 
-        var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
         var importRows = new List<(SysUser User, List<long> RoleIds)>();
-        for (var row = 2; row <= lastRow; row++)
+        var excelRow = 2;
+        foreach (var row in importResult.Rows)
         {
-            var username = worksheet.Cell(row, 1).GetValue<string>()?.Trim();
-            var nickname = worksheet.Cell(row, 2).GetValue<string>()?.Trim();
-            var mobile = worksheet.Cell(row, 3).GetValue<string>()?.Trim();
-            var email = worksheet.Cell(row, 4).GetValue<string>()?.Trim();
-            var gender = TryParseInt(worksheet.Cell(row, 5).GetValue<string>());
-            var roleStr = worksheet.Cell(row, 6).GetValue<string>()?.Trim(); // 角色列（编码或名称，逗号分隔）
-            var deptStr = worksheet.Cell(row, 7).GetValue<string>()?.Trim(); // 部门列（编码或名称）
+            var username = row.Username?.Trim();
+            var nickname = row.Nickname?.Trim();
+            var mobile = row.Mobile?.Trim();
+            var email = row.Email?.Trim();
+            var roleStr = row.Role?.Trim();
+            var deptStr = row.Dept?.Trim();
 
             if (string.IsNullOrWhiteSpace(username)
                 && string.IsNullOrWhiteSpace(nickname)
                 && string.IsNullOrWhiteSpace(mobile)
                 && string.IsNullOrWhiteSpace(email))
             {
+                excelRow++;
                 continue;
             }
 
@@ -624,19 +586,20 @@ internal sealed class SystemUserService : ISystemUserService
             if (string.IsNullOrWhiteSpace(username))
             {
                 invalid++;
-                messages.Add($"第{row}行：用户名不能为空");
+                messages.Add($"第{excelRow}行：用户名不能为空");
+                excelRow++;
                 continue;
             }
 
-            var exists = await _dbContext.SysUsers
-                .AsNoTracking()
-                .AnyAsync(u => u.Username == username && !u.IsDeleted, cancellationToken)
-                .ConfigureAwait(false);
+            var exists = await _readDb.AnyAsync(
+                _readDb.Query<SysUser>().Where(u => u.Username == username && !u.IsDeleted),
+                cancellationToken).ConfigureAwait(false);
 
             if (exists)
             {
                 invalid++;
-                messages.Add($"第{row}行：用户名已存在: {username}");
+                messages.Add($"第{excelRow}行：用户名已存在: {username}");
+                excelRow++;
                 continue;
             }
 
@@ -644,8 +607,7 @@ internal sealed class SystemUserService : ISystemUserService
             var roleIds = new List<long>();
             if (!string.IsNullOrEmpty(roleStr))
             {
-                var roleParts = roleStr.Split(',', '，');
-                foreach (var part in roleParts)
+                foreach (var part in roleStr.Split(',', '，'))
                 {
                     var trimmed = part.Trim();
                     if (string.IsNullOrEmpty(trimmed)) continue;
@@ -659,7 +621,8 @@ internal sealed class SystemUserService : ISystemUserService
             if (roleIds.Count == 0)
             {
                 invalid++;
-                messages.Add($"第{row}行：角色不存在或为空");
+                messages.Add($"第{excelRow}行：角色不存在或为空");
+                excelRow++;
                 continue;
             }
 
@@ -674,7 +637,8 @@ internal sealed class SystemUserService : ISystemUserService
                 else
                 {
                     invalid++;
-                    messages.Add($"第{row}行：部门不存在: {deptStr}");
+                    messages.Add($"第{excelRow}行：部门不存在: {deptStr}");
+                    excelRow++;
                     continue;
                 }
             }
@@ -688,10 +652,9 @@ internal sealed class SystemUserService : ISystemUserService
                 Nickname = nickname,
                 Mobile = mobile,
                 Email = email,
-                Gender = gender,
+                Gender = row.Gender,
                 Status = 1,
                 DeptId = userDeptId,
-                Password = BCrypt.Net.BCrypt.HashPassword(DevDefaults.DefaultPassword),
                 CreateBy = createBy,
                 CreateTime = now,
                 UpdateBy = createBy,
@@ -699,29 +662,35 @@ internal sealed class SystemUserService : ISystemUserService
                 IsDeleted = false,
             };
 
+            // 哈希基于 BCrypt，不依赖实体字段，签名要求传入用户实例
+            user.Password = _passwordHasher.HashPassword(user, DevDefaults.DefaultPassword);
+
             // 先收集待插入数据，循环结束后再统一提交，避免逐行多次往返数据库
             importRows.Add((user, roleIds.Distinct().ToList()));
+            excelRow++;
         }
 
         // 先批量插入用户（自增 ID 回填），再批量插入用户-角色关联，整批仅两次提交
         foreach (var (user, _) in importRows)
         {
-            _dbContext.SysUsers.Add(user);
+            _userRepo.Add(user);
         }
 
         if (importRows.Count > 0)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
+            var roleLinks = new List<SysUserRole>();
             foreach (var (user, roleIds) in importRows)
             {
                 foreach (var roleId in roleIds)
                 {
-                    _dbContext.SysUserRoles.Add(new SysUserRole { UserId = user.Id, RoleId = roleId });
+                    roleLinks.Add(new SysUserRole { UserId = user.Id, RoleId = roleId });
                 }
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _userRoleRepo.AddRange(roleLinks);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         valid = importRows.Count;
@@ -743,8 +712,8 @@ internal sealed class SystemUserService : ISystemUserService
         var userId = _currentUser.GetRequiredUserId();
 
         var rowQuery =
-            from u in _dbContext.SysUsers.AsNoTracking()
-            join d in _dbContext.SysDepts.AsNoTracking() on u.DeptId equals d.Id into deptJoin
+            from u in _readDb.Query<SysUser>()
+            join d in _readDb.Query<SysDept>() on u.DeptId equals d.Id into deptJoin
             from d in deptJoin.DefaultIfEmpty()
             where u.Id == userId && !u.IsDeleted
             select new
@@ -760,7 +729,7 @@ internal sealed class SystemUserService : ISystemUserService
                 u.CreateTime,
             };
 
-        var row = await rowQuery.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var row = await _readDb.FirstOrDefaultAsync(rowQuery, cancellationToken).ConfigureAwait(false);
         if (row is null)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "用户不存在");
@@ -790,9 +759,7 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var userId = _currentUser.GetRequiredUserId();
 
-        var user = await _dbContext.SysUsers
-            .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _userRepo.FindByIdAsync(userId, cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -827,7 +794,8 @@ internal sealed class SystemUserService : ISystemUserService
         user.UpdateBy = userId;
         user.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _userRepo.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -838,9 +806,7 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var userId = _currentUser.GetRequiredUserId();
 
-        var user = await _dbContext.SysUsers
-            .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _userRepo.FindByIdAsync(userId, cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -848,7 +814,8 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var oldPwd = formData.OldPassword ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(user.Password) || !BCrypt.Net.BCrypt.Verify(oldPwd, user.Password))
+        if (string.IsNullOrWhiteSpace(user.Password)
+            || _passwordHasher.VerifyHashedPassword(user, user.Password, oldPwd) != PasswordVerificationResult.Success)
         {
             throw new BusinessException(ResultCode.UserPasswordError, "原密码错误");
         }
@@ -859,7 +826,7 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "新密码不能为空");
         }
 
-        if (BCrypt.Net.BCrypt.Verify(newPwd, user.Password))
+        if (_passwordHasher.VerifyHashedPassword(user, user.Password, newPwd) == PasswordVerificationResult.Success)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "新密码不能与原密码相同");
         }
@@ -869,11 +836,12 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "新密码和确认密码不一致");
         }
 
-        user.Password = BCrypt.Net.BCrypt.HashPassword(newPwd);
+        user.Password = _passwordHasher.HashPassword(user, newPwd);
         user.UpdateBy = userId;
         user.UpdateTime = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _userRepo.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await _tokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -911,10 +879,9 @@ internal sealed class SystemUserService : ISystemUserService
 
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var mobileExists = await _dbContext.SysUsers
-            .AsNoTracking()
-            .AnyAsync(u => !u.IsDeleted && u.Id != userId && u.Mobile == mobile, cancellationToken)
-            .ConfigureAwait(false);
+        var mobileExists = await _readDb.AnyAsync(
+            _readDb.Query<SysUser>().Where(u => !u.IsDeleted && u.Id != userId && u.Mobile == mobile),
+            cancellationToken).ConfigureAwait(false);
 
         if (mobileExists)
         {
@@ -922,15 +889,17 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var key = string.Format(RedisKeyConstants.Captcha.MobileCode, mobile);
-        await VerifyCodeAsync(key, formData.Code ?? string.Empty).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Mobile, mobile)
-                .SetProperty(u => u.UpdateBy, userId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Mobile = mobile;
+                u.UpdateBy = userId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return ok > 0;
     }
@@ -968,10 +937,9 @@ internal sealed class SystemUserService : ISystemUserService
 
         var (userId, _) = await VerifyUserPasswordAsync(formData.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var emailExists = await _dbContext.SysUsers
-            .AsNoTracking()
-            .AnyAsync(u => !u.IsDeleted && u.Id != userId && u.Email == email, cancellationToken)
-            .ConfigureAwait(false);
+        var emailExists = await _readDb.AnyAsync(
+            _readDb.Query<SysUser>().Where(u => !u.IsDeleted && u.Id != userId && u.Email == email),
+            cancellationToken).ConfigureAwait(false);
 
         if (emailExists)
         {
@@ -979,15 +947,17 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         var key = string.Format(RedisKeyConstants.Captcha.EmailCode, email);
-        await VerifyCodeAsync(key, formData.Code ?? string.Empty).ConfigureAwait(false);
+        await VerifyCodeAsync(key, formData.Code ?? string.Empty, cancellationToken).ConfigureAwait(false);
 
-        var ok = await _dbContext.SysUsers
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(u => u.Email, email)
-                .SetProperty(u => u.UpdateBy, userId)
-                .SetProperty(u => u.UpdateTime, DateTime.UtcNow), cancellationToken)
-            .ConfigureAwait(false);
+        var ok = await _userRepo.BatchUpdateAsync(
+            u => u.Id == userId && !u.IsDeleted,
+            u =>
+            {
+                u.Email = email;
+                u.UpdateBy = userId;
+                u.UpdateTime = DateTime.UtcNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return ok > 0;
     }
@@ -997,13 +967,12 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<long>>> GetUserOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var rows = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => !u.IsDeleted && u.Status == 1 && !GetRootUserIdsQuery().Contains(u.Id))
-            .OrderBy(u => u.Id)
-            .Select(u => new { u.Id, u.Nickname, u.Username })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(
+            _readDb.Query<SysUser>()
+                .Where(u => !u.IsDeleted && u.Status == 1 && !GetRootUserIdsQuery().Contains(u.Id))
+                .OrderBy(u => u.Id)
+                .Select(u => new { u.Id, u.Nickname, u.Username }),
+            cancellationToken).ConfigureAwait(false);
 
         return rows
             .Select(u => new Option<long>(u.Id, string.IsNullOrWhiteSpace(u.Nickname) ? (u.Username ?? u.Id.ToString()) : u.Nickname!))
@@ -1037,10 +1006,15 @@ internal sealed class SystemUserService : ISystemUserService
     /// </summary>
     private IQueryable<long> GetRootUserIdsQuery()
     {
-        return from ur in _dbContext.SysUserRoles.AsNoTracking()
-               join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+        return from ur in _readDb.Query<SysUserRole>()
+               join r in _readDb.Query<SysRole>() on ur.RoleId equals r.Id
                where !r.IsDeleted && r.Code == SecurityConstants.RootRoleCode
                select ur.UserId;
+    }
+
+    private async Task<List<long>> GetRootUserIdsAsync(CancellationToken cancellationToken)
+    {
+        return await _readDb.ToListAsync(GetRootUserIdsQuery(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1076,8 +1050,7 @@ internal sealed class SystemUserService : ISystemUserService
         var roleIdList = IdCollectionExtensions.ParsePositiveLongIds(query.RoleIds);
         if (roleIdList.Count > 0)
         {
-            var roleUserIds = _dbContext.SysUserRoles
-                .AsNoTracking()
+            var roleUserIds = _readDb.Query<SysUserRole>()
                 .Where(ur => roleIdList.Contains(ur.RoleId))
                 .Select(ur => ur.UserId);
 
@@ -1111,14 +1084,14 @@ internal sealed class SystemUserService : ISystemUserService
         var userIdList = userIds.ToList();
 
         var query =
-            from ur in _dbContext.SysUserRoles.AsNoTracking()
-            join r in _dbContext.SysRoles.AsNoTracking() on ur.RoleId equals r.Id
+            from ur in _readDb.Query<SysUserRole>()
+            join r in _readDb.Query<SysRole>() on ur.RoleId equals r.Id
             where userIdList.Contains(ur.UserId)
                 && !r.IsDeleted
                 && r.Status == 1
             select new { ur.UserId, r.Name };
 
-        var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await _readDb.ToListAsync(query, cancellationToken).ConfigureAwait(false);
 
         return rows
             .Where(x => !string.IsNullOrWhiteSpace(x.Name))
@@ -1171,34 +1144,28 @@ internal sealed class SystemUserService : ISystemUserService
 
     private async Task SaveUserRolesAsync(long userId, IReadOnlyCollection<long>? roleIds, CancellationToken cancellationToken)
     {
-        var existing = await _dbContext.SysUserRoles
-            .Where(ur => ur.UserId == userId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var existing = await _userRoleRepo.ListAsync(ur => ur.UserId == userId, cancellationToken).ConfigureAwait(false);
         if (existing.Count > 0)
         {
-            _dbContext.SysUserRoles.RemoveRange(existing);
+            _userRoleRepo.RemoveRange(existing);
         }
 
         if (roleIds is null || roleIds.Count == 0)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var distinct = roleIds.Where(r => r > 0).Distinct().ToArray();
         if (distinct.Length == 0)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        foreach (var roleId in distinct)
-        {
-            _dbContext.SysUserRoles.Add(new SysUserRole { UserId = userId, RoleId = roleId });
-        }
+        _userRoleRepo.AddRange(distinct.Select(roleId => new SysUserRole { UserId = userId, RoleId = roleId }));
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1210,12 +1177,9 @@ internal sealed class SystemUserService : ISystemUserService
     {
         var userId = _currentUser.GetRequiredUserId();
 
-        var user = await _dbContext.SysUsers
-            .AsNoTracking()
-            .Where(u => u.Id == userId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.Password })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var user = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUser>().Where(u => u.Id == userId && !u.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (user is null)
         {
@@ -1223,7 +1187,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(user.Password)
-            || !BCrypt.Net.BCrypt.Verify(password, user.Password))
+            || _passwordHasher.VerifyHashedPassword(user, user.Password, password) != PasswordVerificationResult.Success)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "当前密码错误");
         }
@@ -1234,7 +1198,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// <summary>
     /// 验证缓存中的验证码
     /// </summary>
-    private async Task VerifyCodeAsync(string cacheKey, string code)
+    private async Task VerifyCodeAsync(string cacheKey, string code, CancellationToken cancellationToken = default)
     {
         var cached = await _cache.GetStringAsync(cacheKey, cancellationToken).ConfigureAwait(false);
 
@@ -1250,4 +1214,56 @@ internal sealed class SystemUserService : ISystemUserService
 
         await _cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 用户导出行（与 Excel 列头一一对应）
+    /// </summary>
+    private sealed class UserExportRow
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Nickname { get; set; } = string.Empty;
+        public string Dept { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public string Mobile { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string CreateTime { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 用户导入行（属性名与模板列头映射）
+    /// </summary>
+    private sealed class UserImportRow
+    {
+        public string? Username { get; set; }
+        public string? Nickname { get; set; }
+        public string? Mobile { get; set; }
+        public string? Email { get; set; }
+        public int? Gender { get; set; }
+        public string? Role { get; set; }
+        public string? Dept { get; set; }
+    }
+
+    private static readonly ExcelSheetSpec UserExportSpec = new("用户列表",
+        new[]
+        {
+            new ExcelColumnSpec("用户名", nameof(UserExportRow.Username)),
+            new ExcelColumnSpec("昵称", nameof(UserExportRow.Nickname)),
+            new ExcelColumnSpec("部门", nameof(UserExportRow.Dept)),
+            new ExcelColumnSpec("性别", nameof(UserExportRow.Gender)),
+            new ExcelColumnSpec("手机号", nameof(UserExportRow.Mobile)),
+            new ExcelColumnSpec("邮箱", nameof(UserExportRow.Email)),
+            new ExcelColumnSpec("创建时间", nameof(UserExportRow.CreateTime)),
+        });
+
+    private static readonly ExcelSheetSpec UserImportTemplateSpec = new("用户导入模板",
+        new[]
+        {
+            new ExcelColumnSpec("用户名", nameof(UserImportRow.Username)),
+            new ExcelColumnSpec("昵称", nameof(UserImportRow.Nickname)),
+            new ExcelColumnSpec("手机号", nameof(UserImportRow.Mobile)),
+            new ExcelColumnSpec("邮箱", nameof(UserImportRow.Email)),
+            new ExcelColumnSpec("性别", nameof(UserImportRow.Gender)),
+            new ExcelColumnSpec("角色", nameof(UserImportRow.Role)),
+            new ExcelColumnSpec("部门", nameof(UserImportRow.Dept)),
+        });
 }

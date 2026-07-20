@@ -40,7 +40,7 @@ public static class JwtAuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
-                    // 收到请求：打印 Authorization 头和令牌载荷，便于排查认证问题
+                    // 收到请求：打印 Authorization 头和令牌载荷，辅助排查认证问题
                     OnMessageReceived = context =>
                     {
                         var logger = context.HttpContext.RequestServices
@@ -120,7 +120,7 @@ public static class JwtAuthenticationExtensions
                             return Task.CompletedTask;
                         }
 
-                        var tokenManager = context.HttpContext.RequestServices.GetRequiredService<JwtTokenManager>();
+                        var tokenManager = context.HttpContext.RequestServices.GetRequiredService<ITokenManager>();
                         if (string.IsNullOrWhiteSpace(rawToken) || !tokenManager.ValidateAccessToken(rawToken))
                         {
                             logger.LogWarning("JWT validation failed in OnTokenValidated. JTI={Jti}", jti ?? string.Empty);

@@ -1,15 +1,13 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
-using Youlai.Application.Extensions;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.System.Models.Config;
 using Youlai.Application.System;
+using Youlai.Application.System.Models.Config;
 using Youlai.Domain.Entities;
-using Youlai.Application.Constants;
-using Youlai.Application.Persistence;
 
 namespace Youlai.Application.System;
 
@@ -18,14 +16,23 @@ namespace Youlai.Application.System;
 /// </summary>
 internal sealed class SystemConfigService : ISystemConfigService
 {
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysConfig> _configRepo;
     private readonly ICurrentUser _currentUser;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IDistributedCache _cache;
 
-    public SystemConfigService(IDbContext dbContext, ICurrentUser currentUser, IDistributedCache cache)
+    public SystemConfigService(
+        IReadOnlyDbContext readDb,
+        IRepository<SysConfig> configRepo,
+        ICurrentUser currentUser,
+        IUnitOfWork unitOfWork,
+        IDistributedCache cache)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _configRepo = configRepo;
         _currentUser = currentUser;
+        _unitOfWork = unitOfWork;
         _cache = cache;
     }
 
@@ -36,9 +43,7 @@ internal sealed class SystemConfigService : ISystemConfigService
     {
         var (pageNum, pageSize) = query.Normalize();
 
-        var q = _dbContext.SysConfigs
-            .AsNoTracking()
-            .Where(x => !x.IsDeleted);
+        var q = _readDb.Query<SysConfig>().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -48,19 +53,16 @@ internal sealed class SystemConfigService : ISystemConfigService
 
         q = q.OrderByDescending(x => x.Id);
 
-        var list = await q
-            .Select(x => new ConfigPageVo
+        return await _readDb.PageAsync(
+            q.Select(x => new ConfigPageVo
             {
                 Id = x.Id,
                 ConfigName = x.ConfigName,
                 ConfigKey = x.ConfigKey,
                 ConfigValue = x.ConfigValue,
                 Remark = x.Remark,
-            })
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
-
-        return list;
+            }),
+            pageNum, pageSize, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -68,10 +70,9 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// </summary>
     public async Task<ConfigForm> GetConfigFormAsync(long id, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysConfigs
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysConfig>().Where(x => x.Id == id && !x.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         if (entity is null)
         {
@@ -111,10 +112,9 @@ internal sealed class SystemConfigService : ISystemConfigService
         var configName = form.ConfigName.Trim();
         var configKey = form.ConfigKey.Trim();
 
-        var exists = await _dbContext.SysConfigs
-            .AsNoTracking()
-            .AnyAsync(x => !x.IsDeleted && x.ConfigKey == configKey, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysConfig>().Where(x => !x.IsDeleted && x.ConfigKey == configKey),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -132,8 +132,8 @@ internal sealed class SystemConfigService : ISystemConfigService
             IsDeleted = false,
         };
 
-        _dbContext.SysConfigs.Add(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _configRepo.Add(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -142,11 +142,9 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// </summary>
     public async Task<bool> UpdateConfigAsync(long id, ConfigForm form, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysConfigs
-            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _configRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (entity is null)
+        if (entity is null || entity.IsDeleted)
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "配置不存在");
         }
@@ -169,10 +167,9 @@ internal sealed class SystemConfigService : ISystemConfigService
         var configName = form.ConfigName.Trim();
         var configKey = form.ConfigKey.Trim();
 
-        var exists = await _dbContext.SysConfigs
-            .AsNoTracking()
-            .AnyAsync(x => !x.IsDeleted && x.Id != id && x.ConfigKey == configKey, cancellationToken)
-            .ConfigureAwait(false);
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysConfig>().Where(x => !x.IsDeleted && x.Id != id && x.ConfigKey == configKey),
+            cancellationToken).ConfigureAwait(false);
 
         if (exists)
         {
@@ -186,7 +183,8 @@ internal sealed class SystemConfigService : ISystemConfigService
         entity.UpdateBy = _currentUser.UserId;
         entity.UpdateTime = DateTime.Now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _configRepo.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -195,11 +193,9 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// </summary>
     public async Task<bool> DeleteConfigAsync(long id, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysConfigs
-            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _configRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
-        if (entity is null)
+        if (entity is null || entity.IsDeleted)
         {
             return true;
         }
@@ -208,7 +204,8 @@ internal sealed class SystemConfigService : ISystemConfigService
         entity.UpdateBy = _currentUser.UserId;
         entity.UpdateTime = DateTime.Now;
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _configRepo.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -217,11 +214,9 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// </summary>
     public async Task<bool> RefreshCacheAsync(CancellationToken cancellationToken = default)
     {
-        var list = await _dbContext.SysConfigs
-            .AsNoTracking()
-            .Where(x => !x.IsDeleted)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            _readDb.Query<SysConfig>().Where(x => !x.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
 
         await _cache.RemoveAsync(RedisKeyConstants.System.Config, cancellationToken).ConfigureAwait(false);
 
@@ -230,7 +225,7 @@ internal sealed class SystemConfigService : ISystemConfigService
             return true;
         }
 
-        // 整份配置以「配置键 → 配置值」的 JSON 形式缓存，便于整体失效与重建
+        // 整份配置以「配置键 → 配置值」的 JSON 形式缓存，可整体失效与重建
         var dict = list
             .Where(x => !string.IsNullOrWhiteSpace(x.ConfigKey))
             .ToDictionary(x => x.ConfigKey!, x => x.ConfigValue ?? string.Empty);

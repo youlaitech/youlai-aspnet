@@ -1,16 +1,12 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Reflection;
-using Microsoft.EntityFrameworkCore;
-using Youlai.Domain.Entities;
-using Youlai.Domain.Enums;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
+using Youlai.Application.System;
 using Youlai.Application.System.Models.Log;
 using Youlai.Application.System.Models.Statistics;
-using Youlai.Application.System;
-using Youlai.Application.Persistence;
-using Youlai.Application.Extensions;
+using Youlai.Domain.Entities;
+using Youlai.Domain.Enums;
 
 namespace Youlai.Application.System;
 
@@ -19,11 +15,11 @@ namespace Youlai.Application.System;
 /// </summary>
 internal sealed class SystemLogService : ISystemLogService
 {
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
 
-    public SystemLogService(IDbContext dbContext)
+    public SystemLogService(IReadOnlyDbContext readDb)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
     }
 
     /// <summary>
@@ -34,7 +30,7 @@ internal sealed class SystemLogService : ISystemLogService
         var (pageNum, pageSize) = query.Normalize();
 
         // 基础查询 + 日期筛选
-        var logs = _dbContext.SysLogs.AsNoTracking();
+        var logs = _readDb.Query<SysLog>();
 
         var (start, end) = ParseDateRange(query.CreateTime);
         if (start.HasValue)
@@ -49,34 +45,31 @@ internal sealed class SystemLogService : ISystemLogService
         // 按时间倒序，最新的在前面
         logs = logs.OrderByDescending(x => x.CreateTime);
 
-        var pageResult = await logs
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
+        var pageResult = await _readDb.PageAsync(logs, pageNum, pageSize, cancellationToken).ConfigureAwait(false);
 
         // 枚举转中文、省市拼接等操作放内存里做，不丢性能
-        IEnumerable<SysLog> rows = pageResult.Data.List;
+        var rows = pageResult.Data.List;
         var list = rows.Select(x => new LogPageVo
-            {
-                Id = x.Id.ToString(),
-                Module = GetEnumDisplayName<LogModule>(x.Module),
-                ActionType = GetEnumDisplayName<ActionType>(x.ActionType),
-                Title = x.Title,
-                Content = x.Content,
-                Status = x.Status,
-                RequestUri = x.RequestUri,
-                RequestMethod = x.RequestMethod,
-                Ip = x.Ip,
-                Region = string.Join(" ", new[] { x.Province, x.City }.Where(s => !string.IsNullOrWhiteSpace(s))),
-                Device = x.Device,
-                Browser = x.Browser,
-                Os = x.Os,
-                ExecutionTime = x.ExecutionTime,
-                ErrorMsg = x.ErrorMsg,
-                OperatorId = x.OperatorId == null ? null : x.OperatorId.ToString(),
-                OperatorName = x.OperatorName,
-                CreateTime = x.CreateTime,
-            })
-            .ToList();
+        {
+            Id = x.Id.ToString(),
+            Module = GetEnumDisplayName<LogModule>(x.Module),
+            ActionType = GetEnumDisplayName<ActionType>(x.ActionType),
+            Title = x.Title,
+            Content = x.Content,
+            Status = x.Status,
+            RequestUri = x.RequestUri,
+            RequestMethod = x.RequestMethod,
+            Ip = x.Ip,
+            Region = string.Join(" ", new[] { x.Province, x.City }.Where(s => !string.IsNullOrWhiteSpace(s))),
+            Device = x.Device,
+            Browser = x.Browser,
+            Os = x.Os,
+            ExecutionTime = x.ExecutionTime,
+            ErrorMsg = x.ErrorMsg,
+            OperatorId = x.OperatorId == null ? null : x.OperatorId.ToString(),
+            OperatorName = x.OperatorName,
+            CreateTime = x.CreateTime,
+        }).ToList();
 
         return PageResult<LogPageVo>.Success(list, pageResult.Data.Total, pageNum, pageSize);
     }
@@ -99,18 +92,17 @@ internal sealed class SystemLogService : ISystemLogService
         var end = endDate.ToDateTime(TimeOnly.MaxValue);
 
         // 按天分组统计：日期、PV、UV(去重IP)
-        var grouped = await _dbContext.SysLogs
-            .AsNoTracking()
-            .Where(x => x.CreateTime >= start && x.CreateTime <= end)
-            .GroupBy(x => x.CreateTime!.Value.Date)
-            .Select(g => new
-            {
-                Date = g.Key,
-                Pv = g.Count(),
-                Ip = g.Select(x => x.Ip).Distinct().Count(),
-            })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var grouped = await _readDb.ToListAsync(
+            _readDb.Query<SysLog>()
+                .Where(x => x.CreateTime >= start && x.CreateTime <= end)
+                .GroupBy(x => x.CreateTime!.Value.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Pv = g.Count(),
+                    Ip = g.Select(x => x.Ip).Distinct().Count(),
+                }),
+            cancellationToken).ConfigureAwait(false);
 
         var pvMap = grouped.ToDictionary(x => x.Date, x => x.Pv);
         var ipMap = grouped.ToDictionary(x => x.Date, x => x.Ip);
@@ -147,20 +139,24 @@ internal sealed class SystemLogService : ISystemLogService
         var nowTime = now.TimeOfDay;
 
         // 各维度分别查一次 Count
-        var totalPv = await _dbContext.SysLogs.AsNoTracking().CountAsync(cancellationToken).ConfigureAwait(false);
-        var todayPv = await _dbContext.SysLogs.AsNoTracking().CountAsync(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1), cancellationToken).ConfigureAwait(false);
-        var yesterdayPvToNow = await _dbContext.SysLogs.AsNoTracking().CountAsync(
-            x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime,
+        var totalPv = await _readDb.CountAsync(_readDb.Query<SysLog>(), cancellationToken).ConfigureAwait(false);
+        var todayPv = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1)),
+            cancellationToken).ConfigureAwait(false);
+        var yesterdayPvToNow = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime),
             cancellationToken).ConfigureAwait(false);
 
-        var totalUv = await _dbContext.SysLogs.AsNoTracking().Select(x => x.Ip).Distinct().CountAsync(cancellationToken).ConfigureAwait(false);
-        var todayUv = await _dbContext.SysLogs.AsNoTracking().Where(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1)).Select(x => x.Ip).Distinct().CountAsync(cancellationToken).ConfigureAwait(false);
-        var yesterdayUvToNow = await _dbContext.SysLogs.AsNoTracking().Where(
-                x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime)
-            .Select(x => x.Ip)
-            .Distinct()
-            .CountAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var totalUv = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Select(x => x.Ip).Distinct(),
+            cancellationToken).ConfigureAwait(false);
+        var todayUv = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1)).Select(x => x.Ip).Distinct(),
+            cancellationToken).ConfigureAwait(false);
+        var yesterdayUvToNow = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime)
+                .Select(x => x.Ip).Distinct(),
+            cancellationToken).ConfigureAwait(false);
 
         var pvGrowth = ComputeGrowthRate(todayPv, yesterdayPvToNow);
         var uvGrowth = ComputeGrowthRate(todayUv, yesterdayUvToNow);

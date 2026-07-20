@@ -1,13 +1,13 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using Youlai.Domain.Enums;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.System.Models.Menu;
 using Youlai.Application.System;
-using Youlai.Application.Persistence;
+using Youlai.Application.System.Models.Menu;
+using Youlai.Domain.Entities;
+using Youlai.Domain.Enums;
 
 namespace Youlai.Application.System;
 
@@ -27,13 +27,25 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     private sealed record MenuRow(long Id, long ParentId, string Name, string Type, string? RouteName, string? RoutePath, string? Component, int? Sort, int? Visible, string? Icon, string? Redirect, string? Perm);
 
-    private readonly IDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<SysMenu> _menuRepo;
+    private readonly IRepository<SysRoleMenu> _roleMenuRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
 
-    public SystemMenuService(IDbContext dbContext, ICurrentUser currentUser, IRolePermsCacheInvalidator rolePermsCacheInvalidator)
+    public SystemMenuService(
+        IReadOnlyDbContext readDb,
+        IRepository<SysMenu> menuRepo,
+        IRepository<SysRoleMenu> roleMenuRepo,
+        IUnitOfWork unitOfWork,
+        ICurrentUser currentUser,
+        IRolePermsCacheInvalidator rolePermsCacheInvalidator)
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _menuRepo = menuRepo;
+        _roleMenuRepo = roleMenuRepo;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _rolePermsCacheInvalidator = rolePermsCacheInvalidator;
     }
@@ -49,28 +61,23 @@ internal sealed class SystemMenuService : ISystemMenuService
             return Array.Empty<RouteVo>();
         }
 
-        List<Domain.Entities.SysMenu> menus;
+        List<SysMenu> menus;
 
         if (_currentUser.IsRoot)
         {
-            menus = await _dbContext.SysMenus
-                .AsNoTracking()
-                .Where(m => m.Type != MenuType.Button.GetCode())
-                .OrderBy(m => m.Sort ?? 0)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            menus = await _readDb.ToListAsync(
+                _readDb.Query<SysMenu>().Where(m => m.Type != MenuType.Button.GetCode()).OrderBy(m => m.Sort ?? 0),
+                cancellationToken).ConfigureAwait(false);
         }
         else
         {
             // EF Core 9+ 将 string[].Contains() 编译为 ReadOnlySpan<string>，MySQL 驱动无法处理 → 必须用 HashSet 兜底
             var roleSet = new HashSet<string>(roleCodes, StringComparer.Ordinal);
-            var roleIds = await _dbContext.SysRoles
-                .AsNoTracking()
-                .Where(r => r.Status == 1 && !r.IsDeleted
-                    && r.Code != null && roleSet.Contains(r.Code))
-                .Select(r => r.Id)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var roleIds = await _readDb.ToListAsync(
+                _readDb.Query<SysRole>()
+                    .Where(r => r.Status == 1 && !r.IsDeleted && r.Code != null && roleSet.Contains(r.Code))
+                    .Select(r => r.Id),
+                cancellationToken).ConfigureAwait(false);
 
             if (roleIds.Count == 0)
             {
@@ -78,21 +85,14 @@ internal sealed class SystemMenuService : ISystemMenuService
             }
 
             var roleIdSet = roleIds.ToHashSet();
-            var menuIds = await _dbContext.SysRoleMenus
-                .AsNoTracking()
-                .Where(rm => roleIdSet.Contains(rm.RoleId))
-                .Select(rm => rm.MenuId)
-                .Distinct()
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var menuIds = await _readDb.ToListAsync(
+                _readDb.Query<SysRoleMenu>().Where(rm => roleIdSet.Contains(rm.RoleId)).Select(rm => rm.MenuId).Distinct(),
+                cancellationToken).ConfigureAwait(false);
 
             var menuIdSet = menuIds.ToHashSet();
-            menus = await _dbContext.SysMenus
-                .AsNoTracking()
-                .Where(m => m.Type != MenuType.Button.GetCode() && menuIdSet.Contains(m.Id))
-                .OrderBy(m => m.Sort ?? 0)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            menus = await _readDb.ToListAsync(
+                _readDb.Query<SysMenu>().Where(m => m.Type != MenuType.Button.GetCode() && menuIdSet.Contains(m.Id)).OrderBy(m => m.Sort ?? 0),
+                cancellationToken).ConfigureAwait(false);
         }
 
         return BuildRoutes(parentId: 0, menus).ToArray();
@@ -120,19 +120,16 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<IReadOnlyCollection<Option<long>>> GetMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default)
     {
-        var q = _dbContext.SysMenus
-            .AsNoTracking();
+        var q = _readDb.Query<SysMenu>();
 
         if (onlyParent)
         {
             q = q.Where(m => m.Type != MenuType.Button.GetCode());
         }
 
-        var list = await q
-            .OrderBy(m => m.Sort ?? 0)
-            .Select(m => new MenuOptionRow(m.Id, m.ParentId, m.Name))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            q.OrderBy(m => m.Sort ?? 0).Select(m => new MenuOptionRow(m.Id, m.ParentId, m.Name)),
+            cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
         {
@@ -157,8 +154,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<IReadOnlyCollection<MenuVo>> GetMenuListAsync(MenuQuery query, CancellationToken cancellationToken = default)
     {
-        var q = _dbContext.SysMenus
-            .AsNoTracking();
+        var q = _readDb.Query<SysMenu>();
 
         if (!string.IsNullOrWhiteSpace(query.Keywords))
         {
@@ -166,24 +162,10 @@ internal sealed class SystemMenuService : ISystemMenuService
             q = q.Where(m => m.Name.Contains(keywords));
         }
 
-        var list = await q
-            .OrderBy(m => m.Sort ?? 0)
-            .Select(m => new MenuRow(
-                m.Id,
-                m.ParentId,
-                m.Name,
-                m.Type,
-                m.RouteName,
-                m.RoutePath,
-                m.Component,
-                m.Sort,
-                m.Visible,
-                m.Icon,
-                m.Redirect,
-                m.Perm
-            ))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var list = await _readDb.ToListAsync(
+            q.OrderBy(m => m.Sort ?? 0).Select(m => new MenuRow(
+                m.Id, m.ParentId, m.Name, m.Type, m.RouteName, m.RoutePath, m.Component, m.Sort, m.Visible, m.Icon, m.Redirect, m.Perm)),
+            cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
         {
@@ -208,10 +190,9 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<MenuForm> GetMenuFormAsync(long menuId, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysMenus
-            .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == menuId, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysMenu>().Where(m => m.Id == menuId),
+            cancellationToken).ConfigureAwait(false);
 
         if (entity == null)
         {
@@ -279,10 +260,9 @@ internal sealed class SystemMenuService : ISystemMenuService
             }
 
             var routeNameTrim = routeName.Trim();
-            var exists = await _dbContext.SysMenus
-                .AsNoTracking()
-                .AnyAsync(m => m.RouteName == routeNameTrim && (!formData.Id.HasValue || m.Id != formData.Id.Value), cancellationToken)
-                .ConfigureAwait(false);
+            var exists = await _readDb.AnyAsync(
+                _readDb.Query<SysMenu>().Where(m => m.RouteName == routeNameTrim && (!formData.Id.HasValue || m.Id != formData.Id.Value)),
+                cancellationToken).ConfigureAwait(false);
 
             if (exists)
             {
@@ -299,12 +279,10 @@ internal sealed class SystemMenuService : ISystemMenuService
         var treePath = await GenerateMenuTreePathAsync(formData.ParentId, cancellationToken).ConfigureAwait(false);
         var paramsJson = SerializeParams(formData.Params);
 
-        Domain.Entities.SysMenu entity;
+        SysMenu entity;
         if (formData.Id.HasValue)
         {
-            entity = await _dbContext.SysMenus
-                .FirstOrDefaultAsync(m => m.Id == formData.Id.Value, cancellationToken)
-                .ConfigureAwait(false)
+            entity = await _menuRepo.FindByIdAsync(formData.Id.Value, cancellationToken).ConfigureAwait(false)
                 ?? throw new BusinessException(ResultCode.InvalidUserInput, "菜单不存在");
 
             entity.ParentId = formData.ParentId;
@@ -325,7 +303,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
         else
         {
-            entity = new Domain.Entities.SysMenu
+            entity = new SysMenu
             {
                 ParentId = formData.ParentId,
                 Name = formData.Name.Trim(),
@@ -344,10 +322,10 @@ internal sealed class SystemMenuService : ISystemMenuService
                 TreePath = treePath,
             };
 
-            await _dbContext.SysMenus.AddAsync(entity, cancellationToken).ConfigureAwait(false);
+            _menuRepo.Add(entity);
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         await UpdateChildrenTreePathAsync(entity.Id, treePath, cancellationToken).ConfigureAwait(false);
 
@@ -368,17 +346,10 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
-        var menuIds = await _dbContext.SysMenus
-            .AsNoTracking()
-            .Where(m => m.Id == menuId
-                || (m.TreePath != null
-                    && EF.Functions.Like(
-                        string.Concat(",", m.TreePath, ","),
-                        string.Concat("%,", menuId, ",%")
-                    )))
-            .Select(m => m.Id)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        // 自身 + 子树（TreePath 包含 ",menuId," / "menuId," / ",menuId"）
+        var menuIds = await _readDb.ToListAsync(
+            _readDb.Query<SysMenu>().Where(m => m.Id == menuId || m.TreePath.Contains("," + menuId + ",")).Select(m => m.Id),
+            cancellationToken).ConfigureAwait(false);
 
         if (menuIds.Count == 0)
         {
@@ -386,26 +357,21 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         // 先查关联的角色ID（分步查询避免 EF Core 表达式树编译异常）
-        var relatedRoleIds = await _dbContext.SysRoleMenus
-            .AsNoTracking()
-            .Where(rm => menuIds.Contains(rm.MenuId))
-            .Select(rm => rm.RoleId)
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var relatedRoleIds = await _readDb.ToListAsync(
+            _readDb.Query<SysRoleMenu>().Where(rm => menuIds.Contains(rm.MenuId)).Select(rm => rm.RoleId).Distinct(),
+            cancellationToken).ConfigureAwait(false);
 
-        var roleCodes = await _dbContext.SysRoles
-            .AsNoTracking()
-            .Where(r => r.Code != null && relatedRoleIds.Contains(r.Id))
-            .Select(r => r.Code!)
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var roleCodes = await _readDb.ToListAsync(
+            _readDb.Query<SysRole>().Where(r => r.Code != null && relatedRoleIds.Contains(r.Id)).Select(r => r.Code!),
+            cancellationToken).ConfigureAwait(false);
 
-        _dbContext.SysRoleMenus.RemoveRange(_dbContext.SysRoleMenus.Where(x => menuIds.Contains(x.MenuId)));
-        _dbContext.SysMenus.RemoveRange(_dbContext.SysMenus.Where(x => menuIds.Contains(x.Id)));
+        var roleMenusToRemove = await _roleMenuRepo.ListAsync(rm => menuIds.Contains(rm.MenuId), cancellationToken).ConfigureAwait(false);
+        _roleMenuRepo.RemoveRange(roleMenusToRemove);
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var menusToRemove = await _menuRepo.ListAsync(m => menuIds.Contains(m.Id), cancellationToken).ConfigureAwait(false);
+        _menuRepo.RemoveRange(menusToRemove);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         if (roleCodes.Count > 0)
         {
@@ -420,9 +386,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<bool> UpdateMenuVisibleAsync(long menuId, int visible, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.SysMenus
-            .FirstOrDefaultAsync(m => m.Id == menuId, cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await _menuRepo.FindByIdAsync(menuId, cancellationToken).ConfigureAwait(false);
 
         if (entity == null)
         {
@@ -430,14 +394,15 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         entity.Visible = visible;
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _menuRepo.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
     /// <summary>
     /// 递归构建路由树：按 parentId 匹配父子关系，生成前端 Vue Router 所需的嵌套路由结构
     /// </summary>
-    private static List<RouteVo> BuildRoutes(long parentId, List<Domain.Entities.SysMenu> menus)
+    private static List<RouteVo> BuildRoutes(long parentId, List<SysMenu> menus)
     {
         var routes = new List<RouteVo>();
 
@@ -571,10 +536,9 @@ internal sealed class SystemMenuService : ISystemMenuService
             return "0";
         }
 
-        var parent = await _dbContext.SysMenus
-            .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == parentId, cancellationToken)
-            .ConfigureAwait(false);
+        var parent = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysMenu>().Where(m => m.Id == parentId),
+            cancellationToken).ConfigureAwait(false);
 
         return parent == null ? null : string.Concat(parent.TreePath, ",", parent.Id);
     }
@@ -584,10 +548,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     private async Task UpdateChildrenTreePathAsync(long id, string? treePath, CancellationToken cancellationToken)
     {
-        var children = await _dbContext.SysMenus
-            .Where(m => m.ParentId == id)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var children = await _menuRepo.ListAsync(m => m.ParentId == id, cancellationToken).ConfigureAwait(false);
 
         if (children.Count == 0)
         {
@@ -598,9 +559,10 @@ internal sealed class SystemMenuService : ISystemMenuService
         foreach (var child in children)
         {
             child.TreePath = childTreePath;
+            _menuRepo.Update(child);
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var child in children)
         {
@@ -613,15 +575,12 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     private async Task<IReadOnlyCollection<string>> GetMenuRelatedRoleCodesAsync(long menuId, CancellationToken cancellationToken)
     {
-        var codes = await (
-                from rm in _dbContext.SysRoleMenus.AsNoTracking()
-                join r in _dbContext.SysRoles.AsNoTracking() on rm.RoleId equals r.Id
-                where r.Code != null && rm.MenuId == menuId
-                select r.Code
-            )
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var codes = await _readDb.ToListAsync(
+            from rm in _readDb.Query<SysRoleMenu>()
+            join r in _readDb.Query<SysRole>() on rm.RoleId equals r.Id
+            where r.Code != null && rm.MenuId == menuId
+            select r.Code!,
+            cancellationToken).ConfigureAwait(false);
 
         return codes;
     }
@@ -629,7 +588,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>
     /// 菜单实体转前端路由 VO：外链/内嵌/目录各有不同的 path、component、name 推导规则
     /// </summary>
-    private static RouteVo ToRouteVo(Domain.Entities.SysMenu menu, IReadOnlyCollection<RouteVo>? children)
+    private static RouteVo ToRouteVo(SysMenu menu, IReadOnlyCollection<RouteVo>? children)
     {
         var routePath = menu.RoutePath ?? string.Empty;
         var externalUrl = menu.ExternalUrl;

@@ -1,11 +1,11 @@
 namespace Youlai.Application.Options;
 
 /// <summary>
-/// 对象存储配置
+/// 文件存储配置（以 youlai-boot file-storage 为准）
 /// </summary>
-public sealed class OssOptions
+public sealed class FileStorageOptions
 {
-    public const string SectionName = "Oss";
+    public const string SectionName = "FileStorage";
 
     /// <summary>存储类型：local / minio / aliyun，默认 local</summary>
     public string Type { get; init; } = "local";

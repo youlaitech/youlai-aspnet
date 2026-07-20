@@ -21,7 +21,7 @@ public sealed class CodegenTableQuery
     public string? Keywords { get; init; }
 
     /// <summary>
-    /// 规范化分页参数：确保 PageNum >= 1，PageSize 在 [1, 200] 范围内
+    /// 规范化分页参数：PageNum 下限 1，PageSize 下限 10 上限 200
     /// </summary>
     public (int PageNum, int PageSize) Normalize()
     {

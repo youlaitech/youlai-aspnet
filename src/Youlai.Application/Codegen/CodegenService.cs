@@ -1,15 +1,12 @@
+using System.Data;
 using System.Data.Common;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
-using Scriban;
-using Scriban.Runtime;
-using Youlai.Application.Exceptions;
-using Youlai.Application.Results;
 using Youlai.Application.Codegen.Models;
-using Youlai.Application.Codegen;
+using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
+using Youlai.Application.Results;
 
 namespace Youlai.Application.Codegen;
 
@@ -41,12 +38,14 @@ internal sealed class CodegenService : ICodegenService
             ["Entity"] = new TemplateConfig("backend/entity.cs.sbn", "Entities", ".cs"),
         };
 
-    private readonly IDbContext _dbContext;
+    private readonly ISqlExecutor _sqlExecutor;
+    private readonly ITemplateRenderer _templateRenderer;
     private readonly string _templateRoot;
 
-    public CodegenService(IDbContext dbContext)
+    public CodegenService(ISqlExecutor sqlExecutor, ITemplateRenderer templateRenderer)
     {
-        _dbContext = dbContext;
+        _sqlExecutor = sqlExecutor;
+        _templateRenderer = templateRenderer;
         _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
@@ -65,7 +64,7 @@ internal sealed class CodegenService : ICodegenService
         if (!string.IsNullOrWhiteSpace(keywords))
         {
             where += " AND t.TABLE_NAME LIKE @keywords";
-            parameters.Add(CreateParameter("@keywords", $"%{keywords}%"));
+            parameters.Add(await CreateParameterAsync("@keywords", $"%{keywords}%", cancellationToken));
         }
 
         var countSql = $"SELECT COUNT(1) AS total FROM information_schema.TABLES t WHERE {where}";
@@ -89,8 +88,8 @@ LIMIT @limit OFFSET @offset";
 
         var listParams = new List<DbParameter>(parameters)
         {
-            CreateParameter("@limit", pageSize),
-            CreateParameter("@offset", offset)
+            await CreateParameterAsync("@limit", pageSize, cancellationToken),
+            await CreateParameterAsync("@offset", offset, cancellationToken)
         };
 
         var list = await ExecuteQueryAsync(listSql, listParams, reader =>
@@ -190,7 +189,7 @@ LIMIT @limit OFFSET @offset";
 
         var fieldConfigs = formData.FieldConfigs?.ToList() ?? new List<FieldConfigDto>();
 
-        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _sqlExecutor.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -206,15 +205,15 @@ VALUES
 
                 var insertParams = new List<DbParameter>
                 {
-                    CreateParameter("@tableName", tableName),
-                    CreateParameter("@moduleName", moduleName),
-                    CreateParameter("@packageName", packageName),
-                    CreateParameter("@businessName", businessName),
-                    CreateParameter("@entityName", entityName),
-                    CreateParameter("@author", author),
-                    CreateParameter("@parentMenuId", parentMenuId),
-                    CreateParameter("@removeTablePrefix", removePrefix),
-                    CreateParameter("@pageType", pageType)
+                    await CreateParameterAsync("@tableName", tableName, cancellationToken),
+                    await CreateParameterAsync("@moduleName", moduleName, cancellationToken),
+                    await CreateParameterAsync("@packageName", packageName, cancellationToken),
+                    await CreateParameterAsync("@businessName", businessName, cancellationToken),
+                    await CreateParameterAsync("@entityName", entityName, cancellationToken),
+                    await CreateParameterAsync("@author", author, cancellationToken),
+                    await CreateParameterAsync("@parentMenuId", parentMenuId, cancellationToken),
+                    await CreateParameterAsync("@removeTablePrefix", removePrefix, cancellationToken),
+                    await CreateParameterAsync("@pageType", pageType, cancellationToken)
                 };
 
                 await ExecuteNonQueryAsync(insertSql, insertParams, connection, transaction, cancellationToken).ConfigureAwait(false);
@@ -238,15 +237,15 @@ WHERE id = @id";
 
                 var updateParams = new List<DbParameter>
                 {
-                    CreateParameter("@moduleName", moduleName),
-                    CreateParameter("@packageName", packageName),
-                    CreateParameter("@businessName", businessName),
-                    CreateParameter("@entityName", entityName),
-                    CreateParameter("@author", author),
-                    CreateParameter("@parentMenuId", parentMenuId),
-                    CreateParameter("@removeTablePrefix", removePrefix),
-                    CreateParameter("@pageType", pageType),
-                    CreateParameter("@id", configId)
+                    await CreateParameterAsync("@moduleName", moduleName, cancellationToken),
+                    await CreateParameterAsync("@packageName", packageName, cancellationToken),
+                    await CreateParameterAsync("@businessName", businessName, cancellationToken),
+                    await CreateParameterAsync("@entityName", entityName, cancellationToken),
+                    await CreateParameterAsync("@author", author, cancellationToken),
+                    await CreateParameterAsync("@parentMenuId", parentMenuId, cancellationToken),
+                    await CreateParameterAsync("@removeTablePrefix", removePrefix, cancellationToken),
+                    await CreateParameterAsync("@pageType", pageType, cancellationToken),
+                    await CreateParameterAsync("@id", configId, cancellationToken)
                 };
 
                 await ExecuteNonQueryAsync(updateSql, updateParams, connection, transaction, cancellationToken).ConfigureAwait(false);
@@ -258,7 +257,7 @@ WHERE id = @id";
             }
 
             var deleteSql = "DELETE FROM gen_table_column WHERE table_id = @tableId";
-            await ExecuteNonQueryAsync(deleteSql, new List<DbParameter> { CreateParameter("@tableId", configId) }, connection, transaction, cancellationToken)
+            await ExecuteNonQueryAsync(deleteSql, new List<DbParameter> { await CreateParameterAsync("@tableId", configId, cancellationToken) }, connection, transaction, cancellationToken)
                 .ConfigureAwait(false);
 
             var sort = 1;
@@ -280,21 +279,21 @@ VALUES
 
                 var insertColumnParams = new List<DbParameter>
                 {
-                    CreateParameter("@tableId", configId),
-                    CreateParameter("@columnName", field.ColumnName),
-                    CreateParameter("@columnType", field.ColumnType),
-                    CreateParameter("@fieldName", string.IsNullOrWhiteSpace(field.FieldName) ? ToCamelCase(field.ColumnName!) : field.FieldName),
-                    CreateParameter("@fieldType", field.FieldType ?? string.Empty),
-                    CreateParameter("@fieldSort", fieldSort),
-                    CreateParameter("@fieldComment", field.FieldComment),
-                    CreateParameter("@maxLength", field.MaxLength),
-                    CreateParameter("@isRequired", field.IsRequired ?? 0),
-                    CreateParameter("@isShowInList", field.IsShowInList ?? 0),
-                    CreateParameter("@isShowInForm", field.IsShowInForm ?? 0),
-                    CreateParameter("@isShowInQuery", field.IsShowInQuery ?? 0),
-                    CreateParameter("@queryType", field.QueryType ?? 1),
-                    CreateParameter("@formType", field.FormType ?? 1),
-                    CreateParameter("@dictType", field.DictType)
+                    await CreateParameterAsync("@tableId", configId, cancellationToken),
+                    await CreateParameterAsync("@columnName", field.ColumnName, cancellationToken),
+                    await CreateParameterAsync("@columnType", field.ColumnType, cancellationToken),
+                    await CreateParameterAsync("@fieldName", string.IsNullOrWhiteSpace(field.FieldName) ? ToCamelCase(field.ColumnName!) : field.FieldName, cancellationToken),
+                    await CreateParameterAsync("@fieldType", field.FieldType ?? string.Empty, cancellationToken),
+                    await CreateParameterAsync("@fieldSort", fieldSort, cancellationToken),
+                    await CreateParameterAsync("@fieldComment", field.FieldComment, cancellationToken),
+                    await CreateParameterAsync("@maxLength", field.MaxLength, cancellationToken),
+                    await CreateParameterAsync("@isRequired", field.IsRequired ?? 0, cancellationToken),
+                    await CreateParameterAsync("@isShowInList", field.IsShowInList ?? 0, cancellationToken),
+                    await CreateParameterAsync("@isShowInForm", field.IsShowInForm ?? 0, cancellationToken),
+                    await CreateParameterAsync("@isShowInQuery", field.IsShowInQuery ?? 0, cancellationToken),
+                    await CreateParameterAsync("@queryType", field.QueryType ?? 1, cancellationToken),
+                    await CreateParameterAsync("@formType", field.FormType ?? 1, cancellationToken),
+                    await CreateParameterAsync("@dictType", field.DictType, cancellationToken)
                 };
 
                 await ExecuteNonQueryAsync(insertColumnSql, insertColumnParams, connection, transaction, cancellationToken)
@@ -312,7 +311,7 @@ VALUES
         }
         finally
         {
-            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            await _sqlExecutor.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -327,17 +326,17 @@ VALUES
             return true;
         }
 
-        var connection = await GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _sqlExecutor.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
             var deleteColumnSql = "DELETE FROM gen_table_column WHERE table_id = @tableId";
-            await ExecuteNonQueryAsync(deleteColumnSql, new List<DbParameter> { CreateParameter("@tableId", config.Id) }, connection, transaction, cancellationToken)
+            await ExecuteNonQueryAsync(deleteColumnSql, new List<DbParameter> { await CreateParameterAsync("@tableId", config.Id, cancellationToken) }, connection, transaction, cancellationToken)
                 .ConfigureAwait(false);
 
             var updateSql = "UPDATE gen_table SET is_deleted = 1, update_time = NOW() WHERE id = @id";
-            await ExecuteNonQueryAsync(updateSql, new List<DbParameter> { CreateParameter("@id", config.Id) }, connection, transaction, cancellationToken)
+            await ExecuteNonQueryAsync(updateSql, new List<DbParameter> { await CreateParameterAsync("@id", config.Id, cancellationToken) }, connection, transaction, cancellationToken)
                 .ConfigureAwait(false);
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -350,7 +349,7 @@ VALUES
         }
         finally
         {
-            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            await _sqlExecutor.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -404,27 +403,27 @@ VALUES
             string.Equals(f.ColumnName, "is_deleted", StringComparison.OrdinalIgnoreCase)
             || string.Equals(f.FieldName, "isDeleted", StringComparison.OrdinalIgnoreCase));
 
-        var vars = new ScriptObject
+        var vars = new Dictionary<string, object?>
         {
-            { "tableName", config.TableName ?? tableName },
-            { "entityName", entityName },
-            { "entityKebab", entityKebab },
-            { "entityLowerCamel", LowerFirst(entityName) },
-            { "entityUpperSnake", ToSnakeUpper(entityName) },
-            { "businessName", businessName },
-            { "moduleName", moduleName },
-            { "moduleNamePascal", moduleNamePascal },
-            { "packageName", config.PackageName ?? DefaultPackageName },
-            { "author", config.Author ?? DefaultAuthor },
-            { "pageType", effectivePageType },
-            { "fieldConfigs", fieldConfigs },
-            { "hasId", hasId },
-            { "hasCreateTime", hasCreateTime },
-            { "hasUpdateTime", hasUpdateTime },
-            { "hasCreateBy", hasCreateBy },
-            { "hasUpdateBy", hasUpdateBy },
-            { "isDeletedType", isDeletedType },
-            { "hasIsDeleted", hasIsDeleted }
+            ["tableName"] = config.TableName ?? tableName,
+            ["entityName"] = entityName,
+            ["entityKebab"] = entityKebab,
+            ["entityLowerCamel"] = LowerFirst(entityName),
+            ["entityUpperSnake"] = ToSnakeUpper(entityName),
+            ["businessName"] = businessName,
+            ["moduleName"] = moduleName,
+            ["moduleNamePascal"] = moduleNamePascal,
+            ["packageName"] = config.PackageName ?? DefaultPackageName,
+            ["author"] = config.Author ?? DefaultAuthor,
+            ["pageType"] = effectivePageType,
+            ["fieldConfigs"] = fieldConfigs,
+            ["hasId"] = hasId,
+            ["hasCreateTime"] = hasCreateTime,
+            ["hasUpdateTime"] = hasUpdateTime,
+            ["hasCreateBy"] = hasCreateBy,
+            ["hasUpdateBy"] = hasUpdateBy,
+            ["isDeletedType"] = isDeletedType,
+            ["hasIsDeleted"] = hasIsDeleted
         };
 
         var previews = new List<CodegenPreviewDto>();
@@ -473,7 +472,7 @@ VALUES
         }
 
         using var buffer = new MemoryStream();
-        using (var archive = new global::System.IO.Compression.ZipArchive(buffer, global::System.IO.Compression.ZipArchiveMode.Create, true))
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, true))
         {
             foreach (var table in names)
             {
@@ -493,20 +492,10 @@ VALUES
     }
 
     /// <summary>
-    /// 取底层连接，未打开则打开（读取 information_schema 需绕过 EF 直接执行 SQL）
+    /// 取连接，未打开则打开（读取 information_schema 需绕过 EF 直接执行 SQL）
     /// </summary>
-    /// <summary>
-    /// 取数据库连接的已打开实例，未打开则先异步打开
-    /// </summary>
-    private async Task<DbConnection> GetOpenConnectionAsync(CancellationToken cancellationToken)
-    {
-        var connection = _dbContext.Database.GetDbConnection();
-        if (connection.State != global::System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
-        return connection;
-    }
+    private Task<DbConnection> GetOpenConnectionAsync(CancellationToken cancellationToken)
+        => _sqlExecutor.OpenConnectionAsync(cancellationToken);
 
     /// <summary>
     /// 执行 SQL 返回单个 long 值（如 COUNT），空值返回 0
@@ -531,7 +520,7 @@ VALUES
         }
         finally
         {
-            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            await _sqlExecutor.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -565,7 +554,7 @@ VALUES
         }
         finally
         {
-            await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            await _sqlExecutor.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -591,14 +580,22 @@ VALUES
     }
 
     /// <summary>
-    /// 创建 SQL 参数，null 转为 DBNull
+    /// 创建 SQL 参数，null 转为 DBNull；参数创建临时开合连接，不依赖外部传入的连接
     /// </summary>
-    private DbParameter CreateParameter(string name, object? value)
+    private async Task<DbParameter> CreateParameterAsync(string name, object? value, CancellationToken cancellationToken)
     {
-        var param = _dbContext.Database.GetDbConnection().CreateCommand().CreateParameter();
-        param.ParameterName = name;
-        param.Value = value ?? DBNull.Value;
-        return param;
+        var connection = await _sqlExecutor.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var param = connection.CreateCommand().CreateParameter();
+            param.ParameterName = name;
+            param.Value = value ?? DBNull.Value;
+            return param;
+        }
+        finally
+        {
+            await _sqlExecutor.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -612,7 +609,7 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName
 LIMIT 1";
 
-        var list = await ExecuteQueryAsync(sql, new[] { CreateParameter("@tableName", tableName) },
+        var list = await ExecuteQueryAsync(sql, new[] { await CreateParameterAsync("@tableName", tableName, cancellationToken) },
             reader => reader["tableComment"]?.ToString(), cancellationToken).ConfigureAwait(false);
         return list.FirstOrDefault();
     }
@@ -628,7 +625,7 @@ FROM gen_table
 WHERE table_name = @tableName AND is_deleted = 0
 LIMIT 1";
 
-        var list = await ExecuteQueryAsync(sql, new[] { CreateParameter("@tableName", tableName) }, reader =>
+        var list = await ExecuteQueryAsync(sql, new[] { await CreateParameterAsync("@tableName", tableName, cancellationToken) }, reader =>
         {
             return new ConfigRow
             {
@@ -661,7 +658,7 @@ LIMIT 1";
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         command.Transaction = transaction;
-        command.Parameters.Add(CreateParameter("@tableName", tableName));
+        command.Parameters.Add(await CreateParameterAsync("@tableName", tableName, cancellationToken).ConfigureAwait(false));
 
         var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         if (result is null || result == DBNull.Value)
@@ -698,7 +695,7 @@ FROM gen_table_column
 WHERE table_id = @tableId
 ORDER BY field_sort ASC";
 
-        var list = await ExecuteQueryAsync(sql, new[] { CreateParameter("@tableId", tableId) }, reader =>
+        var list = await ExecuteQueryAsync(sql, new[] { await CreateParameterAsync("@tableId", tableId, cancellationToken) }, reader =>
         {
             return new FieldConfigDto
             {
@@ -714,7 +711,7 @@ ORDER BY field_sort ASC";
                 IsRequired = reader["is_required"] == DBNull.Value ? null : Convert.ToInt32(reader["is_required"]),
                 FormType = reader["form_type"] == DBNull.Value ? null : Convert.ToInt32(reader["form_type"]),
                 QueryType = reader["query_type"] == DBNull.Value ? null : Convert.ToInt32(reader["query_type"]),
-                MaxLength = reader["max_length"] == DBNull.Value ? null : Convert.ToInt32(reader["max_length"]),
+                MaxLength = reader["max_length"] == DBNull.Value ? null : (int?)Convert.ToInt32(reader["max_length"]),
                 FieldSort = reader["field_sort"] == DBNull.Value ? null : Convert.ToInt32(reader["field_sort"]),
                 DictType = reader["dict_type"]?.ToString()
             };
@@ -741,7 +738,7 @@ FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName
 ORDER BY ORDINAL_POSITION ASC";
 
-        var list = await ExecuteQueryAsync(sql, new[] { CreateParameter("@tableName", tableName) }, reader =>
+        var list = await ExecuteQueryAsync(sql, new[] { await CreateParameterAsync("@tableName", tableName, cancellationToken) }, reader =>
         {
             var columnName = reader["columnName"]?.ToString() ?? string.Empty;
             var columnType = reader["columnType"]?.ToString() ?? string.Empty;
@@ -840,13 +837,13 @@ ORDER BY ORDINAL_POSITION ASC";
     }
 
     /// <summary>
-    /// 用 Scriban 渲染模板，curd 页面时切到 curd 版视图模板
+    /// 用模板渲染器渲染模板，curd 页面时切到 curd 版视图模板
     /// </summary>
     private string RenderTemplate(
         string templateName,
         string templatePath,
         string subpackageName,
-        ScriptObject vars,
+        IReadOnlyDictionary<string, object?> vars,
         string pageType)
     {
         var tplPath = templatePath;
@@ -869,22 +866,7 @@ ORDER BY ORDINAL_POSITION ASC";
         }
 
         var content = global::System.IO.File.ReadAllText(fullPath, Encoding.UTF8);
-        var template = Template.Parse(content);
-        if (template.HasErrors)
-        {
-            var details = string.Join("; ", template.Messages
-                .Select(message => $"{message.Message} (line {message.Span.Start.Line + 1}, col {message.Span.Start.Column + 1})"));
-            throw new BusinessException(ResultCode.SystemError, $"模板解析失败: {tplPath}. {details}");
-        }
-
-        var ctx = new TemplateContext
-        {
-            MemberRenamer = member => member.Name
-        };
-        vars.SetValue("subpackageName", subpackageName, true);
-        vars.SetValue("date", DateTime.Now.ToString("yyyy-MM-dd HH:mm"), true);
-        ctx.PushGlobal(vars);
-        return template.Render(ctx);
+        return _templateRenderer.Render(content, vars, subpackageName);
     }
 
     /// <summary>
