@@ -93,5 +93,12 @@ public sealed class RouteVo
         [JsonPropertyName("params")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IReadOnlyDictionary<string, string>? Params { get; init; }
+
+        /// <summary>
+        /// 外链地址
+        /// </summary>
+        [JsonPropertyName("externalUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ExternalUrl { get; init; }
     }
 }

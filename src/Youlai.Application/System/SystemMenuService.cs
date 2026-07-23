@@ -25,7 +25,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>
     /// 菜单列表行
     /// </summary>
-    private sealed record MenuRow(long Id, long ParentId, string Name, string Type, string? RouteName, string? RoutePath, string? Component, int? Sort, int? Visible, string? Icon, string? Redirect, string? Perm);
+    private sealed record MenuRow(long Id, long ParentId, string Name, string Type, string? RouteName, string? RoutePath, string? Component, string? ExternalUrl, int? Sort, int? Visible, string? Icon, string? Redirect, string? Perm);
 
     private readonly IReadOnlyDbContext _readDb;
     private readonly IRepository<SysMenu> _menuRepo;
@@ -164,7 +164,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         var list = await _readDb.ToListAsync(
             q.OrderBy(m => m.Sort ?? 0).Select(m => new MenuRow(
-                m.Id, m.ParentId, m.Name, m.Type, m.RouteName, m.RoutePath, m.Component, m.Sort, m.Visible, m.Icon, m.Redirect, m.Perm)),
+                m.Id, m.ParentId, m.Name, m.Type, m.RouteName, m.RoutePath, m.Component, m.ExternalUrl, m.Sort, m.Visible, m.Icon, m.Redirect, m.Perm)),
             cancellationToken).ConfigureAwait(false);
 
         if (list.Count == 0)
@@ -215,6 +215,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             Redirect = entity.Redirect,
             KeepAlive = entity.KeepAlive,
             AlwaysShow = entity.AlwaysShow,
+            ExternalUrl = entity.ExternalUrl,
             Params = ParseKeyValueList(entity.Params),
         };
     }
@@ -298,6 +299,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             entity.Redirect = formData.Redirect;
             entity.KeepAlive = formData.KeepAlive;
             entity.AlwaysShow = formData.AlwaysShow;
+            entity.ExternalUrl = formData.ExternalUrl;
             entity.Params = paramsJson;
             entity.TreePath = treePath;
         }
@@ -318,6 +320,7 @@ internal sealed class SystemMenuService : ISystemMenuService
                 Redirect = formData.Redirect,
                 KeepAlive = formData.KeepAlive,
                 AlwaysShow = formData.AlwaysShow,
+                ExternalUrl = formData.ExternalUrl,
                 Params = paramsJson,
                 TreePath = treePath,
             };
@@ -475,6 +478,7 @@ internal sealed class SystemMenuService : ISystemMenuService
                 Icon = menu.Icon,
                 Redirect = menu.Redirect,
                 Perm = menu.Perm,
+                ExternalUrl = menu.ExternalUrl,
                 Children = children.Count > 0 ? children : null,
             });
         }
@@ -621,6 +625,7 @@ internal sealed class SystemMenuService : ISystemMenuService
                 && menu.KeepAlive == 1 ? true : null,
             AlwaysShow = menu.AlwaysShow == 1 ? true : null,
             Params = TryParseParams(menu.Params),
+            ExternalUrl = isEmbedded && !string.IsNullOrWhiteSpace(externalUrl) ? externalUrl : null,
         };
 
         return new RouteVo
