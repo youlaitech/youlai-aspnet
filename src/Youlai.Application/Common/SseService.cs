@@ -113,7 +113,7 @@ internal sealed class SseService : ISseService, IAsyncDisposable
     public async Task BroadcastOnlineCountAsync(CancellationToken cancellationToken = default)
     {
         var count = GetOnlineUserCount();
-        await BroadcastAsync(new SseMessage { EventName = "online-count", Data = count }, cancellationToken);
+        await BroadcastAsync(new SseMessage { EventName = "online-users", Data = count }, cancellationToken);
     }
 
     /// <summary>
