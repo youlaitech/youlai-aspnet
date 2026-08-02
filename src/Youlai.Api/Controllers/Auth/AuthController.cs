@@ -6,8 +6,6 @@ using Youlai.Application.Auth;
 using Youlai.Application.Attributes;
 using Youlai.Domain.Enums;
 using Youlai.Application.Results;
-using Youlai.Application.Common;
-using Youlai.Api.Filters;
 using Microsoft.AspNetCore.Http;
 
 namespace Youlai.Api.Controllers.Auth;
@@ -23,14 +21,12 @@ public sealed class AuthController : ControllerBase
 {
     private readonly ICaptchaService _captchaService;
     private readonly IAuthService _authService;
-    private readonly ILoggingService _loggingService;
     private readonly IDistributedCache _cache;
 
-    public AuthController(ICaptchaService captchaService, IAuthService authService, ILoggingService loggingService, IDistributedCache cache)
+    public AuthController(ICaptchaService captchaService, IAuthService authService, IDistributedCache cache)
     {
         _captchaService = captchaService;
         _authService = authService;
-        _loggingService = loggingService;
         _cache = cache;
     }
 
@@ -50,15 +46,10 @@ public sealed class AuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("login")]
+    [Log(LogModule.LOGIN, ActionType.LOGIN)]
     public async Task<Result<AuthenticationTokenDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var (token, userId) = await _authService.LoginAsync(request, cancellationToken);
-
-        if (userId > 0)
-        {
-            await _loggingService.RecordLoginLogAsync(userId, "/api/v1/auth/login", cancellationToken);
-        }
-
+        var (token, _) = await _authService.LoginAsync(request, cancellationToken);
         return Result.Success(token);
     }
 
@@ -90,15 +81,10 @@ public sealed class AuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("login/sms")]
+    [Log(LogModule.LOGIN, ActionType.LOGIN)]
     public async Task<Result<AuthenticationTokenDto>> LoginBySms([FromQuery] string mobile, [FromQuery] string code, CancellationToken cancellationToken)
     {
-        var (token, userId) = await _authService.LoginBySmsAsync(mobile, code, cancellationToken);
-
-        if (userId > 0)
-        {
-            await _loggingService.RecordLoginLogAsync(userId, "/api/v1/auth/login/sms", cancellationToken);
-        }
-
+        var (token, _) = await _authService.LoginBySmsAsync(mobile, code, cancellationToken);
         return Result.Success(token);
     }
 

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Youlai.Application.Persistence;
 using Youlai.Domain.Entities;
@@ -32,10 +34,13 @@ internal sealed class LoggingService : ILoggingService
             var userAgent = context?.Request.Headers.UserAgent.ToString() ?? "";
             var (browser, os) = UserAgentParser.ParseUserAgent(userAgent);
 
+            var title = GetEnumDisplay(LogModule.LOGIN) + "-" + GetEnumDisplay(ActionType.LOGIN);
+
             var log = new SysLog
             {
                 Module = (int)LogModule.LOGIN,
                 ActionType = (int)ActionType.LOGIN,
+                Title = title,
                 RequestUri = requestUri,
                 RequestMethod = "POST",
                 Ip = context?.Connection.RemoteIpAddress?.ToString(),
@@ -53,5 +58,15 @@ internal sealed class LoggingService : ILoggingService
         {
             // 日志记录失败不影响主流程
         }
+    }
+
+    /// <summary>
+    /// 读取枚举 [Display(Name=...)] 文本，没有则返回枚举名
+    /// </summary>
+    private static string GetEnumDisplay<T>(T value) where T : Enum
+    {
+        var field = value.GetType().GetField(value.ToString());
+        var attr = field?.GetCustomAttribute<DisplayAttribute>();
+        return attr?.GetName() ?? value.ToString();
     }
 }

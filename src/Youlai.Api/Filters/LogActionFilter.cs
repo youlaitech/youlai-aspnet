@@ -105,12 +105,12 @@ public sealed class LogActionFilter : IAsyncActionFilter
     }
 
     /// <summary>
-    /// 读取枚举值上的 [Description] 文本，没有则返回枚举名
+    /// 读取枚举值上的 [Display(Name=...)] 文本，没有则返回枚举名
     /// </summary>
     private static string GetEnumDescription<T>(T value) where T : Enum
     {
         var field = value.GetType().GetField(value.ToString());
-        var attr = field?.GetCustomAttribute<System.ComponentModel.DescriptionAttribute>();
-        return attr?.Description ?? value.ToString();
+        var attr = field?.GetCustomAttribute<System.ComponentModel.DataAnnotations.DisplayAttribute>();
+        return attr?.GetName() ?? value.ToString();
     }
 }
