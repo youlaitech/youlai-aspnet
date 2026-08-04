@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Youlai.Application.System.Models.User;
 
-namespace Youlai.Application.Common;
+namespace Youlai.Application.Sse;
 
 /// <summary>
 /// SSE 服务实现

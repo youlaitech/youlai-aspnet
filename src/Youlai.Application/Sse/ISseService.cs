@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Youlai.Application.System.Models.User;
 
-namespace Youlai.Application.Common;
+namespace Youlai.Application.Sse;
 
 /// <summary>
 /// SSE 推送服务

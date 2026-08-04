@@ -1,4 +1,4 @@
-using Youlai.Application.Common;
+using Youlai.Application.Sse;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
 using Youlai.Application.Persistence;

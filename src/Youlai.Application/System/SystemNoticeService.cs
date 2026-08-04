@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Youlai.Application.Common;
+using Youlai.Application.Sse;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;

@@ -1,4 +1,4 @@
-namespace Youlai.Application.Common;
+namespace Youlai.Application.Sse;
 
 /// <summary>
 /// SSE 消息

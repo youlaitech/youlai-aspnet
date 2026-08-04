@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
-using Youlai.Application.Common;
+using Youlai.Application.Sse;
 
-namespace Youlai.Api.Controllers.Message;
+namespace Youlai.Api.Controllers.Sse;
 
 [ApiController]
 [Route("api/v1/sse")]

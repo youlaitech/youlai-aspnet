@@ -5,6 +5,7 @@ using Youlai.Application.Codegen;
 using Youlai.Application.File;
 using Youlai.Application.Security;
 using Youlai.Application.Common;
+using Youlai.Application.Sse;
 
 namespace Youlai.Application;
 
