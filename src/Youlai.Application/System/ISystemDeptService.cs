@@ -36,5 +36,5 @@ public interface ISystemDeptService
     /// <summary>
     /// 批量删除部门
     /// </summary>
-    Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default);
+    Task<bool> RemoveDeptsAsync(string ids, CancellationToken cancellationToken = default);
 }

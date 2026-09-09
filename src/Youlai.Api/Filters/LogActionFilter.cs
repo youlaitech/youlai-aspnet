@@ -1,9 +1,17 @@
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Youlai.Application.Attributes;
 using Youlai.Application.Common;
+using Youlai.Application.Results;
+// 别名规避歧义：框架已有同名的 Microsoft.AspNetCore.Http.IResult（最小 API 结果类型）
+using AppResult = Youlai.Application.Results.IResult;
 using Youlai.Domain.Enums;
 using Youlai.Domain.Entities;
 using Youlai.Application.Persistence;
@@ -15,15 +23,15 @@ namespace Youlai.Api.Filters;
 /// </summary>
 public sealed class LogActionFilter : IAsyncActionFilter
 {
-    private readonly IRepository<SysLog> _logRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<LogActionFilter> _logger;
 
-    public LogActionFilter(IRepository<SysLog> logRepository, IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
+    public LogActionFilter(IHttpContextAccessor httpContextAccessor, IServiceScopeFactory scopeFactory, ILogger<LogActionFilter> logger)
     {
-        _logRepository = logRepository;
-        _unitOfWork = unitOfWork;
         _httpContextAccessor = httpContextAccessor;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
     /// <summary>
@@ -31,9 +39,7 @@ public sealed class LogActionFilter : IAsyncActionFilter
     /// </summary>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var endpoint = context.ActionDescriptor.EndpointMetadata;
-        var logAttr = endpoint.OfType<LogAttribute>().FirstOrDefault();
-
+        var logAttr = GetLogAttribute(context.ActionDescriptor);
         if (logAttr == null)
         {
             await next();
@@ -55,6 +61,7 @@ public sealed class LogActionFilter : IAsyncActionFilter
             var userAgent = httpContext.Request.Headers.UserAgent.ToString();
             var (browser, os) = UserAgentParser.ParseUserAgent(userAgent);
 
+            // 操作人：已认证请求从 JWT 取；认证前置场景（登录/登出）由业务侧塞入 HttpContext.Items
             long? operatorId = null;
             string? operatorName = null;
             var userIdClaim = httpContext.User.FindFirst("sub") ?? httpContext.User.FindFirst("userId");
@@ -62,17 +69,33 @@ public sealed class LogActionFilter : IAsyncActionFilter
             {
                 operatorId = uid;
             }
+            else if (httpContext.Items[OperationLogKeys.UserId] is long itemUid)
+            {
+                operatorId = itemUid;
+            }
+
             var usernameClaim = httpContext.User.FindFirst("username") ?? httpContext.User.FindFirst("nickname");
             if (usernameClaim != null)
             {
                 operatorName = usernameClaim.Value;
             }
+            else if (httpContext.Items[OperationLogKeys.UserName] is string itemName)
+            {
+                operatorName = itemName;
+            }
 
             var title = logAttr.Title;
             if (string.IsNullOrEmpty(title))
             {
-                title = GetEnumDescription(logAttr.Module) + "-" + GetEnumDescription(logAttr.Value);
+                // 模块与操作同义时（如 LOGIN/LOGOUT）拼接会得到「登录-登录」，仅取其一
+                var moduleDesc = GetEnumDescription(logAttr.Module);
+                var actionDesc = GetEnumDescription(logAttr.Value);
+                title = moduleDesc == actionDesc ? moduleDesc : $"{moduleDesc}-{actionDesc}";
             }
+
+            // 业务结果三重判定：未捕获异常 / 响应体业务码 / 过滤器短路
+            // 为什么不只看 Exception：Result.Failed() 返回 200（权限不足、校验失败等），业务失败也必须记为失败
+            var (status, errorMsg) = ResolveStatus(actionExecutedContext);
 
             var log = new SysLog
             {
@@ -87,21 +110,58 @@ public sealed class LogActionFilter : IAsyncActionFilter
                 Ip = httpContext.Connection.RemoteIpAddress?.ToString(),
                 Browser = browser,
                 Os = os,
-                Status = actionExecutedContext.Exception == null ? 1 : 0,
-                ErrorMsg = actionExecutedContext.Exception?.Message?.Length > 255
-                    ? actionExecutedContext.Exception.Message[..255]
-                    : actionExecutedContext.Exception?.Message,
+                Status = status,
+                ErrorMsg = errorMsg?.Length > 255 ? errorMsg[..255] : errorMsg,
                 ExecutionTime = (int)stopwatch.ElapsedMilliseconds,
                 CreateTime = DateTime.Now,
             };
 
-            _logRepository.Add(log);
-            await _unitOfWork.SaveChangesAsync();
+            using var scope = _scopeFactory.CreateScope();
+            var logRepository = scope.ServiceProvider.GetRequiredService<IRepository<SysLog>>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            logRepository.Add(log);
+            await unitOfWork.SaveChangesAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            // 写日志失败不影响主请求
+            _logger.LogError(ex, "写入操作日志失败");
         }
+    }
+
+    /// <summary>
+    /// 判定操作结果：(状态, 错误信息)。
+    /// 优先级：未捕获异常 → 响应体业务码（Result.Failed 返回 200，仅靠异常判断会漏记失败）→ 过滤器短路（如模型校验失败，Canceled 且无响应体）。
+    /// File() 等非 Result 响应无业务码可读，默认成功。
+    /// </summary>
+    private static (int Status, string? ErrorMsg) ResolveStatus(ActionExecutedContext context)
+    {
+        if (context.Exception != null)
+        {
+            return (0, context.Exception.Message);
+        }
+
+        if (context.Result is ObjectResult { Value: AppResult result })
+        {
+            return result.Code == ResultCode.Success.Code()
+                ? (1, null)
+                : (0, result.Msg);
+        }
+
+        return context.Canceled ? (0, "请求被过滤器短路") : (1, null);
+    }
+
+    /// <summary>
+    /// 从 Controller 动作描述符读取方法上标记的 [Log] 特性。
+    /// 不可用 ActionDescriptor.EndpointMetadata：它只装框架内置的路由/授权元数据，不含自定义特性。
+    /// </summary>
+    private static LogAttribute? GetLogAttribute(ActionDescriptor descriptor)
+    {
+        if (descriptor is not ControllerActionDescriptor controllerAction)
+        {
+            return null;
+        }
+
+        return controllerAction.MethodInfo.GetCustomAttribute<LogAttribute>(inherit: true);
     }
 
     /// <summary>

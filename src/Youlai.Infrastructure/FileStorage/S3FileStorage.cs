@@ -1,7 +1,6 @@
 using System.Globalization;
-using Minio;
-using Minio.DataModel.Args;
-using Minio.Exceptions;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Results;
 using Youlai.Application.File;
@@ -10,26 +9,26 @@ using Youlai.Application.Options;
 namespace Youlai.Infrastructure.FileStorage;
 
 /// <summary>
-/// MinIO 文件存储实现
+/// S3（RustFS）文件存储实现，通过 AWS SDK for .NET 接入 S3 兼容服务
 /// </summary>
-internal sealed class MinioFileStorage : IFileStorage
+internal sealed class S3FileStorage : IFileStorage
 {
-    private readonly FileStorageOptions.MinioOptions _options;
-    private readonly IMinioClient _client;
+    private readonly FileStorageOptions.S3Options _options;
+    private readonly IAmazonS3 _client;
     private readonly string _publicEndpoint;
 
-    public MinioFileStorage(FileStorageOptions options)
+    public S3FileStorage(FileStorageOptions options)
     {
-        _options = options.Minio;
+        _options = options.S3;
         _client = BuildClient(_options);
         _publicEndpoint = NormalizeEndpoint(_options.Endpoint);
     }
 
-    /// <summary>存储类型标识：minio</summary>
-    public string Type => "minio";
+    /// <summary>存储类型标识：s3</summary>
+    public string Type => "s3";
 
     /// <summary>
-    /// 上传对象到 MinIO，桶不存在时自动创建，返回可访问 URL
+    /// 上传对象到 S3，桶不存在时自动创建，返回可访问 URL
     /// </summary>
     public async Task<FileInfoDto> UploadAsync(
         Stream content,
@@ -48,16 +47,22 @@ internal sealed class MinioFileStorage : IFileStorage
         {
             await EnsureBucketAsync(cancellationToken);
 
-            var putArgs = new PutObjectArgs()
-                .WithBucket(_options.BucketName)
-                .WithObject(objectName)
-                .WithStreamData(content)
-                .WithObjectSize(contentLength)
-                .WithContentType(contentType ?? "application/octet-stream");
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = objectName,
+                InputStream = content,
+                ContentType = contentType ?? "application/octet-stream",
+                AutoCloseStream = false,
+            };
 
-            await _client.PutObjectAsync(putArgs, cancellationToken);
+            await _client.PutObjectAsync(putRequest, cancellationToken);
         }
-        catch (Exception ex) when (ex is MinioException or IOException)
+        catch (AmazonS3Exception ex)
+        {
+            throw new BusinessException(ResultCode.UploadFileException, "文件上传失败", ex);
+        }
+        catch (IOException ex)
         {
             throw new BusinessException(ResultCode.UploadFileException, "文件上传失败", ex);
         }
@@ -88,51 +93,46 @@ internal sealed class MinioFileStorage : IFileStorage
 
         try
         {
-            var removeArgs = new RemoveObjectArgs()
-                .WithBucket(_options.BucketName)
-                .WithObject(objectName);
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = objectName,
+            };
 
-            await _client.RemoveObjectAsync(removeArgs, cancellationToken);
+            await _client.DeleteObjectAsync(deleteRequest, cancellationToken);
             return true;
         }
-        catch (Exception ex) when (ex is MinioException or IOException)
+        catch (AmazonS3Exception ex)
+        {
+            throw new BusinessException(ResultCode.DeleteFileException, "文件删除失败", ex);
+        }
+        catch (IOException ex)
         {
             throw new BusinessException(ResultCode.DeleteFileException, "文件删除失败", ex);
         }
     }
 
     /// <summary>
-    /// 按 Endpoint 构建客户端，https 前缀时启用 SSL
+    /// 按 Endpoint 构建客户端（路径风格寻址，兼容 RustFS 等自托管 S3 服务）
     /// </summary>
-    private static IMinioClient BuildClient(FileStorageOptions.MinioOptions options)
+    private static IAmazonS3 BuildClient(FileStorageOptions.S3Options options)
     {
-        var builder = new MinioClient();
+        var config = new AmazonS3Config
+        {
+            ForcePathStyle = true,
+            RegionEndpoint = Amazon.RegionEndpoint.USEast1,
+        };
+
         if (Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var uri))
         {
-            var host = uri.Host;
-            int? port = uri.IsDefaultPort ? null : uri.Port;
-            if (port.HasValue)
-            {
-                builder.WithEndpoint(host, port.Value);
-            }
-            else
-            {
-                builder.WithEndpoint(host);
-            }
-
-            if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-            {
-                builder.WithSSL();
-            }
+            config.ServiceURL = options.Endpoint;
         }
         else
         {
-            builder.WithEndpoint(options.Endpoint);
+            config.ServiceURL = $"http://{options.Endpoint}";
         }
 
-        return builder
-            .WithCredentials(options.AccessKey, options.SecretKey)
-            .Build();
+        return new AmazonS3Client(options.AccessKey, options.SecretKey, config);
     }
 
     /// <summary>
@@ -164,15 +164,21 @@ internal sealed class MinioFileStorage : IFileStorage
     /// </summary>
     private async Task EnsureBucketAsync(CancellationToken cancellationToken)
     {
-        var existsArgs = new BucketExistsArgs().WithBucket(_options.BucketName);
-        var exists = await _client.BucketExistsAsync(existsArgs, cancellationToken);
-        if (exists)
+        try
         {
-            return;
+            // HEAD 桶语义：能取到 Location 即视为存在
+            await _client.GetBucketLocationAsync(new GetBucketLocationRequest
+            {
+                BucketName = _options.BucketName,
+            }, cancellationToken);
         }
-
-        var makeArgs = new MakeBucketArgs().WithBucket(_options.BucketName);
-        await _client.MakeBucketAsync(makeArgs, cancellationToken);
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            await _client.PutBucketAsync(new PutBucketRequest
+            {
+                BucketName = _options.BucketName,
+            }, cancellationToken);
+        }
     }
 
     /// <summary>

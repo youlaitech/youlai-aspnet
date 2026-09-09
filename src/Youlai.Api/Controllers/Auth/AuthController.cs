@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Youlai.Application.Auth.Models;
@@ -7,16 +7,17 @@ using Youlai.Application.Attributes;
 using Youlai.Domain.Enums;
 using Youlai.Application.Results;
 using Microsoft.AspNetCore.Http;
+using Youlai.Api.Filters;
 
 namespace Youlai.Api.Controllers.Auth;
 
+/// <summary>
+/// 认证接口（登录、刷新令牌、退出、验证码、短信登录）
+/// </summary>
 [ApiController]
 [Route("api/v1/auth")]
 [Authorize]
 [Tags("01.认证中心")]
-/// <summary>
-/// 认证接口（登录、刷新令牌、退出、验证码、短信登录）
-/// </summary>
 public sealed class AuthController : ControllerBase
 {
     private readonly ICaptchaService _captchaService;
@@ -49,7 +50,10 @@ public sealed class AuthController : ControllerBase
     [Log(LogModule.LOGIN, ActionType.LOGIN)]
     public async Task<Result<AuthenticationTokenDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var (token, _) = await _authService.LoginAsync(request, cancellationToken);
+        // 登录失败（密码错误等）时 LoginAsync 抛异常，操作人必须先于登录写入，否则失败日志丢失「谁在尝试登录」
+        HttpContext.Items[OperationLogKeys.UserName] = request.Username.Trim();
+        var (token, userId) = await _authService.LoginAsync(request, cancellationToken);
+        HttpContext.Items[OperationLogKeys.UserId] = userId;
         return Result.Success(token);
     }
 
@@ -84,7 +88,10 @@ public sealed class AuthController : ControllerBase
     [Log(LogModule.LOGIN, ActionType.LOGIN)]
     public async Task<Result<AuthenticationTokenDto>> LoginBySms([FromQuery] string mobile, [FromQuery] string code, CancellationToken cancellationToken)
     {
-        var (token, _) = await _authService.LoginBySmsAsync(mobile, code, cancellationToken);
+        // 同 Login：操作人先于登录写入，验证码校验失败时日志仍可定位到手机号
+        HttpContext.Items[OperationLogKeys.UserName] = mobile;
+        var (token, userId) = await _authService.LoginBySmsAsync(mobile, code, cancellationToken);
+        HttpContext.Items[OperationLogKeys.UserId] = userId;
         return Result.Success(token);
     }
 
@@ -112,4 +119,3 @@ public sealed class AuthController : ControllerBase
         return Result.Success();
     }
 }
-

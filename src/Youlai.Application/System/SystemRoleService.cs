@@ -92,7 +92,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// <summary>
     /// 角色下拉选项
     /// </summary>
-    public async Task<IReadOnlyCollection<Option<long>>> GetRoleOptionsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Option<long>>> ListRoleOptionsAsync(CancellationToken cancellationToken = default)
     {
         var roles = _readDb.Query<SysRole>()
             .Where(r => !r.IsDeleted && r.Status == 1 && r.Code != SecurityConstants.RootRoleCode);
@@ -322,7 +322,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// <summary>
     /// 批量删除角色
     /// </summary>
-    public async Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveRolesAsync(string ids, CancellationToken cancellationToken = default)
     {
         var roleIds = IdCollectionExtensions.ParsePositiveLongIds(ids);
         if (roleIds.Count == 0)
@@ -373,7 +373,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// <summary>
     /// 角色已分配的菜单ID
     /// </summary>
-    public async Task<IReadOnlyCollection<long>> GetRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<long>> ListRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default)
     {
         var list = await _readDb.ToListAsync(
             _readDb.Query<SysRoleMenu>().Where(rm => rm.RoleId == roleId).Select(rm => rm.MenuId),
@@ -411,7 +411,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     /// <summary>
     /// 角色已关联的部门ID
     /// </summary>
-    public async Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<long>> ListRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
     {
         var list = await _readDb.ToListAsync(
             _readDb.Query<SysRoleDept>().Where(rd => rd.RoleId == roleId).Select(rd => rd.DeptId),

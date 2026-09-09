@@ -21,7 +21,7 @@ public interface ISystemNoticeService
     /// <summary>
     /// 新增公告
     /// </summary>
-    Task<bool> CreateNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default);
+    Task<bool> SaveNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 更新公告
@@ -31,7 +31,7 @@ public interface ISystemNoticeService
     /// <summary>
     /// 批量删除公告
     /// </summary>
-    Task<bool> DeleteNoticesAsync(string ids, CancellationToken cancellationToken = default);
+    Task<bool> RemoveNoticesAsync(string ids, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 发布公告

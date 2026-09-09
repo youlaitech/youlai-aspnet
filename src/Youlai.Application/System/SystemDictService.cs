@@ -77,7 +77,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// <summary>
     /// 字典下拉选项
     /// </summary>
-    public async Task<IReadOnlyCollection<Option<string>>> GetDictListAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Option<string>>> ListDictsAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _readDb.ToListAsync(
             _readDb.Query<SysDict>()
@@ -309,7 +309,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// <summary>
     /// 字典项列表
     /// </summary>
-    public async Task<IReadOnlyCollection<DictItemOption>> GetDictItemsAsync(string dictCode, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<DictItemOption>> ListDictItemsAsync(string dictCode, CancellationToken cancellationToken = default)
     {
         var rows = await _readDb.ToListAsync(
             _readDb.Query<SysDictItem>()
@@ -356,7 +356,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// <summary>
     /// 新增字典项
     /// </summary>
-    public async Task<bool> CreateDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
+    public async Task<bool> SaveDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
     {
         var item = new SysDictItem
         {
@@ -411,7 +411,7 @@ internal sealed class SystemDictService : ISystemDictService
     /// <summary>
     /// 批量删除字典项
     /// </summary>
-    public async Task<bool> DeleteDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
     {
         var idList = IdCollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)

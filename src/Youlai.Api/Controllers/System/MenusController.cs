@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Attributes;
@@ -52,7 +52,7 @@ public sealed class MenusController : ControllerBase
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetMenuOptions([FromQuery] bool onlyParent = false, CancellationToken cancellationToken = default)
     {
-        var options = await _menuService.GetMenuOptionsAsync(onlyParent, cancellationToken);
+        var options = await _menuService.ListMenuOptionsAsync(onlyParent, cancellationToken);
         return Result.Success(options);
     }
 
@@ -116,7 +116,7 @@ public sealed class MenusController : ControllerBase
     [Log(LogModule.MENU, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteMenu([FromRoute] long id, CancellationToken cancellationToken)
     {
-        var ok = await _menuService.DeleteMenuAsync(id, cancellationToken);
+        var ok = await _menuService.RemoveMenuAsync(id, cancellationToken);
         return Result.Judge(ok);
     }
 

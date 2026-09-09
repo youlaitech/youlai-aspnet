@@ -25,5 +25,5 @@ public interface IFileService
     /// </summary>
     /// <param name="filePath">文件路径或完整 URL</param>
     /// <param name="cancellationToken">取消令牌</param>
-    Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken = default);
+    Task<bool> RemoveAsync(string filePath, CancellationToken cancellationToken = default);
 }

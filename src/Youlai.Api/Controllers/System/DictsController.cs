@@ -41,7 +41,7 @@ public sealed class DictsController : ControllerBase
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<string>>>> GetDictList(CancellationToken cancellationToken)
     {
-        var list = await _dictService.GetDictListAsync(cancellationToken);
+        var list = await _dictService.ListDictsAsync(cancellationToken);
         return Result.Success(list);
     }
 
@@ -106,7 +106,7 @@ public sealed class DictsController : ControllerBase
     [HttpGet("{dictCode}/items/options")]
     public async Task<Result<IReadOnlyCollection<DictItemOption>>> GetDictItems([FromRoute] string dictCode, CancellationToken cancellationToken)
     {
-        var list = await _dictService.GetDictItemsAsync(dictCode, cancellationToken);
+        var list = await _dictService.ListDictItemsAsync(dictCode, cancellationToken);
         return Result.Success(list);
     }
 
@@ -118,7 +118,7 @@ public sealed class DictsController : ControllerBase
     [Log(LogModule.DICT, ActionType.INSERT)]
     public async Task<Result<object?>> CreateDictItem([FromRoute] string dictCode, [FromBody] DictItemForm formData, CancellationToken cancellationToken)
     {
-        var ok = await _dictService.CreateDictItemAsync(dictCode, formData, cancellationToken);
+        var ok = await _dictService.SaveDictItemAsync(dictCode, formData, cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -152,7 +152,7 @@ public sealed class DictsController : ControllerBase
     [Log(LogModule.DICT, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteDictItems([FromRoute] string dictCode, [FromRoute] string ids, CancellationToken cancellationToken)
     {
-        var ok = await _dictService.DeleteDictItemsAsync(dictCode, ids, cancellationToken);
+        var ok = await _dictService.RemoveDictItemsAsync(dictCode, ids, cancellationToken);
         return Result.Judge(ok);
     }
 }

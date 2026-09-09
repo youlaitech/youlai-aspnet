@@ -1,12 +1,12 @@
 namespace Youlai.Application.File;
 
 /// <summary>
-/// 文件上传/删除接口（本地/MinIO/阿里云）
+/// 文件上传/删除接口（本地/S3(RustFS)/阿里云）
 /// </summary>
 public interface IFileStorage
 {
     /// <summary>
-    /// 存储类型标识（local/minio/aliyun）
+    /// 存储类型标识（local/s3/aliyun）
     /// </summary>
     string Type { get; }
 

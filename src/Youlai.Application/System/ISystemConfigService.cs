@@ -31,7 +31,7 @@ public interface ISystemConfigService
     /// <summary>
     /// 删除配置
     /// </summary>
-    Task<bool> DeleteConfigAsync(long id, CancellationToken cancellationToken = default);
+    Task<bool> RemoveConfigAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 刷新配置缓存

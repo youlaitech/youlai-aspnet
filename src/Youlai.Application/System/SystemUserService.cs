@@ -966,7 +966,7 @@ internal sealed class SystemUserService : ISystemUserService
     /// <summary>
     /// 用户下拉选项
     /// </summary>
-    public async Task<IReadOnlyCollection<Option<long>>> GetUserOptionsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Option<long>>> ListUserOptionsAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _readDb.ToListAsync(
             _readDb.Query<SysUser>()

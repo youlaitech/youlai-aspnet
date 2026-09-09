@@ -1,4 +1,4 @@
-﻿namespace Youlai.Application.File;
+namespace Youlai.Application.File;
 
 /// <summary>
 /// 文件上传/删除
@@ -28,7 +28,7 @@ internal sealed class FileService : IFileService
     /// <summary>
     /// 删除文件
     /// </summary>
-    public Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<bool> RemoveAsync(string filePath, CancellationToken cancellationToken = default)
     {
         return _storage.DeleteAsync(filePath, cancellationToken);
     }

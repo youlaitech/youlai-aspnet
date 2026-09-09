@@ -16,7 +16,7 @@ public interface ISystemMenuService
     /// <summary>
     /// 菜单下拉选项
     /// </summary>
-    Task<IReadOnlyCollection<Option<long>>> GetMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 菜单列表
@@ -36,7 +36,7 @@ public interface ISystemMenuService
     /// <summary>
     /// 删除菜单
     /// </summary>
-    Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default);
+    Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 修改可见状态

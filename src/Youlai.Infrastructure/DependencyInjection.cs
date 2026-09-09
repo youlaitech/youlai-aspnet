@@ -68,11 +68,15 @@ public static class DependencyInjection
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<FileStorageOptions>>().Value);
 
+        // MySQL 服务器版本：启动时探测一次，避免每次请求重复连接探测
+        var databaseOptions = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>();
+        var serverVersion = ServerVersion.AutoDetect(databaseOptions?.ConnectionString!);
+
         // 数据库上下文
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-            options.UseMySql(dbOptions.ConnectionString, ServerVersion.AutoDetect(dbOptions.ConnectionString));
+            options.UseMySql(dbOptions.ConnectionString, serverVersion);
         });
         // 工作单元与仓储
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -109,7 +113,7 @@ public static class DependencyInjection
             var options = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
             return options.Type switch
             {
-                "minio" => new MinioFileStorage(options),
+                "s3" => new S3FileStorage(options),
                 "aliyun" => new AliyunFileStorage(options),
                 _ => new LocalFileStorage(options)
             };

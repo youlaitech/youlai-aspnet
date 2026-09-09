@@ -58,7 +58,7 @@ public sealed class CodegenController : ControllerBase
     [HttpDelete("{tableName}/config")]
     public async Task<Result<object?>> DeleteConfig([FromRoute] string tableName, CancellationToken cancellationToken)
     {
-        var ok = await _codegenService.DeleteConfigAsync(tableName, cancellationToken);
+        var ok = await _codegenService.RemoveConfigAsync(tableName, cancellationToken);
         return Result.Judge(ok);
     }
 

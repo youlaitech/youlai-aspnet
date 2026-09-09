@@ -191,7 +191,7 @@ internal sealed class SystemConfigService : ISystemConfigService
     /// <summary>
     /// 删除配置
     /// </summary>
-    public async Task<bool> DeleteConfigAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveConfigAsync(long id, CancellationToken cancellationToken = default)
     {
         var entity = await _configRepo.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 

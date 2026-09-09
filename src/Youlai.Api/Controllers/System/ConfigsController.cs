@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Attributes;
@@ -77,7 +77,7 @@ public sealed class ConfigsController : ControllerBase
     [Log(LogModule.CONFIG, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteConfig([FromRoute] long id, CancellationToken cancellationToken)
     {
-        var ok = await _configService.DeleteConfigAsync(id, cancellationToken);
+        var ok = await _configService.RemoveConfigAsync(id, cancellationToken);
         return Result.Judge(ok);
     }
 

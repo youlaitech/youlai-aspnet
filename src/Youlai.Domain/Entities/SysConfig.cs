@@ -3,7 +3,7 @@ namespace Youlai.Domain.Entities;
 /// <summary>
 /// 系统配置实体
 /// </summary>
-public sealed class SysConfig : Youlai.Domain.IHasAudit
+public sealed class SysConfig : IHasAudit
 {
     /// <summary>主键 ID</summary>
     public long Id { get; set; }

@@ -7,7 +7,7 @@ public sealed class FileStorageOptions
 {
     public const string SectionName = "FileStorage";
 
-    /// <summary>存储类型：local / minio / aliyun，默认 local</summary>
+    /// <summary>存储类型：local / s3 / aliyun，默认 local</summary>
     public string Type { get; init; } = "local";
 
     /// <summary>上传限制配置</summary>
@@ -16,8 +16,8 @@ public sealed class FileStorageOptions
     /// <summary>本地存储配置</summary>
     public LocalOptions Local { get; init; } = new();
 
-    /// <summary>MinIO 配置</summary>
-    public MinioOptions Minio { get; init; } = new();
+    /// <summary>S3（RustFS）配置</summary>
+    public S3Options S3 { get; init; } = new();
 
     /// <summary>阿里云 OSS 配置</summary>
     public AliyunOptions Aliyun { get; init; } = new();
@@ -66,9 +66,9 @@ public sealed class FileStorageOptions
     }
 
     /// <summary>
-    /// MinIO 文件存储配置项
+    /// S3（RustFS）文件存储配置项
     /// </summary>
-    public sealed class MinioOptions
+    public sealed class S3Options
     {
         /// <summary>服务端点（含协议与端口）</summary>
         public string Endpoint { get; init; } = string.Empty;

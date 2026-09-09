@@ -9,13 +9,13 @@ using Youlai.Application.File;
 
 namespace Youlai.Api.Controllers.File;
 
+/// <summary>
+/// 文件上传与下载接口
+/// </summary>
 [ApiController]
 [Route("api/v1/files")]
 [Authorize]
 [Tags("10.文件接口")]
-/// <summary>
-/// 文件上传与下载接口
-/// </summary>
 public sealed class FilesController : ControllerBase
 {
     private readonly IFileService _fileService;
@@ -30,13 +30,12 @@ public sealed class FilesController : ControllerBase
     /// <summary>
     /// 文件上传
     /// </summary>
-    /// <param name="request">上传表单数据（字段名固定为 file）</param>
+    /// <param name="file">上传的文件（字段名固定为 file）</param>
     /// <param name="cancellationToken">取消令牌</param>
     [HttpPost]
     [Consumes("multipart/form-data")]
-    public async Task<Result<FileInfoDto>> UploadFile([FromForm] FileUploadRequest request, CancellationToken cancellationToken)
+    public async Task<Result<FileInfoDto>> UploadFile([FromForm] IFormFile file, CancellationToken cancellationToken)
     {
-        var file = request.File;
         if (file is null || file.Length == 0)
         {
             throw new BusinessException(ResultCode.RequestRequiredParameterIsEmpty, "文件不能为空");
@@ -62,7 +61,7 @@ public sealed class FilesController : ControllerBase
     [HttpDelete]
     public async Task<Result<object?>> DeleteFile([FromQuery] string filePath, CancellationToken cancellationToken)
     {
-        var ok = await _fileService.DeleteAsync(filePath, cancellationToken);
+        var ok = await _fileService.RemoveAsync(filePath, cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -90,13 +89,4 @@ public sealed class FilesController : ControllerBase
                 "文件大小超过限制: " + upload.MaxFileSizeMb + "MB");
         }
     }
-
-    /// <summary>
-    /// 文件上传请求参数
-    /// </summary>
-        public sealed class FileUploadRequest
-        {
-            /// <summary>上传的文件</summary>
-            public IFormFile? File { get; init; }
-        }
 }

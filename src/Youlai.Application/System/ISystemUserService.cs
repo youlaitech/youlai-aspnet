@@ -112,5 +112,5 @@ public interface ISystemUserService
     /// <summary>
     /// 用户下拉选项
     /// </summary>
-    Task<IReadOnlyCollection<Option<long>>> GetUserOptionsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Option<long>>> ListUserOptionsAsync(CancellationToken cancellationToken = default);
 }

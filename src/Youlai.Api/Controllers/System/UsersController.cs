@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
@@ -11,13 +11,13 @@ using Youlai.Application.System;
 
 namespace Youlai.Api.Controllers.System;
 
+/// <summary>
+/// 用户管理接口
+/// </summary>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize]
 [Tags("02.用户接口")]
-/// <summary>
-/// 用户管理接口
-/// </summary>
 public sealed class UsersController : ControllerBase
 {
     private readonly ISystemUserService _userService;
@@ -111,10 +111,10 @@ public sealed class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id:long}/password/reset")]
     [HasPerm("sys:user:reset-password")]
-    [Log(LogModule.USER, ActionType.CHANGE_PASSWORD)]
-    public async Task<Result<object?>> ResetPassword([FromRoute] long id, [FromQuery] string password, CancellationToken cancellationToken)
+    [Log(LogModule.USER, ActionType.RESET_PASSWORD)]
+    public async Task<Result<object?>> ResetPassword([FromRoute] long id, [FromBody] ResetPasswordForm formData, CancellationToken cancellationToken)
     {
-        var ok = await _userService.ResetUserPasswordAsync(id, password, cancellationToken);
+        var ok = await _userService.ResetUserPasswordAsync(id, formData.Password!, cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -259,7 +259,7 @@ public sealed class UsersController : ControllerBase
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetOptions(CancellationToken cancellationToken)
     {
-        var list = await _userService.GetUserOptionsAsync(cancellationToken);
+        var list = await _userService.ListUserOptionsAsync(cancellationToken);
         return Result.Success(list);
     }
 }

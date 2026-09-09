@@ -158,7 +158,7 @@ internal sealed class RolePermissionService : IRolePermissionService
 
         var roles = await _readDb.ToListAsync(
             _readDb.Query<SysRole>()
-                .Where(r => roleSet.Contains(r.Code) && !r.IsDeleted && r.Status == 1 && r.Code != null)
+                .Where(r => r.Code != null && !r.IsDeleted && r.Status == 1 && roleSet.Contains(r.Code))
                 .Select(r => new { r.Id, Code = r.Code! }),
             cancellationToken).ConfigureAwait(false);
 

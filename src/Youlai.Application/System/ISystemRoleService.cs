@@ -17,7 +17,7 @@ public interface ISystemRoleService
     /// <summary>
     /// 角色下拉选项
     /// </summary>
-    Task<IReadOnlyCollection<Option<long>>> GetRoleOptionsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Option<long>>> ListRoleOptionsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 新增或更新角色
@@ -32,7 +32,7 @@ public interface ISystemRoleService
     /// <summary>
     /// 批量删除角色
     /// </summary>
-    Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default);
+    Task<bool> RemoveRolesAsync(string ids, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 修改角色状态
@@ -42,7 +42,7 @@ public interface ISystemRoleService
     /// <summary>
     /// 角色已分配的菜单ID
     /// </summary>
-    Task<IReadOnlyCollection<long>> GetRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<long>> ListRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 分配菜单
@@ -52,7 +52,7 @@ public interface ISystemRoleService
     /// <summary>
     /// 角色已分配的数据权限部门 ID
     /// </summary>
-    Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<long>> ListRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 分配数据权限部门

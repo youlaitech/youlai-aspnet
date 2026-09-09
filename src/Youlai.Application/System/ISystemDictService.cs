@@ -17,7 +17,7 @@ public interface ISystemDictService
     /// <summary>
     /// 字典下拉选项
     /// </summary>
-    Task<IReadOnlyCollection<Option<string>>> GetDictListAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Option<string>>> ListDictsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取字典表单
@@ -47,7 +47,7 @@ public interface ISystemDictService
     /// <summary>
     /// 字典项列表
     /// </summary>
-    Task<IReadOnlyCollection<DictItemOption>> GetDictItemsAsync(string dictCode, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<DictItemOption>> ListDictItemsAsync(string dictCode, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取字典项表单
@@ -57,7 +57,7 @@ public interface ISystemDictService
     /// <summary>
     /// 新增字典项
     /// </summary>
-    Task<bool> CreateDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default);
+    Task<bool> SaveDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 更新字典项
@@ -67,5 +67,5 @@ public interface ISystemDictService
     /// <summary>
     /// 批量删除字典项
     /// </summary>
-    Task<bool> DeleteDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default);
+    Task<bool> RemoveDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default);
 }

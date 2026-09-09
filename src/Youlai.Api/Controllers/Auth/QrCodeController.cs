@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using System.Text.Json;
@@ -23,9 +23,6 @@ namespace Youlai.Api.Controllers.Auth;
 [Route("api/v1/auth/qr-code")]
 [Authorize]
 [Tags("01.认证中心")]
-/// <summary>
-/// 扫码登录接口
-/// </summary>
 public sealed class QrCodeController : ControllerBase
 {
     private const int DefaultExpireSeconds = 300;
@@ -55,11 +52,11 @@ public sealed class QrCodeController : ControllerBase
         _currentUser = currentUser;
     }
 
-    [AllowAnonymous]
-    [HttpPost("generate")]
     /// <summary>
     /// 生成扫码登录票据，返回 ticket 与有效期（秒）
     /// </summary>
+    [AllowAnonymous]
+    [HttpPost("generate")]
     public async Task<Result<QrCodeGenerateVO>> Generate()
     {
         var db = _redis.GetDatabase();
@@ -77,21 +74,21 @@ public sealed class QrCodeController : ControllerBase
         return Result.Success(new QrCodeGenerateVO(ticket, DefaultExpireSeconds));
     }
 
-    [AllowAnonymous]
-    [HttpGet("status")]
     /// <summary>
     /// 查询票据当前状态（等待/已扫描/已确认/已取消）及剩余有效期
     /// </summary>
+    [AllowAnonymous]
+    [HttpGet("status")]
     public async Task<Result<QrCodeStatusVO>> Status([FromQuery] string ticket)
     {
         var ctx = await LoadContextAsync(ticket);
         return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(ticket)));
     }
 
-    [HttpPost("scan")]
     /// <summary>
     /// 扫码：把当前登录用户绑定到票据，状态置为已扫描
     /// </summary>
+    [HttpPost("scan")]
     public async Task<Result<QrCodeStatusVO>> Scan([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -113,10 +110,10 @@ public sealed class QrCodeController : ControllerBase
         return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
     }
 
-    [HttpPost("confirm")]
     /// <summary>
     /// 确认：扫码用户确认登录，状态置为已确认
     /// </summary>
+    [HttpPost("confirm")]
     public async Task<Result<QrCodeStatusVO>> Confirm([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -131,10 +128,10 @@ public sealed class QrCodeController : ControllerBase
         return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
     }
 
-    [HttpPost("cancel")]
     /// <summary>
     /// 取消：终止扫码登录流程，状态置为已取消
     /// </summary>
+    [HttpPost("cancel")]
     public async Task<Result<QrCodeStatusVO>> Cancel([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
@@ -148,11 +145,11 @@ public sealed class QrCodeController : ControllerBase
         return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
     }
 
-    [AllowAnonymous]
-    [HttpPost("login")]
     /// <summary>
     /// 登录：票据已确认时换取认证令牌
     /// </summary>
+    [AllowAnonymous]
+    [HttpPost("login")]
     public async Task<Result<AuthenticationTokenDto>> Login([FromBody] QrCodeTicketForm form)
     {
         var ctx = await LoadContextAsync(form.Ticket);

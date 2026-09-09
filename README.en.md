@@ -87,7 +87,7 @@ Detailed guide: [Deployment Docs](https://www.youlai.tech/docs/server/aspnet-cor
 | MySQL | 5.7+ / 8.x | Database |
 | Redis | 7.x+ | Cache · Session |
 | Swagger | — | API docs |
-| MinIO | — | Object storage |
+| RustFS (S3) | — | Object storage |
 
 ## Directory Structure
 

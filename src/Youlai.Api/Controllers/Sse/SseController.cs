@@ -7,12 +7,12 @@ using Youlai.Application.Sse;
 
 namespace Youlai.Api.Controllers.Sse;
 
-[ApiController]
-[Route("api/v1/sse")]
-[Tags("13.SSE Connection")]
 /// <summary>
 /// SSE 消息推送接口
 /// </summary>
+[ApiController]
+[Route("api/v1/sse")]
+[Tags("13.SSE Connection")]
 public class SseController : ControllerBase
 {
     private readonly ISseService _sseService;

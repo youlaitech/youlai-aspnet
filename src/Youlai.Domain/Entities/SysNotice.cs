@@ -3,7 +3,7 @@ namespace Youlai.Domain.Entities;
 /// <summary>
 /// 通知公告实体
 /// </summary>
-public sealed class SysNotice
+public sealed class SysNotice : IHasAudit
 {
     /// <summary>主键 ID</summary>
     public long Id { get; set; }
@@ -47,10 +47,10 @@ public sealed class SysNotice
     public DateTime? RevokeTime { get; set; }
 
     /// <summary>创建人 ID</summary>
-    public long CreateBy { get; set; }
+    public long? CreateBy { get; set; }
 
     /// <summary>创建时间</summary>
-    public DateTime CreateTime { get; set; }
+    public DateTime? CreateTime { get; set; }
 
     /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }

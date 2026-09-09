@@ -3,13 +3,9 @@ using Youlai.Domain.Enums;
 namespace Youlai.Application.Attributes;
 
 /// <summary>
-/// 操作日志标记属性
-/// 用于标注需要记录操作日志的控制器方法
+/// 操作日志特性：标记需要写入操作审计日志的控制器方法
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-/// <summary>
-/// 操作日志特性：标记接口以写入操作审计日志
-/// </summary>
 public class LogAttribute : Attribute
 {
     /// <summary>

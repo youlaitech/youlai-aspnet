@@ -114,7 +114,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
                 RevokeTime = r.RevokeTime.HasValue ? r.RevokeTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
                 PublisherName = r.PublisherName,
                 TargetType = r.TargetType,
-                CreateTime = r.CreateTime.ToString("yyyy-MM-dd HH:mm"),
+                CreateTime = r.CreateTime.HasValue ? r.CreateTime.Value.ToString("yyyy-MM-dd HH:mm") : null,
             })
             .ToArray();
 
@@ -151,7 +151,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// <summary>
     /// 新增公告
     /// </summary>
-    public async Task<bool> CreateNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default)
+    public async Task<bool> SaveNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default)
     {
         ValidateTargets(formData);
 
@@ -216,7 +216,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     /// <summary>
     /// 批量删除公告
     /// </summary>
-    public async Task<bool> DeleteNoticesAsync(string ids, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveNoticesAsync(string ids, CancellationToken cancellationToken = default)
     {
         var idList = IdCollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)

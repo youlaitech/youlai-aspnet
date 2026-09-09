@@ -4,7 +4,6 @@ using Youlai.Application.System;
 using Youlai.Application.Codegen;
 using Youlai.Application.File;
 using Youlai.Application.Security;
-using Youlai.Application.Common;
 using Youlai.Application.Sse;
 
 namespace Youlai.Application;
@@ -46,7 +45,6 @@ public static class DependencyInjection
 
         // 通用服务
         services.AddSingleton<ISseService, SseService>();
-        services.AddScoped<ILoggingService, LoggingService>();
 
         return services;
     }

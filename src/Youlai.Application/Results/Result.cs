@@ -3,9 +3,21 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.Results;
 
 /// <summary>
+/// 统一响应体契约（非泛型视图，供操作日志等基础设施读取业务状态，无需感知泛型参数）
+/// </summary>
+public interface IResult
+{
+    /// <summary>结果码（5 位业务码）</summary>
+    string Code { get; }
+
+    /// <summary>提示信息</summary>
+    string Msg { get; }
+}
+
+/// <summary>
 /// 统一响应体 {code,msg,data}
 /// </summary>
-public sealed class Result<T>
+public sealed class Result<T> : IResult
 {
     /// <summary>结果码（5 位业务码）</summary>
     [JsonPropertyName("code")]

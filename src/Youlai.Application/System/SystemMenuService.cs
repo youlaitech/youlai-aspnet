@@ -118,7 +118,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>
     /// 菜单下拉选项
     /// </summary>
-    public async Task<IReadOnlyCollection<Option<long>>> GetMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default)
     {
         var q = _readDb.Query<SysMenu>();
 
@@ -347,11 +347,11 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>
     /// 删除菜单
     /// </summary>
-    public async Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
         // 自身 + 子树（TreePath 包含 ",menuId," / "menuId," / ",menuId"）
         var menuIds = await _readDb.ToListAsync(
-            _readDb.Query<SysMenu>().Where(m => m.Id == menuId || m.TreePath.Contains("," + menuId + ",")).Select(m => m.Id),
+            _readDb.Query<SysMenu>().Where(m => m.Id == menuId || (m.TreePath != null && m.TreePath.Contains("," + menuId + ","))).Select(m => m.Id),
             cancellationToken).ConfigureAwait(false);
 
         if (menuIds.Count == 0)

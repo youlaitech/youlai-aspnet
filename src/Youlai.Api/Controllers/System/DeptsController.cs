@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Attributes;
@@ -88,7 +88,7 @@ public sealed class DeptsController : ControllerBase
     [Log(LogModule.DEPT, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteDepartments([FromRoute] string ids, CancellationToken cancellationToken)
     {
-        var ok = await _deptService.DeleteByIdsAsync(ids, cancellationToken);
+        var ok = await _deptService.RemoveDeptsAsync(ids, cancellationToken);
         return Result.Judge(ok);
     }
 }

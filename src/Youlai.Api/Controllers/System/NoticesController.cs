@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Results;
@@ -51,7 +51,7 @@ public sealed class NoticesController : ControllerBase
     [HasPerm("sys:notice:create")]
     public async Task<Result<object?>> CreateNotice([FromBody] NoticeForm formData, CancellationToken cancellationToken)
     {
-        var ok = await _noticeService.CreateNoticeAsync(formData, cancellationToken);
+        var ok = await _noticeService.SaveNoticeAsync(formData, cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -73,7 +73,7 @@ public sealed class NoticesController : ControllerBase
     [HasPerm("sys:notice:delete")]
     public async Task<Result<object?>> DeleteNotices([FromRoute] string ids, CancellationToken cancellationToken)
     {
-        var ok = await _noticeService.DeleteNoticesAsync(ids, cancellationToken);
+        var ok = await _noticeService.RemoveNoticesAsync(ids, cancellationToken);
         return Result.Judge(ok);
     }
 

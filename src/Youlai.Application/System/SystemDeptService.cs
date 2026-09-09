@@ -228,7 +228,7 @@ internal sealed class SystemDeptService : ISystemDeptService
     /// <summary>
     /// 批量删除部门
     /// </summary>
-    public async Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveDeptsAsync(string ids, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(ids))
         {

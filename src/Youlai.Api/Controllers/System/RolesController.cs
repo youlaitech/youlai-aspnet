@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Attributes;
@@ -43,7 +43,7 @@ public sealed class RolesController : ControllerBase
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetRoleOptions(CancellationToken cancellationToken)
     {
-        var list = await _roleService.GetRoleOptionsAsync(cancellationToken);
+        var list = await _roleService.ListRoleOptionsAsync(cancellationToken);
         return Result.Success(list);
     }
 
@@ -105,7 +105,7 @@ public sealed class RolesController : ControllerBase
     [Log(LogModule.ROLE, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteRoles([FromRoute] string ids, CancellationToken cancellationToken)
     {
-        var ok = await _roleService.DeleteByIdsAsync(ids, cancellationToken);
+        var ok = await _roleService.RemoveRolesAsync(ids, cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -127,7 +127,7 @@ public sealed class RolesController : ControllerBase
     [HttpGet("{roleId:long}/menu-ids")]
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleMenuIds([FromRoute] long roleId, CancellationToken cancellationToken)
     {
-        var ids = await _roleService.GetRoleMenuIdsAsync(roleId, cancellationToken);
+        var ids = await _roleService.ListRoleMenuIdsAsync(roleId, cancellationToken);
         return Result.Success(ids);
     }
 
@@ -143,13 +143,13 @@ public sealed class RolesController : ControllerBase
         return Result.Success();
     }
 
-    [HttpGet("{roleId:long}/dept-ids")]
     /// <summary>
     /// 取角色已分配的数据权限部门 ID 列表
     /// </summary>
+    [HttpGet("{roleId:long}/dept-ids")]
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleDeptIds([FromRoute] long roleId, CancellationToken cancellationToken)
     {
-        var ids = await _roleService.GetRoleDeptIdsAsync(roleId, cancellationToken);
+        var ids = await _roleService.ListRoleDeptIdsAsync(roleId, cancellationToken);
         return Result.Success(ids);
     }
 

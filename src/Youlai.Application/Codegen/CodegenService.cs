@@ -318,7 +318,7 @@ VALUES
     /// <summary>
     /// 逻辑删除表配置并清空其字段行
     /// </summary>
-    public async Task<bool> DeleteConfigAsync(string tableName, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveConfigAsync(string tableName, CancellationToken cancellationToken = default)
     {
         var config = await GetConfigRowAsync(tableName, cancellationToken).ConfigureAwait(false);
         if (config is null)
