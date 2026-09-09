@@ -1,7 +1,7 @@
 namespace Youlai.Application.Options;
 
 /// <summary>
-/// 文件存储配置（以 youlai-boot file-storage 为准）
+/// 文件存储配置项（appsettings 的 FileStorage 节）
 /// </summary>
 public sealed class FileStorageOptions
 {
