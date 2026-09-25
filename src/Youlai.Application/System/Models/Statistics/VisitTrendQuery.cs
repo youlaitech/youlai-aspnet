@@ -1,4 +1,4 @@
-﻿namespace Youlai.Application.System.Models.Statistics;
+namespace Youlai.Application.System.Models.Statistics;
 
 /// <summary>
 /// 访问趋势查询参数

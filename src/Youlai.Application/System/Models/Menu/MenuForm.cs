@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Youlai.Application.Models;
 
@@ -98,14 +98,20 @@ public sealed class MenuForm
     public int? KeepAlive { get; init; }
 
     /// <summary>
-    /// 始终显示
-    /// </summary>
-    [JsonPropertyName("alwaysShow")]
-    public int? AlwaysShow { get; init; }
-
-    /// <summary>
     /// 路由参数
     /// </summary>
     [JsonPropertyName("params")]
     public IReadOnlyCollection<KeyValue>? Params { get; init; }
+
+    /// <summary>
+    /// 新增页面菜单时是否生成增删改查按钮
+    /// </summary>
+    [JsonPropertyName("generateCrudButtons")]
+    public bool? GenerateCrudButtons { get; init; }
+
+    /// <summary>
+    /// 按钮权限标识前缀，如 sys:user
+    /// </summary>
+    [JsonPropertyName("buttonPermPrefix")]
+    public string? ButtonPermPrefix { get; init; }
 }

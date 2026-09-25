@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json;
+using Youlai.Application.Ai;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
 using Youlai.Application.Persistence;
@@ -33,6 +35,11 @@ internal sealed class SystemMenuService : ISystemMenuService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IRolePermsCacheInvalidator _rolePermsCacheInvalidator;
+    private readonly IAiChatService _aiChatService;
+    private readonly IPromptLoader _promptLoader;
+
+    /// <summary>系统提示词名称，对应 prompts 下的相对路径</summary>
+    private const string MenuSystemPromptPath = "menu/system.md";
 
     public SystemMenuService(
         IReadOnlyDbContext readDb,
@@ -40,7 +47,9 @@ internal sealed class SystemMenuService : ISystemMenuService
         IRepository<SysRoleMenu> roleMenuRepo,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        IRolePermsCacheInvalidator rolePermsCacheInvalidator)
+        IRolePermsCacheInvalidator rolePermsCacheInvalidator,
+        IAiChatService aiChatService,
+        IPromptLoader promptLoader)
     {
         _readDb = readDb;
         _menuRepo = menuRepo;
@@ -48,6 +57,8 @@ internal sealed class SystemMenuService : ISystemMenuService
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _rolePermsCacheInvalidator = rolePermsCacheInvalidator;
+        _aiChatService = aiChatService;
+        _promptLoader = promptLoader;
     }
 
     /// <summary>
@@ -118,13 +129,13 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>
     /// 菜单下拉选项
     /// </summary>
-    public async Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(IReadOnlyCollection<string>? types, CancellationToken cancellationToken = default)
     {
         var q = _readDb.Query<SysMenu>();
 
-        if (onlyParent)
+        if (types is { Count: > 0 })
         {
-            q = q.Where(m => m.Type != MenuType.Button.GetCode());
+            q = q.Where(m => types.Contains(m.Type!));
         }
 
         var list = await _readDb.ToListAsync(
@@ -214,7 +225,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             Icon = entity.Icon,
             Redirect = entity.Redirect,
             KeepAlive = entity.KeepAlive,
-            AlwaysShow = entity.AlwaysShow,
             ExternalUrl = entity.ExternalUrl,
             Params = ParseKeyValueList(entity.Params),
         };
@@ -229,6 +239,8 @@ internal sealed class SystemMenuService : ISystemMenuService
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "父级菜单不能是当前菜单");
         }
+
+        await ValidateMenuParentAsync(formData, cancellationToken).ConfigureAwait(false);
 
         var menuType = formData.Type;
         var isExternal = string.Equals(menuType, MenuType.External.GetCode(), StringComparison.Ordinal);
@@ -280,6 +292,13 @@ internal sealed class SystemMenuService : ISystemMenuService
         var treePath = await GenerateMenuTreePathAsync(formData.ParentId, cancellationToken).ConfigureAwait(false);
         var paramsJson = SerializeParams(formData.Params);
 
+        // 新增菜单未指定排序时排到同级末尾
+        var sort = formData.Sort;
+        if (!formData.Id.HasValue && !sort.HasValue)
+        {
+            sort = await ResolveNextSortAsync(formData.ParentId, cancellationToken).ConfigureAwait(false);
+        }
+
         SysMenu entity;
         if (formData.Id.HasValue)
         {
@@ -298,7 +317,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             entity.Icon = formData.Icon;
             entity.Redirect = formData.Redirect;
             entity.KeepAlive = formData.KeepAlive;
-            entity.AlwaysShow = formData.AlwaysShow;
             entity.ExternalUrl = formData.ExternalUrl;
             entity.Params = paramsJson;
             entity.TreePath = treePath;
@@ -315,11 +333,10 @@ internal sealed class SystemMenuService : ISystemMenuService
                 Component = component,
                 Perm = formData.Perm,
                 Visible = formData.Visible,
-                Sort = formData.Sort,
+                Sort = sort,
                 Icon = formData.Icon,
                 Redirect = formData.Redirect,
                 KeepAlive = formData.KeepAlive,
-                AlwaysShow = formData.AlwaysShow,
                 ExternalUrl = formData.ExternalUrl,
                 Params = paramsJson,
                 TreePath = treePath,
@@ -340,8 +357,107 @@ internal sealed class SystemMenuService : ISystemMenuService
                 await _rolePermsCacheInvalidator.InvalidateAsync(roleCodes, cancellationToken).ConfigureAwait(false);
             }
         }
+        else if (formData.GenerateCrudButtons == true && !string.IsNullOrWhiteSpace(formData.ButtonPermPrefix))
+        {
+            // 新增页面菜单时按需生成增删改查按钮
+            await SaveCrudButtonsAsync(entity.Id, formData.ButtonPermPrefix.Trim(), treePath, cancellationToken).ConfigureAwait(false);
+        }
 
         return true;
+    }
+
+    /// <summary>
+    /// 校验上级菜单层级：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下
+    /// </summary>
+    private async Task ValidateMenuParentAsync(MenuForm formData, CancellationToken cancellationToken)
+    {
+        // 父级没变时跳过校验，让历史遗留的非法层级仍可编辑其他字段
+        if (formData.Id.HasValue)
+        {
+            var current = await _readDb.FirstOrDefaultAsync(
+                _readDb.Query<SysMenu>().Where(m => m.Id == formData.Id.Value),
+                cancellationToken).ConfigureAwait(false);
+            if (current != null && current.ParentId == formData.ParentId)
+            {
+                return;
+            }
+        }
+
+        var isButton = string.Equals(formData.Type, MenuType.Button.GetCode(), StringComparison.Ordinal);
+        if (formData.ParentId == 0)
+        {
+            if (isButton)
+            {
+                throw new BusinessException(ResultCode.InvalidUserInput, "按钮权限只能挂在菜单下");
+            }
+
+            return;
+        }
+
+        var parent = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysMenu>().Where(m => m.Id == formData.ParentId),
+            cancellationToken).ConfigureAwait(false);
+
+        if (parent == null)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "上级菜单不存在");
+        }
+
+        if (isButton)
+        {
+            if (!string.Equals(parent.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal))
+            {
+                throw new BusinessException(ResultCode.InvalidUserInput, "按钮权限只能挂在菜单下");
+            }
+        }
+        else if (string.Equals(parent.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal))
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "菜单下只能挂按钮权限");
+        }
+    }
+
+    /// <summary>
+    /// 同级菜单的最大排序 + 1
+    /// </summary>
+    private async Task<int> ResolveNextSortAsync(long parentId, CancellationToken cancellationToken)
+    {
+        var maxSort = await _readDb.ToListAsync(
+            _readDb.Query<SysMenu>().Where(m => m.ParentId == parentId).OrderByDescending(m => m.Sort).Select(m => m.Sort).Take(1),
+            cancellationToken).ConfigureAwait(false);
+
+        if (maxSort.Count == 0 || maxSort[0] is not int max)
+        {
+            return 1;
+        }
+
+        return max + 1;
+    }
+
+    /// <summary>
+    /// 生成增删改查按钮权限
+    /// </summary>
+    private async Task SaveCrudButtonsAsync(long menuId, string permPrefix, string menuTreePath, CancellationToken cancellationToken)
+    {
+        string[] names = ["查询", "新增", "修改", "删除"];
+        string[] actions = ["list", "create", "update", "delete"];
+        // 树路径记录祖先链，等于所属菜单的树路径加上所属菜单ID，删除菜单时据此级联
+        var buttonTreePath = menuTreePath + "," + menuId;
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            _menuRepo.Add(new SysMenu
+            {
+                ParentId = menuId,
+                Type = MenuType.Button.GetCode(),
+                Name = names[i],
+                Perm = permPrefix + ":" + actions[i],
+                Sort = i + 1,
+                Visible = 1,
+                TreePath = buttonTreePath,
+            });
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -623,7 +739,6 @@ internal sealed class SystemMenuService : ISystemMenuService
             Hidden = menu.Visible.HasValue && menu.Visible.Value == 0 ? true : null,
             KeepAlive = (string.Equals(menu.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal) || isEmbedded)
                 && menu.KeepAlive == 1 ? true : null,
-            AlwaysShow = menu.AlwaysShow == 1 ? true : null,
             Params = TryParseParams(menu.Params),
             ExternalUrl = isEmbedded && !string.IsNullOrWhiteSpace(externalUrl) ? externalUrl : null,
         };
@@ -691,4 +806,67 @@ internal sealed class SystemMenuService : ISystemMenuService
 
         return string.Concat(parts.Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
     }
+
+    /// <summary>
+    /// 用 AI 推断菜单的访问路径、权限标识与配套按钮
+    /// </summary>
+    public async Task<MenuAiVo> AiFillMenuAsync(MenuAiFillForm form, CancellationToken cancellationToken = default)
+    {
+        var systemPrompt = _promptLoader.Get(MenuSystemPromptPath);
+        var userPrompt = await BuildAiUserPromptAsync(form, cancellationToken).ConfigureAwait(false);
+        var result = await _aiChatService.ChatEntityAsync<MenuAiVo>(systemPrompt, userPrompt, cancellationToken).ConfigureAwait(false);
+        return result ?? throw new BusinessException(ResultCode.InvalidUserInput, "AI 未返回有效的菜单配置");
+    }
+
+    /// <summary>
+    /// 构造用户提示词，附带同级菜单样本供模型沿用既有命名风格
+    /// </summary>
+    private async Task<string> BuildAiUserPromptAsync(MenuAiFillForm form, CancellationToken cancellationToken)
+    {
+        var text = new StringBuilder();
+        text.Append("菜单名称：").Append(form.Name).Append('\n');
+        text.Append("菜单类型：").Append(MenuTypeLabel(form.Type)).Append('\n');
+
+        var parentId = form.ParentId ?? 0;
+        var parent = parentId == 0
+            ? null
+            : await _readDb.FirstOrDefaultAsync(
+                _readDb.Query<SysMenu>().Where(m => m.Id == parentId), cancellationToken).ConfigureAwait(false);
+        text.Append("上级菜单：").Append(parent?.Name ?? "顶级").Append('\n');
+
+        var siblings = await _readDb.ToListAsync(
+            _readDb.Query<SysMenu>().Where(m => m.ParentId == parentId).OrderBy(m => m.Sort).Take(10),
+            cancellationToken).ConfigureAwait(false);
+
+        text.Append("同级菜单示例：\n");
+        if (siblings.Count == 0)
+        {
+            text.Append("（无）\n");
+        }
+        else
+        {
+            foreach (var menu in siblings)
+            {
+                text.Append("- ").Append(menu.Name)
+                    .Append("（类型 ").Append(MenuTypeLabel(menu.Type))
+                    .Append("，路径片段 ").Append(string.IsNullOrWhiteSpace(menu.RoutePath) ? "无" : menu.RoutePath)
+                    .Append("，权限 ").Append(string.IsNullOrWhiteSpace(menu.Perm) ? "无" : menu.Perm)
+                    .Append("）\n");
+            }
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// 菜单类型取中文名称，未匹配时沿用原值
+    /// </summary>
+    private static string MenuTypeLabel(string? type) => type switch
+    {
+        "C" => "目录",
+        "M" => "菜单",
+        "E" => "外链",
+        "B" => "按钮",
+        _ => string.IsNullOrWhiteSpace(type) ? "未指定" : type
+    };
 }

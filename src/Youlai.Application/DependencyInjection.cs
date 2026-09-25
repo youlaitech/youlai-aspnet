@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Youlai.Application.Ai;
 using Youlai.Application.Auth;
+using Youlai.Application.Form;
 using Youlai.Application.System;
 using Youlai.Application.Codegen;
 using Youlai.Application.File;
@@ -32,6 +34,10 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogService, SystemLogService>();
         services.AddScoped<ISystemNoticeService, SystemNoticeService>();
 
+        // 动态表单
+        services.AddScoped<IFormDefinitionService, FormDefinitionService>();
+        services.AddScoped<IFormDataService, FormDataService>();
+
         // 代码生成
         services.AddScoped<ICodegenService, CodegenService>();
 
@@ -45,6 +51,10 @@ public static class DependencyInjection
 
         // 通用服务
         services.AddSingleton<ISseService, SseService>();
+
+        // AI 辅助
+        services.AddSingleton<IPromptLoader, PromptLoader>();
+        services.AddScoped<IAiChatService, AiChatService>();
 
         return services;
     }

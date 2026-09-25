@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <!-- 搜索 -->
-    <page-search
+    <crud-search
       ref="searchRef"
       :search-config="searchConfig"
       @query-click="handleQueryClick"
@@ -14,10 +14,10 @@
       </template>
 {{ end }}
 {{ end }}
-    </page-search>
+    </crud-search>
 
     <!-- 列表 -->
-    <page-content
+    <crud-table
       ref="contentRef"
       :content-config="contentConfig"
       @add-click="handleAddClick"
@@ -34,10 +34,10 @@
       </template>
 {{ end }}
 {{ end }}
-    </page-content>
+    </crud-table>
 
     <!-- 新增 -->
-    <page-modal ref="addModalRef" :modal-config="addModalConfig" @submit-click="handleSubmitClick">
+    <crud-modal ref="addModalRef" :modal-config="addModalConfig" @submit-click="handleSubmitClick">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
       <template #{{ field.FieldName }}="scope">
@@ -45,10 +45,10 @@
       </template>
 {{ end }}
 {{ end }}
-    </page-modal>
+    </crud-modal>
 
     <!-- 编辑 -->
-    <page-modal ref="editModalRef" :modal-config="editModalConfig" @submit-click="handleSubmitClick">
+    <crud-modal ref="editModalRef" :modal-config="editModalConfig" @submit-click="handleSubmitClick">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
       <template #{{ field.FieldName }}="scope">
@@ -56,7 +56,7 @@
       </template>
 {{ end }}
 {{ end }}
-    </page-modal>
+    </crud-modal>
   </div>
 </template>
 
@@ -66,7 +66,7 @@ defineOptions({
   name: "{{ entityName }}" });
 
 import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
-import usePage from "@/components/CURD/usePage";
+import useCrudPage from "@/components/Crud/useCrudPage";
 
 const {
   searchRef,
@@ -81,7 +81,7 @@ const {
   handleExportClick,
   handleSearchClick,
   handleFilterChange,
-} = usePage();
+} = useCrudPage();
 
 const searchConfig = reactive({
   pageName: "{{ moduleName }}:{{ entityKebab }}",

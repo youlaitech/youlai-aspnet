@@ -50,9 +50,9 @@ public sealed class MenusController : ControllerBase
     /// 获取菜单下拉选项
     /// </summary>
     [HttpGet("options")]
-    public async Task<Result<IReadOnlyCollection<Option<long>>>> GetMenuOptions([FromQuery] bool onlyParent = false, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyCollection<Option<long>>>> GetMenuOptions([FromQuery] List<string>? types = null, CancellationToken cancellationToken = default)
     {
-        var options = await _menuService.ListMenuOptionsAsync(onlyParent, cancellationToken);
+        var options = await _menuService.ListMenuOptionsAsync(types, cancellationToken);
         return Result.Success(options);
     }
 
@@ -102,8 +102,9 @@ public sealed class MenusController : ControllerBase
             Icon = formData.Icon,
             Redirect = formData.Redirect,
             KeepAlive = formData.KeepAlive,
-            AlwaysShow = formData.AlwaysShow,
             Params = formData.Params,
+            GenerateCrudButtons = formData.GenerateCrudButtons,
+            ButtonPermPrefix = formData.ButtonPermPrefix,
         }, cancellationToken);
         return Result.Judge(ok);
     }
@@ -130,5 +131,15 @@ public sealed class MenusController : ControllerBase
     {
         var ok = await _menuService.UpdateMenuVisibleAsync(menuId, visible, cancellationToken);
         return Result.Judge(ok);
+    }
+
+    /// <summary>
+    /// AI 推断菜单的访问路径与权限标识
+    /// </summary>
+    [HttpPost("ai-fill")]
+    public async Task<Result<MenuAiVo>> AiFillMenu([FromBody] MenuAiFillForm form, CancellationToken cancellationToken)
+    {
+        var result = await _menuService.AiFillMenuAsync(form, cancellationToken);
+        return Result.Success(result);
     }
 }

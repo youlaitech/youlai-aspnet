@@ -16,6 +16,18 @@ public static class RedisKeyConstants
     }
 
     /// <summary>
+    /// 表单模块键前缀
+    /// </summary>
+    public static class Form
+    {
+        /// <summary>已发布表单渲染规则（formKey 维度，发布/停用/改规则/删除时主动失效）</summary>
+        public const string RenderRule = "form:render:{0}";
+
+        /// <summary>公开表单匿名提交计数（formKey:ip 维度，固定窗口防刷）</summary>
+        public const string PublicSubmitCount = "form:public:submit:{0}:{1}";
+    }
+
+    /// <summary>
     /// 认证模块键前缀（黑名单、Token 版本等）
     /// </summary>
     public static class Auth

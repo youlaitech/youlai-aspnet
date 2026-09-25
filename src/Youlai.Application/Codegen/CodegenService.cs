@@ -184,7 +184,7 @@ LIMIT @limit OFFSET @offset";
         var entityName = string.IsNullOrWhiteSpace(formData.EntityName) ? ToPascalCase(tableName) : formData.EntityName!.Trim();
         var author = string.IsNullOrWhiteSpace(formData.Author) ? DefaultAuthor : formData.Author!.Trim();
         var removePrefix = string.IsNullOrWhiteSpace(formData.RemoveTablePrefix) ? DefaultRemoveTablePrefix : formData.RemoveTablePrefix!.Trim();
-        var pageType = string.Equals(formData.PageType, "curd", StringComparison.OrdinalIgnoreCase) ? "curd" : "classic";
+        var pageType = string.Equals(formData.PageType, "crud", StringComparison.OrdinalIgnoreCase) ? "crud" : "classic";
         var parentMenuId = formData.ParentMenuId;
 
         var fieldConfigs = formData.FieldConfigs?.ToList() ?? new List<FieldConfigDto>();
@@ -363,10 +363,10 @@ VALUES
         CancellationToken cancellationToken = default)
     {
         var config = await GetConfigAsync(tableName, cancellationToken).ConfigureAwait(false);
-        var effectivePageType = string.Equals(config.PageType, "curd", StringComparison.OrdinalIgnoreCase)
-            ? "curd"
-            : string.Equals(pageType, "curd", StringComparison.OrdinalIgnoreCase)
-                ? "curd"
+        var effectivePageType = string.Equals(config.PageType, "crud", StringComparison.OrdinalIgnoreCase)
+            ? "crud"
+            : string.Equals(pageType, "crud", StringComparison.OrdinalIgnoreCase)
+                ? "crud"
                 : "classic";
         var frontendType = string.Equals(type, "js", StringComparison.OrdinalIgnoreCase) ? "js" : "ts";
 
@@ -837,7 +837,7 @@ ORDER BY ORDINAL_POSITION ASC";
     }
 
     /// <summary>
-    /// 用模板渲染器渲染模板，curd 页面时切到 curd 版视图模板
+    /// 用模板渲染器渲染模板，crud 页面时切到 crud 版视图模板
     /// </summary>
     private string RenderTemplate(
         string templateName,
@@ -847,15 +847,15 @@ ORDER BY ORDINAL_POSITION ASC";
         string pageType)
     {
         var tplPath = templatePath;
-        if (string.Equals(templateName, "VIEW", StringComparison.OrdinalIgnoreCase) && pageType == "curd")
+        if (string.Equals(templateName, "VIEW", StringComparison.OrdinalIgnoreCase) && pageType == "crud")
         {
             if (tplPath.EndsWith("frontend/js/index.vue.sbn", StringComparison.OrdinalIgnoreCase))
             {
-                tplPath = tplPath.Replace("frontend/js/index.vue.sbn", "frontend/js/index.curd.vue.sbn", StringComparison.OrdinalIgnoreCase);
+                tplPath = tplPath.Replace("frontend/js/index.vue.sbn", "frontend/js/index.crud.vue.sbn", StringComparison.OrdinalIgnoreCase);
             }
             else if (tplPath.EndsWith("frontend/ts/index.vue.sbn", StringComparison.OrdinalIgnoreCase))
             {
-                tplPath = tplPath.Replace("frontend/ts/index.vue.sbn", "frontend/ts/index.curd.vue.sbn", StringComparison.OrdinalIgnoreCase);
+                tplPath = tplPath.Replace("frontend/ts/index.vue.sbn", "frontend/ts/index.crud.vue.sbn", StringComparison.OrdinalIgnoreCase);
             }
         }
 

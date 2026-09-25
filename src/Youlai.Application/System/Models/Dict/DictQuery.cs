@@ -1,4 +1,4 @@
-﻿using Youlai.Application.Models;
+using Youlai.Application.Models;
 
 namespace Youlai.Application.System.Models.Dict;
 

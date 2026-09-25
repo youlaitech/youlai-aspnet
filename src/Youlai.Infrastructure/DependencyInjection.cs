@@ -13,9 +13,11 @@ using Youlai.Application.Persistence;
 using Youlai.Application.Security;
 using Youlai.Application.Common;
 using Youlai.Application.File;
+using Youlai.Application.Form;
 using Youlai.Domain.Entities;
 using Youlai.Infrastructure.Auth;
 using Youlai.Infrastructure.Codegen;
+using Youlai.Infrastructure.Form;
 using Youlai.Infrastructure.Common;
 using Youlai.Infrastructure.FileStorage;
 using Youlai.Infrastructure.Persistence;
@@ -64,6 +66,10 @@ public static class DependencyInjection
 
         services.AddOptions<RateLimitOptions>()
             .Bind(configuration.GetSection(RateLimitOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddOptions<AiOptions>()
+            .Bind(configuration.GetSection(AiOptions.SectionName))
             .ValidateOnStart();
 
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<FileStorageOptions>>().Value);
@@ -121,6 +127,10 @@ public static class DependencyInjection
 
         // HTTP 客户端
         services.AddHttpClient("Wechat");
+        services.AddHttpClient("Ai");
+
+        // 公开表单提交限流
+        services.AddSingleton<IPublicSubmitLimiter, RedisPublicSubmitLimiter>();
 
         return services;
     }

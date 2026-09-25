@@ -1,4 +1,4 @@
-﻿namespace Youlai.Application.System.Models.Dept;
+namespace Youlai.Application.System.Models.Dept;
 
 /// <summary>
 /// 部门查询参数

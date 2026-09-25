@@ -40,6 +40,9 @@ public enum LogModule
     /// <summary>代码生成</summary>
     [Display(Name = "代码生成")]
     CODEGEN = 11,
+    /// <summary>动态表单</summary>
+    [Display(Name = "动态表单")]
+    FORM = 12,
     /// <summary>其他</summary>
     [Display(Name = "其他")]
     OTHER = 99,

@@ -64,6 +64,15 @@ public sealed class AppDbContext : DbContext
     /// <summary>第三方账号绑定表</summary>
     public DbSet<SysUserSocial> SysUserSocials => Set<SysUserSocial>();
 
+    /// <summary>表单定义表</summary>
+    public DbSet<FormDefinition> FormDefinitions => Set<FormDefinition>();
+
+    /// <summary>表单数据表</summary>
+    public DbSet<FormData> FormDatas => Set<FormData>();
+
+    /// <summary>表单版本快照表</summary>
+    public DbSet<FormSnapshot> FormSnapshots => Set<FormSnapshot>();
+
     /// <summary>
     /// 配置实体到表/列的映射；带 is_deleted 的表统一加逻辑删除过滤，查询默认只返回未删除数据
     /// </summary>
@@ -155,7 +164,6 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.Component).HasColumnName("component").HasMaxLength(128);
             entity.Property(e => e.ExternalUrl).HasColumnName("external_url").HasMaxLength(512);
             entity.Property(e => e.Perm).HasColumnName("perm").HasMaxLength(128);
-            entity.Property(e => e.AlwaysShow).HasColumnName("always_show");
             entity.Property(e => e.KeepAlive).HasColumnName("keep_alive");
             entity.Property(e => e.Visible).HasColumnName("visible");
             entity.Property(e => e.Sort).HasColumnName("sort");
@@ -224,6 +232,8 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.CreateBy).HasColumnName("create_by");
             entity.Property(e => e.UpdateTime).HasColumnName("update_time");
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         modelBuilder.Entity<SysNotice>(entity =>
@@ -330,6 +340,63 @@ public sealed class AppDbContext : DbContext
             entity.HasIndex(e => new { e.Platform, e.OpenId }).HasDatabaseName("uk_platform_openid").IsUnique();
             entity.HasIndex(e => e.UserId).HasDatabaseName("idx_user_id");
             entity.HasIndex(e => e.UnionId).HasDatabaseName("idx_unionid");
+        });
+
+        modelBuilder.Entity<FormDefinition>(entity =>
+        {
+            entity.ToTable("form_definition");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FormKey).HasColumnName("form_key");
+            entity.Property(e => e.FormName).HasColumnName("form_name");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.FormJson).HasColumnName("form_json");
+            entity.Property(e => e.OptionsJson).HasColumnName("options_json");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.IsPublic).HasColumnName("is_public");
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.MenuId).HasColumnName("menu_id");
+            entity.Property(e => e.Version).HasColumnName("version");
+            entity.Property(e => e.CreateTime).HasColumnName("create_time");
+            entity.Property(e => e.CreateBy).HasColumnName("create_by");
+            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+            entity.Property(e => e.UpdateBy).HasColumnName("update_by");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<FormData>(entity =>
+        {
+            entity.ToTable("form_data");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FormId).HasColumnName("form_id");
+            entity.Property(e => e.FormVersion).HasColumnName("form_version");
+            entity.Property(e => e.DataJson).HasColumnName("data_json");
+            entity.Property(e => e.CreateBy).HasColumnName("create_by");
+            entity.Property(e => e.CreateTime).HasColumnName("create_time");
+            entity.Property(e => e.UpdateBy).HasColumnName("update_by");
+            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<FormSnapshot>(entity =>
+        {
+            entity.ToTable("form_snapshot");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FormId).HasColumnName("form_id");
+            entity.Property(e => e.Version).HasColumnName("version");
+            entity.Property(e => e.FormJson).HasColumnName("form_json");
+            entity.Property(e => e.OptionsJson).HasColumnName("options_json");
+            entity.Property(e => e.CreateTime).HasColumnName("create_time");
+            entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }
 

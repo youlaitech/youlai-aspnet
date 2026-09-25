@@ -16,7 +16,12 @@ public interface ISystemMenuService
     /// <summary>
     /// 菜单下拉选项
     /// </summary>
-    Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(IReadOnlyCollection<string>? types, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 用 AI 推断菜单的访问路径、权限标识与配套按钮，命名风格参照同级菜单
+    /// </summary>
+    Task<MenuAiVo> AiFillMenuAsync(MenuAiFillForm form, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 菜单列表

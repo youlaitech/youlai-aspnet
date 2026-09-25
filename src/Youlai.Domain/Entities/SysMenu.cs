@@ -43,9 +43,6 @@ public sealed class SysMenu
     /// </summary>
     public string? Perm { get; set; }
 
-    /// <summary>是否始终显示（多子菜单时）</summary>
-    public int? AlwaysShow { get; set; }
-
     /// <summary>是否缓存（keep-alive）</summary>
     public int? KeepAlive { get; set; }
 

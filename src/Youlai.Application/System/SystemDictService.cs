@@ -257,7 +257,15 @@ internal sealed class SystemDictService : ISystemDictService
         var codeList = dictCodes.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.Ordinal).ToArray();
         if (codeList.Length > 0)
         {
-            await _dictItemRepo.DeleteAsync(i => i.DictCode != null && codeList.Contains(i.DictCode), cancellationToken).ConfigureAwait(false);
+            var dictItemIds = await _readDb.ToListAsync(
+                _readDb.Query<SysDictItem>()
+                    .Where(i => i.DictCode != null && codeList.Contains(i.DictCode))
+                    .Select(i => i.Id),
+                cancellationToken).ConfigureAwait(false);
+            if (dictItemIds.Count > 0)
+            {
+                await _dictItemRepo.BatchSoftDeleteAsync(dictItemIds, _currentUser.UserId, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -300,6 +308,7 @@ internal sealed class SystemDictService : ISystemDictService
                 DictCode = i.DictCode ?? string.Empty,
                 Label = i.Label ?? string.Empty,
                 Value = i.Value ?? string.Empty,
+                TagType = i.TagType,
                 Status = i.Status ?? 0,
                 Sort = i.Sort,
             }),
@@ -358,6 +367,8 @@ internal sealed class SystemDictService : ISystemDictService
     /// </summary>
     public async Task<bool> SaveDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
     {
+        await EnsureDictItemValueUniqueAsync(dictCode, formData.Value, null, cancellationToken).ConfigureAwait(false);
+
         var item = new SysDictItem
         {
             DictCode = dictCode,
@@ -394,6 +405,8 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "字典项不存在");
         }
 
+        await EnsureDictItemValueUniqueAsync(dictCode, formData.Value, itemId, cancellationToken).ConfigureAwait(false);
+
         item.Label = formData.Label?.Trim();
         item.Value = formData.Value?.Trim();
         item.Status = formData.Status ?? item.Status;
@@ -409,7 +422,7 @@ internal sealed class SystemDictService : ISystemDictService
     }
 
     /// <summary>
-    /// 批量删除字典项
+    /// 批量删除字典项（逻辑删除）
     /// </summary>
     public async Task<bool> RemoveDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
     {
@@ -419,9 +432,39 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "删除的字典项数据为空");
         }
 
-        await _dictItemRepo.DeleteAsync(i => i.DictCode == dictCode && idList.Contains(i.Id), cancellationToken).ConfigureAwait(false);
+        var itemIds = await _readDb.ToListAsync(
+            _readDb.Query<SysDictItem>()
+                .Where(i => i.DictCode == dictCode && idList.Contains(i.Id))
+                .Select(i => i.Id),
+            cancellationToken).ConfigureAwait(false);
+        if (itemIds.Count > 0)
+        {
+            await _dictItemRepo.BatchSoftDeleteAsync(itemIds, _currentUser.UserId, cancellationToken).ConfigureAwait(false);
+        }
 
         await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    /// <summary>
+    /// 校验同一字典下字典项值唯一
+    /// </summary>
+    private async Task EnsureDictItemValueUniqueAsync(string dictCode, string? value, long? excludeId, CancellationToken cancellationToken)
+    {
+        var normalized = value?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
+
+        var exists = await _readDb.AnyAsync(
+            _readDb.Query<SysDictItem>()
+                .Where(i => i.DictCode == dictCode && i.Value == normalized && (excludeId == null || i.Id != excludeId)),
+            cancellationToken).ConfigureAwait(false);
+
+        if (exists)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "该字典下字典项值已存在");
+        }
     }
 }

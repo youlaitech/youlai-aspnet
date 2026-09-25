@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Youlai.Application.Models;
 
 namespace Youlai.Application.System.Models.Role;

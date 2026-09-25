@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Youlai.Application.System.Models.Menu;
 
@@ -79,13 +79,6 @@ public sealed class RouteVo
         [JsonPropertyName("keepAlive")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? KeepAlive { get; init; }
-
-        /// <summary>
-        /// 始终显示
-        /// </summary>
-        [JsonPropertyName("alwaysShow")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public bool? AlwaysShow { get; init; }
 
         /// <summary>
         /// 路由参数

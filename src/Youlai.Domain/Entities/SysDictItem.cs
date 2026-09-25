@@ -44,4 +44,9 @@ public sealed class SysDictItem : IHasAudit
 
     /// <summary>更新人 ID</summary>
     public long? UpdateBy { get; set; }
+
+    /// <summary>
+    /// 软删除标记：true=已删除，false=正常
+    /// </summary>
+    public bool IsDeleted { get; set; }
 }

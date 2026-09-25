@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Youlai.Application.System.Models.Dict;
 
@@ -30,6 +30,12 @@ public sealed class DictItemPageVo
     /// </summary>
     [JsonPropertyName("value")]
     public string Value { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 标签样式
+    /// </summary>
+    [JsonPropertyName("tagType")]
+    public string? TagType { get; init; }
 
     /// <summary>
     /// 状态（0禁用 1启用）
