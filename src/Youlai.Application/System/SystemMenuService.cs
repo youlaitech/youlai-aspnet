@@ -147,17 +147,8 @@ internal sealed class SystemMenuService : ISystemMenuService
             return Array.Empty<Option<long>>();
         }
 
-        var menuIds = list.Select(m => m.Id).ToHashSet();
-        var parentIds = list.Select(m => m.ParentId).ToHashSet();
-        var rootIds = parentIds.Where(pid => !menuIds.Contains(pid)).ToArray();
-
-        var result = new List<Option<long>>();
-        foreach (var rootId in rootIds)
-        {
-            result.AddRange(RecurMenuOptions(rootId, list));
-        }
-
-        return result;
+        // 固定以顶级(0)为根递归：类型过滤后父级不在结果集内的节点不作为根节点，与参考实现一致
+        return RecurMenuOptions(0, list);
     }
 
     /// <summary>
@@ -465,9 +456,18 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// </summary>
     public async Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
-        // 自身 + 子树（TreePath 包含 ",menuId," / "menuId," / ",menuId"）
+        // 自身 + 子树：tree_path 记录祖先链，覆盖 "menuId" / "menuId,..." / "...,menuId" / "...,menuId,..." 四种形态
+        // （等价于参考实现的 CONCAT(',',tree_path,',') LIKE '%,menuId,%'，全部用可翻译的字符串方法）
+        var menuIdText = menuId.ToString();
+        var treePathPrefix = menuIdText + ",";
+        var treePathSuffix = "," + menuIdText;
+        var treePathMiddle = "," + menuIdText + ",";
         var menuIds = await _readDb.ToListAsync(
-            _readDb.Query<SysMenu>().Where(m => m.Id == menuId || (m.TreePath != null && m.TreePath.Contains("," + menuId + ","))).Select(m => m.Id),
+            _readDb.Query<SysMenu>().Where(m => m.Id == menuId
+                || (m.TreePath != null && (m.TreePath == menuIdText
+                    || m.TreePath.StartsWith(treePathPrefix)
+                    || m.TreePath.EndsWith(treePathSuffix)
+                    || m.TreePath.Contains(treePathMiddle)))).Select(m => m.Id),
             cancellationToken).ConfigureAwait(false);
 
         if (menuIds.Count == 0)

@@ -52,7 +52,12 @@ public sealed class MenusController : ControllerBase
     [HttpGet("options")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetMenuOptions([FromQuery] List<string>? types = null, CancellationToken cancellationToken = default)
     {
-        var options = await _menuService.ListMenuOptionsAsync(types, cancellationToken);
+        // 前端与回归脚本按 types=C,M 传参，ASP.NET Core 不会自动按逗号拆分，这里统一展开
+        var typeList = types?
+            .SelectMany(type => (type ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToArray();
+
+        var options = await _menuService.ListMenuOptionsAsync(typeList, cancellationToken);
         return Result.Success(options);
     }
 
