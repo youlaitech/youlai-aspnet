@@ -30,6 +30,7 @@ public sealed class DeptsController : ControllerBase
     /// 部门列表
     /// </summary>
     [HttpGet]
+    [HasPerm("sys:dept:list")]
     public async Task<Result<IReadOnlyCollection<DeptVo>>> GetDeptList([FromQuery] DeptQuery queryParams, CancellationToken cancellationToken)
     {
         var list = await _deptService.GetDeptListAsync(queryParams, cancellationToken);

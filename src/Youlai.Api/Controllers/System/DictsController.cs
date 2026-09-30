@@ -30,6 +30,7 @@ public sealed class DictsController : ControllerBase
     /// 字典分页
     /// </summary>
     [HttpGet]
+    [HasPerm("sys:dict:list")]
     public Task<PageResult<DictPageVo>> GetDictPage([FromQuery] DictQuery query, CancellationToken cancellationToken)
     {
         return _dictService.GetDictPageAsync(query, cancellationToken);
@@ -95,6 +96,7 @@ public sealed class DictsController : ControllerBase
     /// 字典项分页
     /// </summary>
     [HttpGet("{dictCode}/items")]
+    [HasPerm("sys:dict-item:list")]
     public Task<PageResult<DictItemPageVo>> GetDictItemPage([FromRoute] string dictCode, [FromQuery] DictItemQuery query, CancellationToken cancellationToken)
     {
         return _dictService.GetDictItemPageAsync(dictCode, query, cancellationToken);

@@ -740,7 +740,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             KeepAlive = (string.Equals(menu.Type, MenuType.Menu.GetCode(), StringComparison.Ordinal) || isEmbedded)
                 && menu.KeepAlive == 1 ? true : null,
             Params = TryParseParams(menu.Params),
-            ExternalUrl = isEmbedded && !string.IsNullOrWhiteSpace(externalUrl) ? externalUrl : null,
+            ExternalUrl = isExternal && !string.IsNullOrWhiteSpace(externalUrl) ? externalUrl : null,
         };
 
         return new RouteVo
@@ -847,9 +847,11 @@ internal sealed class SystemMenuService : ISystemMenuService
         {
             foreach (var menu in siblings)
             {
+                // 示例路径只展示当前这一级的路径片段
+                var routePath = menu.RoutePath?.TrimStart('/');
                 text.Append("- ").Append(menu.Name)
                     .Append("（类型 ").Append(MenuTypeLabel(menu.Type))
-                    .Append("，路径片段 ").Append(string.IsNullOrWhiteSpace(menu.RoutePath) ? "无" : menu.RoutePath)
+                    .Append("，路径片段 ").Append(string.IsNullOrWhiteSpace(routePath) ? "无" : routePath)
                     .Append("，权限 ").Append(string.IsNullOrWhiteSpace(menu.Perm) ? "无" : menu.Perm)
                     .Append("）\n");
             }

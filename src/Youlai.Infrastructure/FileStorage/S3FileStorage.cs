@@ -178,7 +178,24 @@ internal sealed class S3FileStorage : IFileStorage
             {
                 BucketName = _options.BucketName,
             }, cancellationToken);
+
+            // 公开只读策略：匿名可读对象，禁止匿名写入
+            await _client.PutBucketPolicyAsync(new PutBucketPolicyRequest
+            {
+                BucketName = _options.BucketName,
+                Policy = BuildPublicReadPolicy(),
+            }, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// 桶的匿名只读策略（仅 GetObject）
+    /// </summary>
+    private string BuildPublicReadPolicy()
+    {
+        return "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\","
+            + "\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],"
+            + "\"Resource\":[\"arn:aws:s3:::" + _options.BucketName + "/*\"]}]}";
     }
 
     /// <summary>

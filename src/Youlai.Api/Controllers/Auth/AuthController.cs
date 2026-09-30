@@ -84,7 +84,7 @@ public sealed class AuthController : ControllerBase
     /// 短信验证码登录
     /// </summary>
     [AllowAnonymous]
-    [HttpPost("login/sms")]
+    [HttpPost("sms/login")]
     [Log(LogModule.LOGIN, ActionType.LOGIN)]
     public async Task<Result<AuthenticationTokenDto>> LoginBySms([FromQuery] string mobile, [FromQuery] string code, CancellationToken cancellationToken)
     {

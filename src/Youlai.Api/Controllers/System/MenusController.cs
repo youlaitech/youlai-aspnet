@@ -40,6 +40,7 @@ public sealed class MenusController : ControllerBase
     /// 获取菜单列表（树形）
     /// </summary>
     [HttpGet]
+    [HasPerm("sys:menu:list")]
     public async Task<Result<IReadOnlyCollection<MenuVo>>> GetMenus([FromQuery] MenuQuery queryParams, CancellationToken cancellationToken)
     {
         var list = await _menuService.GetMenuListAsync(queryParams, cancellationToken);

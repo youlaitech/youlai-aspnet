@@ -32,7 +32,8 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Database:ConnectionString"] = "Server=127.0.0.1;Port=3306;Database=youlai_admin;Uid=root;Pwd=root;",
-                ["Redis:ConnectionString"] = "127.0.0.1:6379",
+                // abortConnect=false：测试环境没有 Redis 时也不阻塞应用启动（连接失败后台重试）
+                ["Redis:ConnectionString"] = "127.0.0.1:6379,abortConnect=false",
                 ["Security:Session:Jwt:SecretKey"] = "unit-test-secret-key-unit-test-secret-key",
             });
         });
@@ -83,7 +84,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(deptId);
         }
 
-        public Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default)
+        public Task<bool> RemoveDeptsAsync(string ids, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -223,7 +224,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<IReadOnlyCollection<Option<long>>> GetUserOptionsAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<Option<long>>> ListUserOptionsAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Option<long>>>(Array.Empty<Option<long>>());
         }
@@ -236,9 +237,14 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult<IReadOnlyCollection<RouteVo>>(Array.Empty<RouteVo>());
         }
 
-        public Task<IReadOnlyCollection<Option<long>>> GetMenuOptionsAsync(bool onlyParent, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<Option<long>>> ListMenuOptionsAsync(IReadOnlyCollection<string>? types, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Option<long>>>(Array.Empty<Option<long>>());
+        }
+
+        public Task<MenuAiVo> AiFillMenuAsync(MenuAiFillForm form, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new MenuAiVo { RoutePath = "/test" });
         }
 
         public Task<IReadOnlyCollection<MenuVo>> GetMenuListAsync(MenuQuery query, CancellationToken cancellationToken = default)
@@ -264,7 +270,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<bool> DeleteMenuAsync(long menuId, CancellationToken cancellationToken = default)
+        public Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -284,9 +290,14 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(PageResult<RolePageVo>.Success(Array.Empty<RolePageVo>(), 0, pageNum, pageSize));
         }
 
-        public Task<IReadOnlyCollection<Option<long>>> GetRoleOptionsAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<Option<long>>> ListRoleOptionsAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Option<long>>>(Array.Empty<Option<long>>());
+        }
+
+        public Task<IReadOnlyCollection<Option<string>>> ListRoleCodeOptionsAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Option<string>>>(Array.Empty<Option<string>>());
         }
 
         public Task<bool> SaveRoleAsync(RoleForm formData, CancellationToken cancellationToken = default)
@@ -306,7 +317,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             });
         }
 
-        public Task<bool> DeleteByIdsAsync(string ids, CancellationToken cancellationToken = default)
+        public Task<bool> RemoveRolesAsync(string ids, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -316,7 +327,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<IReadOnlyCollection<long>> GetRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<long>> ListRoleMenuIdsAsync(long roleId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<long>>(Array.Empty<long>());
         }
@@ -326,7 +337,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyCollection<long>> GetRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<long>> ListRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<long>>(Array.Empty<long>());
         }
@@ -346,7 +357,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(PageResult<DictPageVo>.Success(Array.Empty<DictPageVo>(), 0, pageNum, pageSize));
         }
 
-        public Task<IReadOnlyCollection<Option<string>>> GetDictListAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<Option<string>>> ListDictsAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Option<string>>>(Array.Empty<Option<string>>());
         }
@@ -378,7 +389,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(PageResult<DictItemPageVo>.Success(Array.Empty<DictItemPageVo>(), 0, pageNum, pageSize));
         }
 
-        public Task<IReadOnlyCollection<DictItemOption>> GetDictItemsAsync(string dictCode, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<DictItemOption>> ListDictItemsAsync(string dictCode, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<DictItemOption>>(Array.Empty<DictItemOption>());
         }
@@ -388,7 +399,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(new DictItemForm { Id = itemId, DictCode = dictCode, Label = "1", Value = "1", Status = 1, Sort = 1 });
         }
 
-        public Task<bool> CreateDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
+        public Task<bool> SaveDictItemAsync(string dictCode, DictItemForm formData, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -398,7 +409,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<bool> DeleteDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
+        public Task<bool> RemoveDictItemsAsync(string dictCode, string ids, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -418,7 +429,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(new NoticeForm { Id = id, Title = "测试", Content = "<p>内容</p>", TargetType = 1, Level = "L", Type = 1 });
         }
 
-        public Task<bool> CreateNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default)
+        public Task<bool> SaveNoticeAsync(NoticeForm formData, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }
@@ -428,7 +439,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
-        public Task<bool> DeleteNoticesAsync(string ids, CancellationToken cancellationToken = default)
+        public Task<bool> RemoveNoticesAsync(string ids, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);
         }

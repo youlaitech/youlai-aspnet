@@ -17,6 +17,9 @@ public interface ICodegenService
     /// <summary>保存生成配置</summary>
     Task<bool> SaveConfigAsync(string tableName, GenConfigFormDto formData, CancellationToken cancellationToken = default);
 
+    /// <summary>用 AI 推断生成配置，未推断出的字段沿用原有默认值</summary>
+    Task<GenConfigFormDto> AiFillConfigAsync(string tableName, string? requirement = null, CancellationToken cancellationToken = default);
+
     /// <summary>删除生成配置</summary>
     Task<bool> RemoveConfigAsync(string tableName, CancellationToken cancellationToken = default);
 

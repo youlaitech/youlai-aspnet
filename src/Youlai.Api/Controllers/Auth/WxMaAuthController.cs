@@ -10,7 +10,7 @@ namespace Youlai.Api.Controllers.Auth;
 /// 微信小程序认证接口
 /// </summary>
 [ApiController]
-[Route("api/v1/wxma/auth")]
+[Route("api/v1/auth/wxma")]
 [Tags("12.微信小程序认证")]
 public sealed class WxMaAuthController : ControllerBase
 {

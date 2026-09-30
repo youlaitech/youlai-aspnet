@@ -2,8 +2,8 @@
 取值约束：
 - businessName：中文简明业务名（如：用户、角色、通告）
 - fieldComment：中文简明字段描述（如：用户名、创建时间）
-- formType：{{formTypes}}
-- queryType：{{queryTypes}}
+- formType：INPUT|SELECT|RADIO|CHECK_BOX|INPUT_NUMBER|SWITCH|TEXT_AREA|DATE|DATE_TIME|HIDDEN
+- queryType：EQ|LIKE|IN|BETWEEN|GT|GE|LT|LE|NE|LIKE_LEFT
 - isRequired、isShowInList、isShowInForm、isShowInQuery：1 是，0 否
 - dictType：字典类型编码，无法确定时留空
 推断规则：

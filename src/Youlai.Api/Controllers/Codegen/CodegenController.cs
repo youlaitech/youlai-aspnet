@@ -63,6 +63,19 @@ public sealed class CodegenController : ControllerBase
     }
 
     /// <summary>
+    /// AI 填充生成配置
+    /// </summary>
+    [HttpPost("{tableName}/ai-config")]
+    public async Task<Result<GenConfigFormDto>> AiFillConfig(
+        [FromRoute] string tableName,
+        [FromBody] AiFillConfigForm? form,
+        CancellationToken cancellationToken)
+    {
+        var data = await _codegenService.AiFillConfigAsync(tableName, form?.Requirement, cancellationToken);
+        return Result.Success(data);
+    }
+
+    /// <summary>
     /// 预览生成代码
     /// </summary>
     [HttpGet("{tableName}/preview")]

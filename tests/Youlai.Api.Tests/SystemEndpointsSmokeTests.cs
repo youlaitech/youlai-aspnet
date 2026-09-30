@@ -197,12 +197,13 @@ public sealed class SystemEndpointsSmokeTests : IClassFixture<TestWebApplication
         Assert.True(root.TryGetProperty("code", out _));
         Assert.True(root.TryGetProperty("msg", out _));
 
+        // 分页契约：{code, msg, data:{list, total}}
         Assert.True(root.TryGetProperty("data", out var data));
-        Assert.Equal(JsonValueKind.Array, data.ValueKind);
+        Assert.Equal(JsonValueKind.Object, data.ValueKind);
 
-        Assert.True(root.TryGetProperty("page", out var page));
-        Assert.True(page.TryGetProperty("pageNum", out _));
-        Assert.True(page.TryGetProperty("pageSize", out _));
-        Assert.True(page.TryGetProperty("total", out _));
+        Assert.True(data.TryGetProperty("list", out var list));
+        Assert.Equal(JsonValueKind.Array, list.ValueKind);
+
+        Assert.True(data.TryGetProperty("total", out _));
     }
 }

@@ -2,7 +2,10 @@ using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
+using System.Text.Json;
+using Youlai.Application.Ai;
 using Youlai.Application.Codegen.Models;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
@@ -22,6 +25,37 @@ internal sealed class CodegenService : ICodegenService
     private const string DefaultModuleName = "system";
     private const string DefaultPackageName = "Youlai";
     private const string DefaultRemoveTablePrefix = "sys_";
+    private const string CodegenSystemPromptPath = "codegen/system.md";
+
+    /// <summary>表单类型枚举名到存储值</summary>
+    private static readonly IReadOnlyDictionary<string, int> FormTypeValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["INPUT"] = 1,
+        ["SELECT"] = 2,
+        ["RADIO"] = 3,
+        ["CHECK_BOX"] = 4,
+        ["INPUT_NUMBER"] = 5,
+        ["SWITCH"] = 6,
+        ["TEXT_AREA"] = 7,
+        ["DATE"] = 8,
+        ["DATE_TIME"] = 9,
+        ["HIDDEN"] = 10,
+    };
+
+    /// <summary>查询类型枚举名到存储值</summary>
+    private static readonly IReadOnlyDictionary<string, int> QueryTypeValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["EQ"] = 1,
+        ["LIKE"] = 2,
+        ["IN"] = 3,
+        ["BETWEEN"] = 4,
+        ["GT"] = 5,
+        ["GE"] = 6,
+        ["LT"] = 7,
+        ["LE"] = 8,
+        ["NE"] = 9,
+        ["LIKE_LEFT"] = 10,
+    };
 
     private static readonly IReadOnlyDictionary<string, TemplateConfig> TemplateConfigs =
         new Dictionary<string, TemplateConfig>(StringComparer.OrdinalIgnoreCase)
@@ -40,12 +74,20 @@ internal sealed class CodegenService : ICodegenService
 
     private readonly ISqlExecutor _sqlExecutor;
     private readonly ITemplateRenderer _templateRenderer;
+    private readonly IPromptLoader _promptLoader;
+    private readonly IAiChatService _aiChatService;
     private readonly string _templateRoot;
 
-    public CodegenService(ISqlExecutor sqlExecutor, ITemplateRenderer templateRenderer)
+    public CodegenService(
+        ISqlExecutor sqlExecutor,
+        ITemplateRenderer templateRenderer,
+        IPromptLoader promptLoader,
+        IAiChatService aiChatService)
     {
         _sqlExecutor = sqlExecutor;
         _templateRenderer = templateRenderer;
+        _promptLoader = promptLoader;
+        _aiChatService = aiChatService;
         _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
@@ -110,6 +152,121 @@ LIMIT @limit OFFSET @offset";
 
         return PageResult<CodegenTableDto>.Success(list, total, pageNum, pageSize);
     }
+
+    /// <summary>
+    /// 用 AI 推断生成配置，未推断出的字段沿用原有默认值
+    /// </summary>
+    public async Task<GenConfigFormDto> AiFillConfigAsync(
+        string tableName,
+        string? requirement = null,
+        CancellationToken cancellationToken = default)
+    {
+        var config = await GetConfigAsync(tableName, cancellationToken).ConfigureAwait(false);
+        var systemPrompt = _promptLoader.Get(CodegenSystemPromptPath);
+        var aiConfig = await _aiChatService
+            .ChatEntityAsync<GenConfigAiDto>(systemPrompt, BuildAiUserPrompt(config, requirement), cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new BusinessException(ResultCode.InvalidUserInput, "AI 未返回有效的代码生成配置");
+
+        var aiFields = new Dictionary<string, GenConfigAiFieldDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var aiField in aiConfig.FieldConfigs ?? Array.Empty<GenConfigAiFieldDto>())
+        {
+            if (!string.IsNullOrWhiteSpace(aiField.ColumnName))
+            {
+                aiFields[aiField.ColumnName.Trim()] = aiField;
+            }
+        }
+
+        var fieldConfigs = (config.FieldConfigs ?? Array.Empty<FieldConfigDto>())
+            .Select(field => MergeAiField(field, aiFields))
+            .ToArray();
+
+        return new GenConfigFormDto
+        {
+            Id = config.Id,
+            TableName = config.TableName,
+            ModuleName = config.ModuleName,
+            PackageName = config.PackageName,
+            BusinessName = string.IsNullOrWhiteSpace(aiConfig.BusinessName)
+                ? config.BusinessName
+                : aiConfig.BusinessName.Trim(),
+            EntityName = config.EntityName,
+            Author = config.Author,
+            ParentMenuId = config.ParentMenuId,
+            BackendAppName = config.BackendAppName,
+            FrontendAppName = config.FrontendAppName,
+            PageType = config.PageType,
+            RemoveTablePrefix = config.RemoveTablePrefix,
+            FieldConfigs = fieldConfigs,
+        };
+    }
+
+    /// <summary>
+    /// 按列名匹配回填字段配置
+    /// </summary>
+    private static FieldConfigDto MergeAiField(
+        FieldConfigDto field,
+        IReadOnlyDictionary<string, GenConfigAiFieldDto> aiFields)
+    {
+        if (field.ColumnName is null || !aiFields.TryGetValue(field.ColumnName, out var aiField))
+        {
+            return field;
+        }
+
+        return new FieldConfigDto
+        {
+            Id = field.Id,
+            ColumnName = field.ColumnName,
+            ColumnType = field.ColumnType,
+            FieldName = field.FieldName,
+            FieldType = field.FieldType,
+            FieldComment = string.IsNullOrWhiteSpace(aiField.FieldComment) ? field.FieldComment : aiField.FieldComment.Trim(),
+            IsShowInList = aiField.IsShowInList ?? field.IsShowInList,
+            IsShowInForm = aiField.IsShowInForm ?? field.IsShowInForm,
+            IsShowInQuery = aiField.IsShowInQuery ?? field.IsShowInQuery,
+            IsRequired = aiField.IsRequired ?? field.IsRequired,
+            FormType = FormTypeValue(aiField.FormType) ?? field.FormType,
+            QueryType = QueryTypeValue(aiField.QueryType) ?? field.QueryType,
+            MaxLength = field.MaxLength,
+            FieldSort = field.FieldSort,
+            DictType = string.IsNullOrWhiteSpace(aiField.DictType) ? field.DictType : aiField.DictType.Trim(),
+        };
+    }
+
+    /// <summary>
+    /// 构造用户提示词，附带表结构与字段清单
+    /// </summary>
+    private static string BuildAiUserPrompt(GenConfigFormDto config, string? requirement)
+    {
+        var columns = (config.FieldConfigs ?? Array.Empty<FieldConfigDto>())
+            .Select(field => new
+            {
+                columnName = field.ColumnName,
+                columnType = field.ColumnType,
+                fieldComment = field.FieldComment,
+                isRequired = field.IsRequired,
+            });
+
+        return new StringBuilder()
+            .Append("表名：").Append(config.TableName).Append('\n')
+            .Append("当前业务名：").Append(config.BusinessName).Append('\n')
+            .Append("补充说明：").Append(string.IsNullOrWhiteSpace(requirement) ? "无" : requirement.Trim()).Append('\n')
+            .Append("字段列表：").Append('\n')
+            .Append(JsonSerializer.Serialize(columns))
+            .ToString();
+    }
+
+    /// <summary>
+    /// 表单类型枚举名转存储值
+    /// </summary>
+    private static int? FormTypeValue(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : FormTypeValues.TryGetValue(name.Trim(), out var value) ? value : null;
+
+    /// <summary>
+    /// 查询类型枚举名转存储值
+    /// </summary>
+    private static int? QueryTypeValue(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : QueryTypeValues.TryGetValue(name.Trim(), out var value) ? value : null;
 
     /// <summary>
     /// 取表的生成配置；未配置过则按表结构和注释推导默认配置

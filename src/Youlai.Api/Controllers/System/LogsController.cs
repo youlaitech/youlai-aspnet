@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youlai.Api.Security;
 using Youlai.Application.Results;
 using Youlai.Application.System.Models.Log;
 using Youlai.Application.System.Models.Statistics;
@@ -27,6 +28,7 @@ public sealed class LogsController : ControllerBase
     /// 日志分页
     /// </summary>
     [HttpGet]
+    [HasPerm("sys:log:list")]
     public async Task<PageResult<LogPageVo>> GetLogPage([FromQuery] LogQuery queryParams, CancellationToken cancellationToken)
     {
         return await _logService.GetLogPageAsync(queryParams, cancellationToken);

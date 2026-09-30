@@ -20,6 +20,11 @@ public interface ISystemRoleService
     Task<IReadOnlyCollection<Option<long>>> ListRoleOptionsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 角色编码下拉选项
+    /// </summary>
+    Task<IReadOnlyCollection<Option<string>>> ListRoleCodeOptionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 新增或更新角色
     /// </summary>
     Task<bool> SaveRoleAsync(RoleForm formData, CancellationToken cancellationToken = default);

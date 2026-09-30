@@ -48,6 +48,16 @@ public sealed class RolesController : ControllerBase
     }
 
     /// <summary>
+    /// 角色编码下拉选项
+    /// </summary>
+    [HttpGet("code-options")]
+    public async Task<Result<IReadOnlyCollection<Option<string>>>> GetRoleCodeOptions(CancellationToken cancellationToken)
+    {
+        var list = await _roleService.ListRoleCodeOptionsAsync(cancellationToken);
+        return Result.Success(list);
+    }
+
+    /// <summary>
     /// 新增角色
     /// </summary>
     [HttpPost]

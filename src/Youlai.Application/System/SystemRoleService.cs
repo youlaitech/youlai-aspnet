@@ -107,6 +107,23 @@ internal sealed class SystemRoleService : ISystemRoleService
     }
 
     /// <summary>
+    /// 角色编码下拉选项
+    /// </summary>
+    public async Task<IReadOnlyCollection<Option<string>>> ListRoleCodeOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var roles = _readDb.Query<SysRole>()
+            .Where(r => !r.IsDeleted && r.Status == 1 && r.Code != SecurityConstants.RootRoleCode);
+
+        var list = await _readDb.ToListAsync(
+            roles
+                .OrderBy(r => r.Sort ?? 0)
+                .Select(r => new Option<string>(r.Code ?? string.Empty, r.Name ?? string.Empty)),
+            cancellationToken).ConfigureAwait(false);
+
+        return list;
+    }
+
+    /// <summary>
     /// 新增或更新角色
     /// </summary>
     public async Task<bool> SaveRoleAsync(RoleForm formData, CancellationToken cancellationToken = default)
