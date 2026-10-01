@@ -254,8 +254,12 @@ internal sealed class SystemDictService : ISystemDictService
             },
             cancellationToken).ConfigureAwait(false);
 
-        var codeList = dictCodes.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.Ordinal).ToArray();
-        if (codeList.Length > 0)
+        // 用 List 承载字典编码：数组的 Contains 在 EF 表达式中会绑定到 ReadOnlySpan 重载，参数求值阶段编译失败
+        var codeList = dictCodes
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (codeList.Count > 0)
         {
             var dictItemIds = await _readDb.ToListAsync(
                 _readDb.Query<SysDictItem>()

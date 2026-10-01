@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Linq.Expressions;
 using Youlai.Application.Persistence;
+using Youlai.Domain;
 using Youlai.Domain.Entities;
 
 namespace Youlai.Infrastructure.Persistence;
@@ -42,12 +43,20 @@ internal sealed class Repository<T> : IRepository<T> where T : class
             return 0;
         }
 
-        return await _ctx.Set<T>()
-            .Where(e => idList.Contains(EF.Property<long>(e, "Id")))
-            .ExecuteUpdateAsync(s => s
+        var query = _ctx.Set<T>().Where(e => idList.Contains(EF.Property<long>(e, "Id")));
+
+        // 版本快照一类实体没有 update_by 列，只写删除标记与更新时间
+        if (!typeof(IHasAudit).IsAssignableFrom(typeof(T)))
+        {
+            return await query.ExecuteUpdateAsync(s => s
                 .SetProperty(e => EF.Property<bool>(e, "IsDeleted"), true)
-                .SetProperty(e => EF.Property<long?>(e, "UpdateBy"), updateBy)
                 .SetProperty(e => EF.Property<DateTime>(e, "UpdateTime"), DateTime.UtcNow), cancellationToken);
+        }
+
+        return await query.ExecuteUpdateAsync(s => s
+            .SetProperty(e => EF.Property<bool>(e, "IsDeleted"), true)
+            .SetProperty(e => EF.Property<long?>(e, "UpdateBy"), updateBy)
+            .SetProperty(e => EF.Property<DateTime>(e, "UpdateTime"), DateTime.UtcNow), cancellationToken);
     }
 
     /// <summary>批量更新：加载匹配实体后在内存中 mutate，再统一落库</summary>
