@@ -39,6 +39,7 @@ builder.Services
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(new Int64ToStringJsonConverter());
         options.JsonSerializerOptions.Converters.Add(new NullableInt64ToStringJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new DateTimeToStringJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
