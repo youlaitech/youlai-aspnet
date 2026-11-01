@@ -7,6 +7,7 @@ using Youlai.Api.Converters;
 using Youlai.Api.Security;
 using Youlai.Api.Middlewares;
 using Youlai.Api.Filters;
+using Youlai.Api.Realtime;
 using Youlai.Application;
 using Youlai.Application.Security;
 using Youlai.Application.Results;
@@ -122,6 +123,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// 实时连接走 WebSocket，握手在中间件内用一次性票据完成
+app.UseWebSockets();
+app.UseMiddleware<RealtimeWebSocketMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

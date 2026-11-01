@@ -1,4 +1,4 @@
-using Youlai.Application.Sse;
+using Youlai.Application.Realtime;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
 using Youlai.Application.Persistence;
@@ -22,7 +22,7 @@ internal sealed class SystemDictService : ISystemDictService
     private readonly IRepository<SysDictItem> _dictItemRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
-    private readonly ISseService _sseService;
+    private readonly IRealtimeService _realtimeService;
 
     public SystemDictService(
         IReadOnlyDbContext readDb,
@@ -30,14 +30,33 @@ internal sealed class SystemDictService : ISystemDictService
         IRepository<SysDictItem> dictItemRepo,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        ISseService sseService)
+        IRealtimeService realtimeService)
     {
         _readDb = readDb;
         _dictRepo = dictRepo;
         _dictItemRepo = dictItemRepo;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
-        _sseService = sseService;
+        _realtimeService = realtimeService;
+    }
+
+    /// <summary>
+    /// 广播字典变更，订阅了 dict 主题的连接据此刷新缓存
+    /// </summary>
+    private Task BroadcastDictChangeAsync(string dictCode, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dictCode))
+        {
+            return Task.CompletedTask;
+        }
+
+        var payload = new
+        {
+            dictCode,
+            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+
+        return _realtimeService.BroadcastAsync(RealtimeTopics.Dict, RealtimeTopics.EventDictChanged, payload, cancellationToken);
     }
 
     /// <summary>
@@ -156,7 +175,7 @@ internal sealed class SystemDictService : ISystemDictService
         var saved = await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (saved)
         {
-            await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+            await BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return saved;
@@ -216,10 +235,10 @@ internal sealed class SystemDictService : ISystemDictService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        await _sseService.BroadcastDictChangeAsync(newDictCode, cancellationToken).ConfigureAwait(false);
+        await BroadcastDictChangeAsync(newDictCode, cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(oldDictCode) && !string.Equals(oldDictCode, newDictCode, StringComparison.Ordinal))
         {
-            await _sseService.BroadcastDictChangeAsync(oldDictCode, cancellationToken).ConfigureAwait(false);
+            await BroadcastDictChangeAsync(oldDictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -281,7 +300,7 @@ internal sealed class SystemDictService : ISystemDictService
                 continue;
             }
 
-            await _sseService.BroadcastDictChangeAsync(code!, cancellationToken).ConfigureAwait(false);
+            await BroadcastDictChangeAsync(code!, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -391,7 +410,7 @@ internal sealed class SystemDictService : ISystemDictService
         var ok = await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (ok)
         {
-            await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+            await BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         }
 
         return ok;
@@ -421,7 +440,7 @@ internal sealed class SystemDictService : ISystemDictService
 
         _dictItemRepo.Update(item);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+        await BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -446,7 +465,7 @@ internal sealed class SystemDictService : ISystemDictService
             await _dictItemRepo.BatchSoftDeleteAsync(itemIds, _currentUser.UserId, cancellationToken).ConfigureAwait(false);
         }
 
-        await _sseService.BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
+        await BroadcastDictChangeAsync(dictCode, cancellationToken).ConfigureAwait(false);
         return true;
     }
 

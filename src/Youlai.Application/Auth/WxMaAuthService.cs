@@ -24,13 +24,13 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     private const string JsCode2SessionUrl = "https://api.weixin.qq.com/sns/jscode2session?appid={0}&secret={1}&js_code={2}&grant_type=authorization_code";
     private const string GetPhoneNumberUrl = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={0}&code={1}";
     private const string GetAccessTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={0}&secret={1}";
-    private const string WechatPlatform = "WECHAT_MINI";
+    private const string WechatProvider = "wechat-mini-main";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IReadOnlyDbContext _readDb;
     private readonly IRepository<SysUser> _userRepo;
-    private readonly IRepository<SysUserSocial> _userSocialRepo;
+    private readonly IRepository<SysUserIdentity> _userIdentityRepo;
     private readonly IRepository<SysUserRole> _userRoleRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITokenManager _tokenManager;
@@ -42,7 +42,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     public WxMaAuthService(
         IReadOnlyDbContext readDb,
         IRepository<SysUser> userRepo,
-        IRepository<SysUserSocial> userSocialRepo,
+        IRepository<SysUserIdentity> userIdentityRepo,
         IRepository<SysUserRole> userRoleRepo,
         IUnitOfWork unitOfWork,
         ITokenManager tokenManager,
@@ -53,7 +53,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     {
         _readDb = readDb;
         _userRepo = userRepo;
-        _userSocialRepo = userSocialRepo;
+        _userIdentityRepo = userIdentityRepo;
         _userRoleRepo = userRoleRepo;
         _unitOfWork = unitOfWork;
         _tokenManager = tokenManager;
@@ -76,13 +76,13 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
         }
 
-        var social = await _readDb.FirstOrDefaultAsync(
-            _readDb.Query<SysUserSocial>().Where(s => s.Platform == WechatPlatform && s.OpenId == openId),
+        var identity = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUserIdentity>().Where(s => s.Provider == WechatProvider && s.ProviderAccountId == openId),
             cancellationToken);
 
-        if (social is not null)
+        if (identity is not null)
         {
-            var token = await GenerateTokenByUserIdAsync(social.UserId, cancellationToken);
+            var token = await GenerateTokenByUserIdAsync(identity.UserId, cancellationToken);
             return WxMaLoginResultDto.Success(token);
         }
 
@@ -109,7 +109,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
-        await BindWechatOpenIdAsync(user.Id, openId, session.UnionId, session.SessionKey, cancellationToken);
+        await BindWechatOpenIdAsync(user.Id, openId, session.SessionKey, cancellationToken);
 
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);
     }
@@ -123,7 +123,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
 
-        await BindWechatOpenIdAsync(user.Id, openId, null, null, cancellationToken);
+        await BindWechatOpenIdAsync(user.Id, openId, null, cancellationToken);
 
         _logger.LogInformation("微信小程序绑定手机号成功：mobile={Mobile}, openId={OpenId}", mobile, openId);
 
@@ -272,42 +272,52 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     }
 
     /// <summary>
-    /// 绑定或更新微信 openid/sessionKey，失败仅记录日志不阻断登录
+    /// 绑定微信 openid，会话密钥存 Redis，失败仅记录日志不阻断登录
     /// </summary>
-    private async Task BindWechatOpenIdAsync(long userId, string openId, string? unionId, string? sessionKey, CancellationToken cancellationToken)
+    private async Task BindWechatOpenIdAsync(long userId, string openId, string? sessionKey, CancellationToken cancellationToken)
     {
         try
         {
             var existing = await _readDb.FirstOrDefaultAsync(
-                _readDb.Query<SysUserSocial>().Where(s => s.Platform == WechatPlatform && s.OpenId == openId),
+                _readDb.Query<SysUserIdentity>().Where(s => s.Provider == WechatProvider && s.ProviderAccountId == openId),
                 cancellationToken);
 
-            if (existing is not null)
+            if (existing is not null && existing.UserId != userId)
             {
-                // 更新绑定
-                existing.UserId = userId;
-                existing.UnionId = unionId;
-                existing.SessionKey = sessionKey;
-                existing.UpdateTime = DateTime.Now;
-                _userSocialRepo.Update(existing);
+                // 账号已归属其他用户，不能转移
+                _logger.LogWarning("该微信账号已关联其他用户，userId={UserId}, openId={OpenId}", userId, openId);
+                return;
             }
-            else
+
+            if (existing is null)
             {
-                // 新增绑定
-                _userSocialRepo.Add(new SysUserSocial
+                _userIdentityRepo.Add(new SysUserIdentity
                 {
                     UserId = userId,
-                    Platform = WechatPlatform,
-                    OpenId = openId,
-                    UnionId = unionId,
-                    SessionKey = sessionKey,
-                    Verified = true,
+                    Provider = WechatProvider,
+                    ProviderAccountId = openId,
+                    LastLoginTime = DateTime.Now,
                     CreateTime = DateTime.Now,
                     UpdateTime = DateTime.Now
                 });
             }
+            else
+            {
+                existing.LastLoginTime = DateTime.Now;
+                existing.UpdateTime = DateTime.Now;
+                _userIdentityRepo.Update(existing);
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(sessionKey))
+            {
+                var cacheKey = string.Format(RedisKeyConstants.Wechat.SessionKey, WechatProvider, openId);
+                await _cache.SetStringAsync(cacheKey, sessionKey, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(3)
+                }, cancellationToken);
+            }
         }
         catch (Exception ex)
         {

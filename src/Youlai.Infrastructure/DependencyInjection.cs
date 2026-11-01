@@ -9,6 +9,8 @@ using StackExchange.Redis;
 using Youlai.Application.Auth;
 using Youlai.Application.Codegen;
 using Youlai.Application.Options;
+using Youlai.Application.Realtime;
+using Youlai.Infrastructure.Realtime;
 using Youlai.Application.Persistence;
 using Youlai.Application.Security;
 using Youlai.Application.Common;
@@ -128,6 +130,9 @@ public static class DependencyInjection
         // HTTP 客户端
         services.AddHttpClient("Wechat");
         services.AddHttpClient("Ai");
+
+        // 实时连接票据存储
+        services.AddSingleton<IRealtimeTicketStore, RealtimeTicketStore>();
 
         // 公开表单提交限流
         services.AddSingleton<IPublicSubmitLimiter, RedisPublicSubmitLimiter>();

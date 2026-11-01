@@ -5,8 +5,8 @@ using Youlai.Application.Form;
 using Youlai.Application.System;
 using Youlai.Application.Codegen;
 using Youlai.Application.File;
+using Youlai.Application.Realtime;
 using Youlai.Application.Security;
-using Youlai.Application.Sse;
 
 namespace Youlai.Application;
 
@@ -49,8 +49,9 @@ public static class DependencyInjection
         services.AddScoped<IRolePermsCacheInvalidator, RolePermsCacheInvalidator>();
         services.AddScoped<IDataPermissionService, DataPermissionService>();
 
-        // 通用服务
-        services.AddSingleton<ISseService, SseService>();
+        // 实时连接：会话管理为单例，票据服务含作用域依赖按请求创建
+        services.AddSingleton<IRealtimeService, RealtimeService>();
+        services.AddScoped<IRealtimeTicketService, RealtimeTicketService>();
 
         // AI 辅助
         services.AddSingleton<IPromptLoader, PromptLoader>();

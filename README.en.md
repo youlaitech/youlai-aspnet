@@ -132,6 +132,17 @@ youlai-aspnet/
 >
 > The eight backends share the same **RESTful API specification** and **database schema**, so the frontend can switch seamlessly.
 
+## Optional Extensions
+
+**AI (off by default)**: enable the `Ai` block in `appsettings.Development.json` and fill in the key; the API is OpenAI-compatible.
+
+```json
+"Ai": {
+  "Enabled": true,
+  "ApiKey": "sk-xxx"
+}
+```
+
 ## Documentation
 
 | Resource | Link |

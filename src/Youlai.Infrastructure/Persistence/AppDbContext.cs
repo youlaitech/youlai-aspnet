@@ -61,8 +61,8 @@ public sealed class AppDbContext : DbContext
     /// <summary>操作日志表</summary>
     public DbSet<SysLog> SysLogs => Set<SysLog>();
 
-    /// <summary>第三方账号绑定表</summary>
-    public DbSet<SysUserSocial> SysUserSocials => Set<SysUserSocial>();
+    /// <summary>本地用户与外部账号的关联表</summary>
+    public DbSet<SysUserIdentity> SysUserIdentities => Set<SysUserIdentity>();
 
     /// <summary>表单定义表</summary>
     public DbSet<FormDefinition> FormDefinitions => Set<FormDefinition>();
@@ -320,26 +320,23 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
         });
 
-        modelBuilder.Entity<SysUserSocial>(entity =>
+        modelBuilder.Entity<SysUserIdentity>(entity =>
         {
-            entity.ToTable("sys_user_social");
+            entity.ToTable("sys_user_identity");
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.UserId).HasColumnName("user_id");
-            entity.Property(e => e.Platform).HasColumnName("platform");
-            entity.Property(e => e.OpenId).HasColumnName("openid");
-            entity.Property(e => e.UnionId).HasColumnName("unionid");
-            entity.Property(e => e.Nickname).HasColumnName("nickname");
-            entity.Property(e => e.Avatar).HasColumnName("avatar");
-            entity.Property(e => e.SessionKey).HasColumnName("session_key");
-            entity.Property(e => e.Verified).HasColumnName("verified");
+            entity.Property(e => e.Provider).HasColumnName("provider");
+            entity.Property(e => e.ProviderAccountId).HasColumnName("provider_account_id");
+            entity.Property(e => e.DisplayName).HasColumnName("display_name");
+            entity.Property(e => e.AvatarUrl).HasColumnName("avatar_url");
+            entity.Property(e => e.LastLoginTime).HasColumnName("last_login_time");
             entity.Property(e => e.CreateTime).HasColumnName("create_time");
             entity.Property(e => e.UpdateTime).HasColumnName("update_time");
 
-            entity.HasIndex(e => new { e.Platform, e.OpenId }).HasDatabaseName("uk_platform_openid").IsUnique();
-            entity.HasIndex(e => e.UserId).HasDatabaseName("idx_user_id");
-            entity.HasIndex(e => e.UnionId).HasDatabaseName("idx_unionid");
+            entity.HasIndex(e => new { e.Provider, e.ProviderAccountId }).HasDatabaseName("uk_provider_account").IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Provider }).HasDatabaseName("uk_user_provider").IsUnique();
         });
 
         modelBuilder.Entity<FormDefinition>(entity =>

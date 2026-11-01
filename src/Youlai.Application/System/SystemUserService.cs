@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Youlai.Application.Common;
-using Youlai.Application.Sse;
 using Youlai.Application.Constants;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;

@@ -57,5 +57,8 @@ public static class RedisKeyConstants
     public static class Wechat
     {
         public const string AccessToken = "wechat:access_token:{0}";
+
+        /// <summary>小程序会话密钥，参数为 provider 与 OpenID</summary>
+        public const string SessionKey = "auth:wxma:session_key:{0}:{1}";
     }
 }

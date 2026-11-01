@@ -1,286 +1,182 @@
 <template>
-  <div class="page-container h-full flex flex-1 flex-col">
-    <!-- 搜索 -->
-    <CrudSearch
-      ref="searchRef"
-      :search-config="searchConfig"
-      @query-click="handleQueryClick"
-      @reset-click="handleResetClick"
-    >
+  <CrudPage
+    :search-config="searchConfig"
+    :table-config="tableConfig"
+    :form-config="formConfig"
+    :load-form-data="loadFormData"
+  >
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInQuery == 1 && field.DictType != "" }}
-      <template #{{ field.FieldName }}="scope">
-        <DictSelect v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
-      </template>
+    <template #search-{{ field.FieldName }}="{ formData, prop, attrs }">
+      <DictSelect v-model="formData[prop]" code="{{ field.DictType }}" v-bind="attrs" />
+    </template>
 {{ end }}
 {{ end }}
-    </CrudSearch>
-
-    <!-- 列表 -->
-    <CrudTable
-      ref="contentRef"
-      :content-config="contentConfig"
-      @add-click="handleAddClick"
-      @export-click="handleExportClick"
-      @search-click="handleSearchClick"
-      @toolbar-click="handleToolbarClick"
-      @operate-click="handleOperateClick"
-      @filter-change="handleFilterChange"
-    >
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInList == 1 && field.DictType != "" }}
-      <template #{{ field.FieldName }}="scope">
-        <DictTag v-model="scope.row[scope.prop]" code="{{ field.DictType }}" />
-      </template>
+    <template #table-cell-{{ field.FieldName }}="{ row }">
+      <DictTag :model-value="row.{{ field.FieldName }}" code="{{ field.DictType }}" />
+    </template>
 {{ end }}
 {{ end }}
-    </CrudTable>
-
-    <!-- 新增 -->
-    <CrudModal ref="addModalRef" :modal-config="addModalConfig" @submit-click="handleSubmitClick">
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
-      <template #{{ field.FieldName }}="scope">
-        <DictSelect v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
-      </template>
+    <template #form-{{ field.FieldName }}="{ formData, prop, attrs }">
+      <DictSelect v-model="formData[prop]" code="{{ field.DictType }}" v-bind="attrs" />
+    </template>
 {{ end }}
 {{ end }}
-    </CrudModal>
-
-    <!-- 编辑 -->
-    <CrudModal ref="editModalRef" :modal-config="editModalConfig" @submit-click="handleSubmitClick">
-{{ for field in fieldConfigs }}
-{{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" && field.DictType != "" }}
-      <template #{{ field.FieldName }}="scope">
-        <DictSelect v-model="scope.formData[scope.prop]" code="{{ field.DictType }}" v-bind="scope.attrs" />
-      </template>
-{{ end }}
-{{ end }}
-    </CrudModal>
-  </div>
+  </CrudPage>
 </template>
 
 <script setup lang="ts">
-defineOptions({
-  inheritAttrs: false,
-  name: "{{ entityName }}" });
-
 import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
-import type { {{ entityName }}Form, {{ entityName }}QueryParams } from "@/api/{{ moduleName }}/{{ entityKebab }}";
-import type { IObject, IModalConfig, ICrudTableConfig, ISearchConfig } from "@/components/Crud/types";
-import useCrudPage from "@/components/Crud/useCrudPage";
+import type {
+  {{ entityName }}Form,
+  {{ entityName }}Item,
+  {{ entityName }}QueryParams,
+} from "@/api/{{ moduleName }}/{{ entityKebab }}";
+import type {
+  CrudRecord,
+  CrudFormConfig,
+  CrudTableConfig,
+  CrudSearchConfig,
+} from "@/components/Crud/types";
 
-const {
-  searchRef,
-  contentRef,
-  addModalRef,
-  editModalRef,
-  handleQueryClick,
-  handleResetClick,
-  handleAddClick,
-  handleEditClick,
-  handleSubmitClick,
-  handleExportClick,
-  handleSearchClick,
-  handleFilterChange,
-} = useCrudPage();
+defineOptions({ name: "{{ entityName }}", inheritAttrs: false });
 
-const searchConfig: ISearchConfig = reactive({
-  permPrefix: "{{ moduleName }}:{{ entityKebab }}",
-  formItems: [
+const searchConfig: CrudSearchConfig = {
+  fields: [
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInQuery == 1 }}
+    {
+      prop: "{{ field.FieldName }}",
+      label: "{{ field.FieldComment }}",
 {{ if field.DictType != "" }}
-    {
       type: "custom",
-      slotName: "{{ field.FieldName }}",
-      label: "{{ field.FieldComment }}",
-      prop: "{{ field.FieldName }}",
-      attrs: {
-        placeholder: "{{ field.FieldComment }}",
-        clearable: true,
-        style: { width: "200px" },
-      },
-    },
-{{ else }}
-    {
-      type: "{{ if field.FormType == "INPUT_NUMBER" }}input-number{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}date-picker{{ else if field.FormType == "SELECT" }}select{{ else }}input{{ end }}",
-      label: "{{ field.FieldComment }}",
-      prop: "{{ field.FieldName }}",
-      attrs: {
-        placeholder: "{{ field.FieldComment }}",
-{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
-        type: "{{ if field.QueryType == "BETWEEN" }}daterange{{ else }}{{ if field.FormType == "DATE_TIME" }}datetime{{ else }}date{{ end }}{{ end }}",
+      attrs: { clearable: true },
+{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+      type: "date-picker",
 {{ if field.QueryType == "BETWEEN" }}
-        "range-separator": "~",
-        "start-placeholder": "开始时间",
-        "end-placeholder": "结束时间",
-{{ end }}
-        "value-format": "{{ if field.FormType == "DATE_TIME" }}YYYY-MM-DD HH:mm:ss{{ else }}YYYY-MM-DD{{ end }}",
-{{ end }}
-        clearable: true,
-        style: { width: "200px" },
+      initialValue: [],
+      attrs: {
+        type: "daterange",
+        valueFormat: "YYYY-MM-DD",
+        startPlaceholder: "开始日期",
+        endPlaceholder: "结束日期",
       },
-{{ if field.FormType == "SELECT" }}
-      options: [],
+{{ else }}
+      attrs: { type: "date", valueFormat: "YYYY-MM-DD", clearable: true },
+{{ end }}
+{{ else if field.TsType == "number" }}
+      type: "input-number",
+      attrs: { clearable: true },
+{{ else }}
+      type: "input",
+      attrs: { clearable: true },
 {{ end }}
     },
-{{ end }}
 {{ end }}
 {{ end }}
   ],
-});
+};
 
-const contentConfig: ICrudTableConfig<{{ entityName }}QueryParams> = reactive({
-  permPrefix: "{{ moduleName }}:{{ entityKebab }}",
-  table: {
-    border: true,
-    highlightCurrentRow: true,
-  },
-  pk: "id",
-  indexAction: {{ entityName }}API.getPage,
-  deleteAction: {{ entityName }}API.deleteByIds,
-  parseData(res: any) {
-    return {
-      total: res?.total ?? 0,
-      list: res?.list ?? [],
-    };
-  },
-  pagination: {
-    background: true,
-    layout: "total, sizes, prev, pager, next, jumper",
-    pageSize: 20,
-    pageSizes: [10, 20, 30, 50],
-  },
-  toolbar: ["add", "delete"],
-  defaultToolbar: ["refresh", "filter", "search"],
-  cols: [
-    { type: "selection", width: 55, align: "center" },
+const tableConfig: CrudTableConfig<{{ entityName }}QueryParams, {{ entityName }}Item> = {
+  permissionPrefix: "{{ moduleName }}:{{ entityKebab }}",
+  table: { border: true },
+  fetchData: {{ entityName }}API.getPage,
+  deleteByIds: {{ entityName }}API.deleteByIds,
+  toolbarActions: ["create", "delete"],
+  tableTools: ["refresh", "columns", "search"],
+  columns: [
+    { type: "selection", width: 50 },
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInList == 1 }}
-{{ if field.DictType != "" }}
-    {
-      label: "{{ field.FieldComment }}",
-      prop: "{{ field.FieldName }}",
-      templet: "custom",
-      slotName: "{{ field.FieldName }}",
-    },
-{{ else }}
-    { label: "{{ field.FieldComment }}", prop: "{{ field.FieldName }}" },
-{{ end }}
+    { prop: "{{ field.FieldName }}", label: "{{ field.FieldComment }}", minWidth: 120 },
 {{ end }}
 {{ end }}
     {
+      prop: "actions",
       label: "操作",
-      prop: "operation",
-      templet: "tool",
-      operat: ["edit", "delete"],
+      cellType: "actions",
+      actions: ["view", "edit", "delete"],
+      fixed: "right",
+      width: 200,
     },
   ],
-});
+};
 
-const addModalConfig: IModalConfig<{{ entityName }}Form> = reactive({
-  permPrefix: "{{ moduleName }}:{{ entityKebab }}",
-  pk: "id",
-  dialog: {
-    title: "新增{{ businessName }}",
-    width: 800,
-    draggable: true,
+const formConfig: CrudFormConfig<{{ entityName }}Form> = {
+  title: ({ mode }) => ({
+    create: "新增{{ businessName }}",
+    edit: "编辑{{ businessName }}",
+    view: "查看{{ businessName }}",
+  })[mode],
+  dialog: { width: 560 },
+  /**
+   * 保存记录，更新目标使用打开表单时的主键。
+   */
+  submitForm(data, { mode, id }) {
+    if (mode === "create") return {{ entityName }}API.create(data);
+    if (id === undefined) throw new Error("缺少记录 ID");
+    return {{ entityName }}API.update(String(id), data);
   },
-  form: {
-    labelWidth: 100,
-  },
-  formItems: [
+  fields: [
 {{ for field in fieldConfigs }}
 {{ if field.IsShowInForm == 1 && field.FormType != "HIDDEN" }}
+    {
+      prop: "{{ field.FieldName }}",
+      label: "{{ field.FieldComment }}",
+{{ if field.IsRequired == 1 }}
+      required: true,
+{{ end }}
 {{ if field.DictType != "" }}
-    {
       type: "custom",
-      label: "{{ field.FieldComment }}",
-      prop: "{{ field.FieldName }}",
-      slotName: "{{ field.FieldName }}",
-      attrs: {
-        placeholder: "{{ field.FieldComment }}",
-        style: { width: "100%" },
-      },
-{{ if field.IsRequired == 1 }}
-      rules: [{ required: true, message: "{{ field.FieldComment }}不能为空", trigger: "change" }],
-{{ end }}
-    },
-{{ else }}
-    {
-      type: "{{ if field.FormType == "INPUT_NUMBER" }}input-number{{ else if field.FormType == "TEXT_AREA" }}input{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}date-picker{{ else if field.FormType == "SELECT" }}select{{ else if field.FormType == "RADIO" }}radio{{ else if field.FormType == "CHECK_BOX" }}checkbox{{ else if field.FormType == "SWITCH" }}switch{{ else }}input{{ end }}",
-      label: "{{ field.FieldComment }}",
-      prop: "{{ field.FieldName }}",
-{{ if field.FormType == "TEXT_AREA" }}
-      attrs: {
-        type: "textarea",
-        rows: 3,
-        placeholder: "{{ field.FieldComment }}",
-      },
-{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
-      attrs: {
-        type: "{{ if field.FormType == "DATE_TIME" }}datetime{{ else }}date{{ end }}",
-        placeholder: "{{ field.FieldComment }}",
-        "value-format": "{{ if field.FormType == "DATE_TIME" }}YYYY-MM-DD HH:mm:ss{{ else }}YYYY-MM-DD{{ end }}",
-        style: { width: "100%" },
-      },
 {{ else if field.FormType == "SWITCH" }}
-      attrs: {
-        activeValue: 1,
-        inactiveValue: 0,
-      },
+      type: "switch",
+{{ if field.TsType == "boolean" }}
+      initialValue: true,
+      attrs: { activeValue: true, inactiveValue: false },
 {{ else }}
-      attrs: {
-        placeholder: "{{ field.FieldComment }}",
-{{ if field.FormType == "INPUT_NUMBER" }}
-        style: { width: "100%" },
+      initialValue: 1,
+      attrs: { activeValue: 1, inactiveValue: 0 },
 {{ end }}
-      },
+{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+      type: "date-picker",
+{{ if field.FormType == "DATE_TIME" }}
+      attrs: { type: "datetime", valueFormat: "YYYY-MM-DD HH:mm:ss" },
+{{ else }}
+      attrs: { type: "date", valueFormat: "YYYY-MM-DD" },
 {{ end }}
-{{ if field.FormType == "SELECT" || field.FormType == "RADIO" || field.FormType == "CHECK_BOX" }}
+{{ else if field.FormType == "INPUT_NUMBER" }}
+      type: "input-number",
+{{ else if field.FormType == "SELECT" }}
+      type: "select",
       options: [],
+{{ else if field.FormType == "RADIO" }}
+      type: "radio",
+      options: [],
+{{ else if field.FormType == "CHECK_BOX" }}
+      type: "checkbox",
+      initialValue: [],
+      options: [],
+{{ else }}
+      type: "input",
+{{ if field.FormType == "TEXT_AREA" }}
+      attrs: { type: "textarea", rows: 3 },
 {{ end }}
-{{ if field.IsRequired == 1 }}
-      rules: [{ required: true, message: "{{ field.FieldComment }}不能为空", trigger: "{{ if field.FormType == "INPUT" || field.FormType == "TEXT_AREA" || field.FormType == "INPUT_NUMBER" }}blur{{ else }}change{{ end }}" }],
 {{ end }}
     },
-{{ end }}
 {{ end }}
 {{ end }}
   ],
-  formAction: (data: {{ entityName }}Form) => {
-    if (data.id) {
-      return {{ entityName }}API.update(data.id as string, data);
-    }
-
-    return {{ entityName }}API.create(data);
-  },
-});
-
-const editModalConfig: IModalConfig<{{ entityName }}Form> = reactive({
-  permPrefix: "{{ moduleName }}:{{ entityKebab }}",
-  component: "drawer",
-  drawer: {
-    title: "编辑{{ businessName }}",
-    size: 500,
-  },
-  pk: "id",
-  formAction(data: any) {
-    return {{ entityName }}API.update(data.id as string, data);
-  },
-  formItems: addModalConfig.formItems,
-});
-
-const handleOperateClick = (data: IObject) => {
-  if (data.name === "edit") {
-    handleEditClick(data.row, async () => {
-      return await {{ entityName }}API.getFormData(String(data.row.id));
-    });
-  }
 };
 
-const handleToolbarClick = (name: string) => {
-  console.log(name);
-};
+/**
+ * 加载编辑和查看所需的详情。
+ */
+function loadFormData(row: CrudRecord): Promise<{{ entityName }}Form> {
+  const rowKey = tableConfig.rowKey ?? "id";
+  return {{ entityName }}API.getFormData(String(row[rowKey]));
+}
 </script>

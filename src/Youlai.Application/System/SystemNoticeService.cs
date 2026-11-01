@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Youlai.Application.Sse;
+using Youlai.Application.Realtime;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
@@ -29,7 +29,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     private readonly IRepository<SysUserNotice> _userNoticeRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
-    private readonly ISseService _sseService;
+    private readonly IRealtimeService _realtimeService;
     private readonly ILogger<SystemNoticeService> _logger;
 
     public SystemNoticeService(
@@ -38,7 +38,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         IRepository<SysUserNotice> userNoticeRepo,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        ISseService sseService,
+        IRealtimeService realtimeService,
         ILogger<SystemNoticeService> logger)
     {
         _readDb = readDb;
@@ -46,7 +46,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         _userNoticeRepo = userNoticeRepo;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
-        _sseService = sseService;
+        _realtimeService = realtimeService;
         _logger = logger;
     }
 
@@ -316,7 +316,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        // SSE通知目标用户
+        // 实时推送通知目标用户
         var noticeData = new
         {
             id,
@@ -327,11 +327,12 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             publishTime = notice.PublishTime?.ToString("yyyy-MM-dd HH:mm"),
         };
 
-        var sseTargetIds = await ResolveSseTargetIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
-        foreach (var userIdStr in sseTargetIds)
+        var pushTargetIds = await ResolveRealtimeTargetUserIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
+        foreach (var userId in pushTargetIds)
         {
-            _logger.LogInformation("[Notice] Sending SSE to userId: {UserId}, event: notice", userIdStr);
-            await _sseService.SendToUserAsync(userIdStr, "notice", noticeData, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("[Notice] 推送公告给用户 {UserId}", userId);
+            await _realtimeService.SendToUserAsync(userId, RealtimeTopics.EventNoticeChanged,
+                new { noticeId = id.ToString(), action = "published" }, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -371,11 +372,12 @@ internal sealed class SystemNoticeService : ISystemNoticeService
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        // SSE通知目标用户移除该通知
-        var sseTargetIds = await ResolveSseTargetIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
-        foreach (var userIdStr in sseTargetIds)
+        // 实时通知目标用户移除该公告
+        var pushTargetIds = await ResolveRealtimeTargetUserIdsAsync(notice.TargetType, notice.TargetUserIds, cancellationToken).ConfigureAwait(false);
+        foreach (var userId in pushTargetIds)
         {
-            await _sseService.SendToUserAsync(userIdStr, "notice-revoke", new { id }, cancellationToken).ConfigureAwait(false);
+            await _realtimeService.SendToUserAsync(userId, RealtimeTopics.EventNoticeChanged,
+                new { noticeId = id.ToString(), action = "revoked" }, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -570,9 +572,9 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     }
 
     /// <summary>
-    /// 解析 SSE 通知目标用户ID
+    /// 解析实时通知的目标用户ID
     /// </summary>
-    private async Task<List<string>> ResolveSseTargetIdsAsync(
+    private async Task<List<long>> ResolveRealtimeTargetUserIdsAsync(
         int targetType,
         string? targetUserIds,
         CancellationToken cancellationToken)
@@ -586,15 +588,13 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             var specifiedIds = IdCollectionExtensions.ParsePositiveLongIds(targetUserIds);
             return allUsers
                 .Where(id => specifiedIds.Contains(id))
-                .Select(id => id.ToString())
-                .Distinct(StringComparer.Ordinal)
+                .Distinct()
                 .ToList();
         }
 
         // 推送全员
         return allUsers
-            .Select(id => id.ToString())
-            .Distinct(StringComparer.Ordinal)
+            .Distinct()
             .ToList();
     }
 }
