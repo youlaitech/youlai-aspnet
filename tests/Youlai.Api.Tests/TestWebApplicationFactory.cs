@@ -270,6 +270,12 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(true);
         }
 
+        public Task AddMenuForCodegenAsync(long parentMenuId, string moduleName, string businessName,
+            string entityName, string permPrefix, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);

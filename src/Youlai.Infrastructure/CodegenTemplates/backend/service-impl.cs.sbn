@@ -1,11 +1,13 @@
-using Microsoft.EntityFrameworkCore;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Extensions;
+using Youlai.Application.Persistence;
 using Youlai.Application.Results;
+{{~ if hasCreateBy || hasUpdateBy ~}}
 using Youlai.Application.Security;
+{{~ end ~}}
 using Youlai.Application.{{ moduleNamePascal }}.Dtos;
 using Youlai.Application.{{ moduleNamePascal }}.Interfaces;
 using Youlai.Domain.Entities;
-using Youlai.Application.Persistence;
 
 namespace Youlai.Application.Services.{{ moduleNamePascal }};
 
@@ -17,14 +19,22 @@ namespace Youlai.Application.Services.{{ moduleNamePascal }};
 /// </remarks>
 internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {
-    private readonly YoulaiDbContext _dbContext;
+    private readonly IReadOnlyDbContext _readDb;
+    private readonly IRepository<{{ entityName }}> _repository;
+    private readonly IUnitOfWork _unitOfWork;
 {{~ if hasCreateBy || hasUpdateBy ~}}
     private readonly ICurrentUser _currentUser;
 {{~ end ~}}
 
-    public {{ entityName }}Service(YoulaiDbContext dbContext{{ if hasCreateBy || hasUpdateBy }}, ICurrentUser currentUser{{ end }})
+    public {{ entityName }}Service(
+        IReadOnlyDbContext readDb,
+        IRepository<{{ entityName }}> repository,
+        IUnitOfWork unitOfWork{{ if hasCreateBy || hasUpdateBy }},
+        ICurrentUser currentUser{{ end }})
     {
-        _dbContext = dbContext;
+        _readDb = readDb;
+        _repository = repository;
+        _unitOfWork = unitOfWork;
 {{~ if hasCreateBy || hasUpdateBy ~}}
         _currentUser = currentUser;
 {{~ end ~}}
@@ -35,18 +45,11 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     /// </summary>
     public async Task<PageResult<{{ entityName }}PageVo>> GetPageAsync({{ entityName }}Query query, CancellationToken cancellationToken = default)
     {
-        var pageNum = query.PageNum <= 0 ? 1 : query.PageNum;
-        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+        var (pageNum, pageSize) = query.Normalize();
 
-        if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
-
-        var q = _dbContext.Set<{{ entityName }}>()
-            .AsNoTracking();
+        var q = _readDb.Query<{{ entityName }}>();
 {{~ if hasIsDeleted ~}}
-        q = q.Where(x => x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }});
+        q = q.Where(x => {{ if isDeletedType == "bool" }}x.IsDeleted == false{{ else }}x.IsDeleted == 0{{ end }});
 {{~ end ~}}
 {{~ for field in fieldConfigs ~}}
 {{~ if field.IsShowInQuery == 1 ~}}
@@ -72,23 +75,24 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
         }
 {{~ end ~}}
 {{~ else ~}}
-{{~ if field.QueryType == "LIKE" ~}}
+{{~ if field.QueryType == "LIKE" && field.CsType == "string" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             var keyword = query.{{ field.PropertyName }}!.Trim();
             q = q.Where(x => x.{{ field.PropertyName }} != null && x.{{ field.PropertyName }}.Contains(keyword));
         }
-{{~ else if field.QueryType == "IN" ~}}
+{{~ else if field.QueryType == "IN" && field.CsType == "string" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
             var values = query.{{ field.PropertyName }}!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            q = q.Where(x => values.Contains(x.{{ field.PropertyName }}!.ToString()));
+            q = q.Where(x => values.Contains(x.{{ field.PropertyName }}!));
         }
 {{~ else ~}}
 {{~ if field.CsType == "string" ~}}
         if (!string.IsNullOrWhiteSpace(query.{{ field.PropertyName }}))
         {
-            q = q.Where(x => x.{{ field.PropertyName }} == query.{{ field.PropertyName }}!.Trim());
+            var keyword = query.{{ field.PropertyName }}!.Trim();
+            q = q.Where(x => x.{{ field.PropertyName }} == keyword);
         }
 {{~ else ~}}
         if (query.{{ field.PropertyName }} != null)
@@ -102,15 +106,19 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{~ end ~}}
 
 {{~ if hasUpdateTime ~}}
+{{~ if hasCreateTime ~}}
         q = q.OrderByDescending(x => x.UpdateTime ?? x.CreateTime);
+{{~ else ~}}
+        q = q.OrderByDescending(x => x.UpdateTime);
+{{~ end ~}}
 {{~ else if hasCreateTime ~}}
         q = q.OrderByDescending(x => x.CreateTime);
 {{~ else if hasId ~}}
         q = q.OrderByDescending(x => x.Id);
 {{~ end ~}}
 
-        var list = await q
-            .Select(x => new {{ entityName }}PageVo
+        return await _readDb.PageAsync(
+            q.Select(x => new {{ entityName }}PageVo
             {
 {{~ if hasId ~}}
                 Id = x.Id,
@@ -120,11 +128,10 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
                 {{ field.PropertyName }} = x.{{ field.PropertyName }},
 {{~ end ~}}
 {{~ end ~}}
-            })
-            .ToPageAsync(pageNum, pageSize, cancellationToken)
-            .ConfigureAwait(false);
-
-        return list;
+            }),
+            pageNum,
+            pageSize,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -132,14 +139,10 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     /// </summary>
     public async Task<{{ entityName }}Form> GetFormAsync(long id, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.Set<{{ entityName }}>()
-            .AsNoTracking()
-{{~ if hasIsDeleted ~}}
-            .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
-{{~ else ~}}
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-{{~ end ~}}
-            .ConfigureAwait(false);
+        var q = _readDb.Query<{{ entityName }}>()
+            .Where(x => x.Id == id{{ if hasIsDeleted }}{{ if isDeletedType == "bool" }} && x.IsDeleted == false{{ else }} && x.IsDeleted == 0{{ end }}{{ end }});
+
+        var entity = await _readDb.FirstOrDefaultAsync(q, cancellationToken).ConfigureAwait(false);
 
         if (entity is null)
         {
@@ -172,10 +175,10 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{~ end ~}}
 {{~ end ~}}
 {{~ if hasCreateTime ~}}
-            CreateTime = DateTime.Now,
+            CreateTime = DateTime.UtcNow,
 {{~ end ~}}
 {{~ if hasUpdateTime ~}}
-            UpdateTime = DateTime.Now,
+            UpdateTime = DateTime.UtcNow,
 {{~ end ~}}
 {{~ if hasCreateBy ~}}
             CreateBy = _currentUser.UserId,
@@ -184,13 +187,12 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
             UpdateBy = _currentUser.UserId,
 {{~ end ~}}
 {{~ if hasIsDeleted ~}}
-            IsDeleted = {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}
+            IsDeleted = {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }},
 {{~ end ~}}
         };
 
-        _dbContext.Set<{{ entityName }}>().Add(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return true;
+        _repository.Add(entity);
+        return await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <summary>
@@ -198,31 +200,31 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     /// </summary>
     public async Task<bool> UpdateAsync(long id, {{ entityName }}Form formData, CancellationToken cancellationToken = default)
     {
-        var entity = await _dbContext.Set<{{ entityName }}>()
-{{~ if hasIsDeleted ~}}
-            .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }}, cancellationToken)
-{{~ else ~}}
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-{{~ end ~}}
-            .ConfigureAwait(false);
+        var entity = await _repository.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
+{{~ if hasIsDeleted ~}}
+        if (entity is null || {{ if isDeletedType == "bool" }}entity.IsDeleted == true{{ else }}entity.IsDeleted != 0{{ end }})
+{{~ else ~}}
         if (entity is null)
+{{~ end ~}}
         {
             throw new BusinessException(ResultCode.InvalidUserInput, "{{ businessName }}不存在");
         }
+
 {{~ for field in fieldConfigs ~}}
 {{~ if field.IsShowInForm == 1 && field.FieldName != "id" ~}}
         entity.{{ field.PropertyName }} = formData.{{ field.PropertyName }};
 {{~ end ~}}
 {{~ end ~}}
 {{~ if hasUpdateTime ~}}
-        entity.UpdateTime = DateTime.Now;
+        entity.UpdateTime = DateTime.UtcNow;
 {{~ end ~}}
 {{~ if hasUpdateBy ~}}
         entity.UpdateBy = _currentUser.UserId;
 {{~ end ~}}
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _repository.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -231,42 +233,35 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
     /// </summary>
     public async Task<bool> DeleteAsync(string ids, CancellationToken cancellationToken = default)
     {
-        var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(v => long.TryParse(v, out var idValue) ? idValue : 0)
-            .Where(v => v > 0)
-            .Distinct()
-            .ToList();
-
+        var idList = IdCollectionExtensions.ParsePositiveLongIds(ids);
         if (idList.Count == 0)
         {
-            return true;
+            throw new BusinessException(ResultCode.InvalidUserInput, "请选择要删除的{{ businessName }}");
         }
 
-        var list = await _dbContext.Set<{{ entityName }}>()
-            .Where(x => idList.Contains(x.Id))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (list.Count == 0)
-        {
-            return true;
-        }
 {{~ if hasIsDeleted ~}}
-        foreach (var item in list)
-        {
-            item.IsDeleted = {{ if isDeletedType == "bool" }}true{{ else }}1{{ end }};
+        await _repository.BatchUpdateAsync(
+            x => idList.Contains(x.Id) && x.IsDeleted == {{ if isDeletedType == "bool" }}false{{ else }}0{{ end }},
+            x =>
+            {
+                x.IsDeleted = {{ if isDeletedType == "bool" }}true{{ else }}1{{ end }};
 {{~ if hasUpdateTime ~}}
-            item.UpdateTime = DateTime.Now;
+                x.UpdateTime = DateTime.UtcNow;
 {{~ end ~}}
 {{~ if hasUpdateBy ~}}
-            item.UpdateBy = _currentUser.UserId;
+                x.UpdateBy = _currentUser.UserId;
 {{~ end ~}}
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
 {{~ else ~}}
-        _dbContext.Set<{{ entityName }}>().RemoveRange(list);
+        var list = await _repository.ListAsync(x => idList.Contains(x.Id), cancellationToken).ConfigureAwait(false);
+        if (list.Count > 0)
+        {
+            _repository.RemoveRange(list);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
 {{~ end ~}}
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 }

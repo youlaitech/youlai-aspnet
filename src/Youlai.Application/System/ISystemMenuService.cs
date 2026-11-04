@@ -39,6 +39,12 @@ public interface ISystemMenuService
     Task<bool> SaveMenuAsync(MenuForm formData, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 代码生成保存配置时创建页面菜单与增删改查按钮
+    /// </summary>
+    Task AddMenuForCodegenAsync(long parentMenuId, string moduleName, string businessName, string entityName,
+        string permPrefix, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 删除菜单
     /// </summary>
     Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default);

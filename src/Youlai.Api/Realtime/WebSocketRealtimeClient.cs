@@ -10,7 +10,6 @@ namespace Youlai.Api.Realtime;
 /// </summary>
 internal sealed class WebSocketRealtimeClient : IRealtimeClient
 {
-    // 与 youlai-boot 的单帧上限保持一致
     private const int MaxMessageBytes = 16_384;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

@@ -7,9 +7,11 @@ using System.Text;
 using System.Text.Json;
 using Youlai.Application.Ai;
 using Youlai.Application.Codegen.Models;
+using Youlai.Application.Common;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
+using Youlai.Application.System;
 
 namespace Youlai.Application.Codegen;
 
@@ -57,6 +59,13 @@ internal sealed class CodegenService : ICodegenService
         ["LIKE_LEFT"] = 10,
     };
 
+    /// <summary>模块名 → 权限前缀，未配置时用模块名</summary>
+    private static readonly IReadOnlyDictionary<string, string> PermissionNamespaces =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["system"] = "sys",
+        };
+
     private static readonly IReadOnlyDictionary<string, TemplateConfig> TemplateConfigs =
         new Dictionary<string, TemplateConfig>(StringComparer.OrdinalIgnoreCase)
         {
@@ -76,18 +85,21 @@ internal sealed class CodegenService : ICodegenService
     private readonly ITemplateRenderer _templateRenderer;
     private readonly IPromptLoader _promptLoader;
     private readonly IAiChatService _aiChatService;
+    private readonly ISystemMenuService _menuService;
     private readonly string _templateRoot;
 
     public CodegenService(
         ISqlExecutor sqlExecutor,
         ITemplateRenderer templateRenderer,
         IPromptLoader promptLoader,
-        IAiChatService aiChatService)
+        IAiChatService aiChatService,
+        ISystemMenuService menuService)
     {
         _sqlExecutor = sqlExecutor;
         _templateRenderer = templateRenderer;
         _promptLoader = promptLoader;
         _aiChatService = aiChatService;
+        _menuService = menuService;
         _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
@@ -301,10 +313,7 @@ LIMIT @limit OFFSET @offset";
             : tableName;
 
         var removePrefix = DefaultRemoveTablePrefix;
-        var processed = tableName.StartsWith(removePrefix, StringComparison.OrdinalIgnoreCase)
-            ? tableName[removePrefix.Length..]
-            : tableName;
-        var entityName = ToPascalCase(processed);
+        var entityName = BuildDefaultEntityName(tableName, removePrefix);
 
         var fieldConfigsFromDb = await GetDefaultFieldConfigsAsync(tableName, cancellationToken).ConfigureAwait(false);
 
@@ -338,9 +347,12 @@ LIMIT @limit OFFSET @offset";
         var moduleName = string.IsNullOrWhiteSpace(formData.ModuleName) ? DefaultModuleName : formData.ModuleName!.Trim();
         var packageName = string.IsNullOrWhiteSpace(formData.PackageName) ? DefaultPackageName : formData.PackageName!.Trim();
         var businessName = string.IsNullOrWhiteSpace(formData.BusinessName) ? tableName : formData.BusinessName!.Trim();
-        var entityName = string.IsNullOrWhiteSpace(formData.EntityName) ? ToPascalCase(tableName) : formData.EntityName!.Trim();
-        var author = string.IsNullOrWhiteSpace(formData.Author) ? DefaultAuthor : formData.Author!.Trim();
         var removePrefix = string.IsNullOrWhiteSpace(formData.RemoveTablePrefix) ? DefaultRemoveTablePrefix : formData.RemoveTablePrefix!.Trim();
+        // 实体名兜底走去前缀推导，否则 sys_article 会生成 SysArticle，权限串跟着变成 sys:sys-article
+        var entityName = string.IsNullOrWhiteSpace(formData.EntityName)
+            ? BuildDefaultEntityName(tableName, removePrefix)
+            : formData.EntityName!.Trim();
+        var author = string.IsNullOrWhiteSpace(formData.Author) ? DefaultAuthor : formData.Author!.Trim();
         var pageType = string.Equals(formData.PageType, "crud", StringComparison.OrdinalIgnoreCase) ? "crud" : "classic";
         var parentMenuId = formData.ParentMenuId;
 
@@ -459,6 +471,15 @@ VALUES
             }
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            // 选了上级菜单就同步生成页面菜单与增删改查按钮，权限前缀与生成代码的守卫同源。
+            // 菜单写入走 EF 上下文，并入不了上面的原生事务；失败时配置已落库，重试按路由名去重，不会重复挂菜单
+            if (parentMenuId is > 0)
+            {
+                await _menuService.AddMenuForCodegenAsync(parentMenuId.Value, moduleName, businessName, entityName,
+                    ResolvePermissionPrefix(moduleName, entityName), cancellationToken).ConfigureAwait(false);
+            }
+
             return true;
         }
         catch
@@ -527,13 +548,16 @@ VALUES
                 : "classic";
         var frontendType = string.Equals(type, "js", StringComparison.OrdinalIgnoreCase) ? "js" : "ts";
 
+        var removePrefix = string.IsNullOrWhiteSpace(config.RemoveTablePrefix)
+            ? DefaultRemoveTablePrefix
+            : config.RemoveTablePrefix!.Trim();
         var entityName = string.IsNullOrWhiteSpace(config.EntityName)
-            ? ToPascalCase(tableName)
+            ? BuildDefaultEntityName(tableName, removePrefix)
             : config.EntityName!.Trim();
         var moduleName = string.IsNullOrWhiteSpace(config.ModuleName) ? DefaultModuleName : config.ModuleName!.Trim();
         var moduleNamePascal = ToPascalCase(moduleName);
         var businessName = string.IsNullOrWhiteSpace(config.BusinessName) ? tableName : config.BusinessName!.Trim();
-        var entityKebab = ToKebabCase(entityName);
+        var entityKebab = NamingUtils.ToKebabCase(entityName);
 
         var fieldConfigs = config.FieldConfigs?.Select(BuildTemplateFieldConfig).ToList() ?? new List<TemplateFieldConfig>();
 
@@ -565,11 +589,13 @@ VALUES
             ["tableName"] = config.TableName ?? tableName,
             ["entityName"] = entityName,
             ["entityKebab"] = entityKebab,
+            ["entityKebabPlural"] = NamingUtils.ToPluralKebab(entityName),
             ["entityLowerCamel"] = LowerFirst(entityName),
             ["entityUpperSnake"] = ToSnakeUpper(entityName),
             ["businessName"] = businessName,
             ["moduleName"] = moduleName,
             ["moduleNamePascal"] = moduleNamePascal,
+            ["permissionPrefix"] = ResolvePermissionPrefix(moduleName, entityName),
             ["packageName"] = config.PackageName ?? DefaultPackageName,
             ["author"] = config.Author ?? DefaultAuthor,
             ["pageType"] = effectivePageType,
@@ -1094,17 +1120,17 @@ ORDER BY ORDINAL_POSITION ASC";
 
         if (templateName == "API")
         {
-            return Path.Combine(frontendRoot, "api", moduleName, ToKebabCase(entityName));
+            return Path.Combine(frontendRoot, "api", moduleName, NamingUtils.ToKebabCase(entityName));
         }
 
         if (templateName == "API_TYPES")
         {
-            return Path.Combine(frontendRoot, "api", moduleName, ToKebabCase(entityName));
+            return Path.Combine(frontendRoot, "api", moduleName, NamingUtils.ToKebabCase(entityName));
         }
 
         if (templateName == "VIEW")
         {
-            return Path.Combine(frontendRoot, subpackageName, moduleName, ToKebabCase(entityName));
+            return Path.Combine(frontendRoot, subpackageName, moduleName, NamingUtils.ToKebabCase(entityName));
         }
 
         if (templateName == "Controller")
@@ -1369,31 +1395,6 @@ ORDER BY ORDINAL_POSITION ASC";
     }
 
     /// <summary>
-    /// 转短横线命名，如 UserName → user-name
-    /// </summary>
-    private static string ToKebabCase(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var sb = new StringBuilder();
-        for (var i = 0; i < value.Length; i++)
-        {
-            var ch = value[i];
-            if (i > 0 && char.IsUpper(ch))
-            {
-                sb.Append('-');
-            }
-
-            sb.Append(ch == '_' ? '-' : char.ToLowerInvariant(ch));
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
     /// 转大写下划线命名，如 UserName → USER_NAME
     /// </summary>
     private static string ToSnakeUpper(string value)
@@ -1416,6 +1417,30 @@ ORDER BY ORDINAL_POSITION ASC";
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 按表名推导实体名：先去表前缀再转大驼峰，避免 sys_article 得到 SysArticle 后权限串多出一层模块名
+    /// </summary>
+    private static string BuildDefaultEntityName(string tableName, string removePrefix)
+        => ToPascalCase(TrimTablePrefix(tableName, removePrefix));
+
+    /// <summary>
+    /// 去掉表名前缀（忽略大小写，前缀为空或未命中时原样返回）
+    /// </summary>
+    private static string TrimTablePrefix(string tableName, string removePrefix)
+        => !string.IsNullOrWhiteSpace(removePrefix) &&
+           tableName.StartsWith(removePrefix, StringComparison.OrdinalIgnoreCase)
+            ? tableName[removePrefix.Length..]
+            : tableName;
+
+    /// <summary>
+    /// 权限标识前缀（如 sys:article）：后端守卫、前端 v-hasPerm 与菜单按钮权限共用同一个值
+    /// </summary>
+    private static string ResolvePermissionPrefix(string moduleName, string entityName)
+    {
+        var namespaceKey = PermissionNamespaces.TryGetValue(moduleName, out var configured) ? configured : moduleName;
+        return $"{namespaceKey}:{NamingUtils.ToKebabCase(entityName)}";
     }
 
     /// <summary>

@@ -71,3 +71,4 @@ public class RealtimeController : ControllerBase
         Response.Headers.CacheControl = "no-store";
         return Ok(Result.Success(snapshot));
     }
+}

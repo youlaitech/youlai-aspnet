@@ -1,7 +1,7 @@
 namespace Youlai.Application.Realtime;
 
 /// <summary>
-/// 实时消息，与 youlai-boot 的协议一致
+/// 实时消息
 /// </summary>
 public sealed record RealtimeMessage
 {

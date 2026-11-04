@@ -240,7 +240,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
             return user;
         }
 
-        // 创建新用户
         user = new SysUser
         {
             Username = "wx_" + Guid.NewGuid().ToString("N").Substring(0, 8),

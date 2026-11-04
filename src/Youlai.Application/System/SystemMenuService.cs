@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Youlai.Application.Ai;
+using Youlai.Application.Common;
 using Youlai.Application.Exceptions;
 using Youlai.Application.Models;
 using Youlai.Application.Persistence;
@@ -355,6 +356,36 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// 代码生成保存配置时创建页面菜单与增删改查按钮；按路由名去重，重复保存配置不再挂出多份菜单
+    /// </summary>
+    public async Task AddMenuForCodegenAsync(long parentMenuId, string moduleName, string businessName,
+        string entityName, string permPrefix, CancellationToken cancellationToken = default)
+    {
+        var routeNameExists = await _readDb.AnyAsync(
+            _readDb.Query<SysMenu>().Where(m => m.RouteName == entityName), cancellationToken).ConfigureAwait(false);
+        if (routeNameExists)
+        {
+            return;
+        }
+
+        // 路由名与生成页面的 defineOptions({name}) 同名，keep-alive 才能命中缓存
+        var routePath = NamingUtils.ToKebabCase(entityName);
+        await SaveMenuAsync(new MenuForm
+        {
+            ParentId = parentMenuId,
+            Name = businessName,
+            Type = MenuType.Menu.GetCode(),
+            RouteName = entityName,
+            RoutePath = routePath,
+            Component = $"{moduleName}/{routePath}/index",
+            KeepAlive = 1,
+            Visible = 1,
+            GenerateCrudButtons = true,
+            ButtonPermPrefix = permPrefix,
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

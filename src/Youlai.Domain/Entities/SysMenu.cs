@@ -13,7 +13,7 @@ public sealed class SysMenu
     /// <summary>父菜单 ID（0 表示顶级）</summary>
     public long ParentId { get; set; }
 
-    /// <summary>菜单树路径（逗号分隔的祖先 ID，含自身）</summary>
+    /// <summary>菜单树路径（逗号分隔的父节点 ID，含父不含己，如 0,1）</summary>
     public string? TreePath { get; set; }
 
     /// <summary>菜单名称</summary>

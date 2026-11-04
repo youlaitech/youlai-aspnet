@@ -15,7 +15,7 @@ namespace Youlai.Api.Controllers.{{ moduleNamePascal }};
 /// 提供{{ businessName }}的分页查询、表单、创建、更新与删除能力
 /// </remarks>
 [ApiController]
-[Route("api/v1/{{ entityKebab }}")]
+[Route("api/v1/{{ entityKebabPlural }}")]
 [Authorize]
 public sealed class {{ entityName }}Controller : ControllerBase
 {
@@ -30,7 +30,7 @@ public sealed class {{ entityName }}Controller : ControllerBase
     /// {{ businessName }}分页
     /// </summary>
     [HttpGet]
-    [HasPerm("{{ moduleName }}:{{ entityKebab }}:list")]
+    [HasPerm("{{ permissionPrefix }}:list")]
     public Task<PageResult<{{ entityName }}PageVo>> GetPage([FromQuery] {{ entityName }}Query query, CancellationToken cancellationToken)
     {
         return _service.GetPageAsync(query, cancellationToken);
@@ -40,7 +40,7 @@ public sealed class {{ entityName }}Controller : ControllerBase
     /// {{ businessName }}表单
     /// </summary>
     [HttpGet("{id:long}/form")]
-    [HasPerm("{{ moduleName }}:{{ entityKebab }}:update")]
+    [HasPerm("{{ permissionPrefix }}:update")]
     public async Task<Result<{{ entityName }}Form>> GetForm([FromRoute] long id, CancellationToken cancellationToken)
     {
         var form = await _service.GetFormAsync(id, cancellationToken);
@@ -51,7 +51,7 @@ public sealed class {{ entityName }}Controller : ControllerBase
     /// 新增{{ businessName }}
     /// </summary>
     [HttpPost]
-    [HasPerm("{{ moduleName }}:{{ entityKebab }}:create")]
+    [HasPerm("{{ permissionPrefix }}:create")]
     public async Task<Result<object?>> Create([FromBody] {{ entityName }}Form formData, CancellationToken cancellationToken)
     {
         var ok = await _service.CreateAsync(formData, cancellationToken);
@@ -62,7 +62,7 @@ public sealed class {{ entityName }}Controller : ControllerBase
     /// 更新{{ businessName }}
     /// </summary>
     [HttpPut("{id:long}")]
-    [HasPerm("{{ moduleName }}:{{ entityKebab }}:update")]
+    [HasPerm("{{ permissionPrefix }}:update")]
     public async Task<Result<object?>> Update([FromRoute] long id, [FromBody] {{ entityName }}Form formData, CancellationToken cancellationToken)
     {
 {{ if hasId }}
@@ -79,7 +79,7 @@ public sealed class {{ entityName }}Controller : ControllerBase
     /// 删除{{ businessName }}
     /// </summary>
     [HttpDelete("{ids}")]
-    [HasPerm("{{ moduleName }}:{{ entityKebab }}:delete")]
+    [HasPerm("{{ permissionPrefix }}:delete")]
     public async Task<Result<object?>> Delete([FromRoute] string ids, CancellationToken cancellationToken)
     {
         var ok = await _service.DeleteAsync(ids, cancellationToken);
