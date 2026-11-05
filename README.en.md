@@ -1,10 +1,10 @@
 <div align="center">
 
-# <img alt="youlai-aspnet" width="28" src="./docs/images/logo/logo.png" align="center"> youlai-aspnet
+# <img alt="youlai-aspnet" width="40" height="40" src="./docs/images/logo/logo.png" align="center"> youlai-aspnet
 
-[English](./README.en.md) · [简体中文](./README.md)
+**C# + .NET 10 Enterprise-Grade Permission Management Backend**
 
-**Enterprise-grade permission management backend based on ASP.NET Core 10**
+<br>
 
 [![.NET](https://img.shields.io/badge/.NET-10-blueviolet?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?logo=apache)](LICENSE)
@@ -14,11 +14,14 @@
 
 </div>
 
-![](./docs/images/rainbow.png "rainbow.png")
+<p align="center"><img src="./docs/images/rainbow.png" alt="rainbow"></p>
 
 <div align="center">
 
-[🖥️ Live Preview](https://vue.youlai.tech) | [📱 Mobile Preview](https://app.youlai.tech) | [📖 Documentation](https://www.youlai.tech/docs/server/aspnet-core/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-2D8CF0?style=for-the-badge\&logo=google-chrome\&logoColor=white)](https://admin.youlai.tech)
+[![Mobile Demo](https://img.shields.io/badge/Mobile%20Demo-19BE6B?style=for-the-badge\&logo=android\&logoColor=white)](https://app.youlai.tech)
+[![Documentation](https://img.shields.io/badge/Documentation-8B5CF6?style=for-the-badge\&logo=gitbook\&logoColor=white)](https://www.youlai.tech/docs/server/spring-boot/)
+[![简体中文](https://img.shields.io/badge/简体中文-00B4D8?style=for-the-badge\&logo=google-translate\&logoColor=white)](./README.md)
 
 </div>
 
@@ -148,7 +151,7 @@ youlai-aspnet/
 | Resource | Link |
 |:-----|:-----|
 | 📖 Full docs site | [www.youlai.tech](https://www.youlai.tech/) |
-| 🖥️ PC live preview | [vue.youlai.tech](https://vue.youlai.tech) |
+| 🖥️ PC live preview | [admin.youlai.tech](https://admin.youlai.tech) |
 | 📱 Mobile live preview | [app.youlai.tech](https://app.youlai.tech) |
 | 🔗 Apifox API docs | [apifox.com](https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5) |
 | 🔗 Local API docs | [localhost:8000/swagger](http://localhost:8000/swagger) |
