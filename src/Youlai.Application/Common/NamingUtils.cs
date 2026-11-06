@@ -3,12 +3,12 @@ using System.Text;
 namespace Youlai.Application.Common;
 
 /// <summary>
-/// 命名风格转换
+/// 命名转换，供代码生成的目录、路由与权限标识使用
 /// </summary>
 public static class NamingUtils
 {
     /// <summary>
-    /// 转短横线命名，如 UserName → user-name、user_name → user-name；接口路径、前端目录与菜单路由共用此实现
+    /// 转短横线命名，如 UserName → user-name、user_name → user-name
     /// </summary>
     public static string ToKebabCase(string value)
     {
@@ -33,7 +33,7 @@ public static class NamingUtils
     }
 
     /// <summary>
-    /// 转英文复数短横线命名，如 dict-item → dict-items、category → categories；接口路径与前端目录共用
+    /// 转英文复数短横线命名，如 dict-item → dict-items、category → categories
     /// </summary>
     public static string ToPluralKebab(string value)
     {
