@@ -102,6 +102,7 @@ public sealed class MenusController : ControllerBase
             RouteName = formData.RouteName,
             RoutePath = formData.RoutePath,
             Component = formData.Component,
+            ExternalUrl = formData.ExternalUrl,
             Perm = formData.Perm,
             Visible = formData.Visible,
             Sort = formData.Sort,
