@@ -96,7 +96,7 @@ internal sealed class AliyunFileStorage : IFileStorage
     private static string BuildObjectName(string fileName)
     {
         var extension = Path.GetExtension(fileName);
-        var dateFolder = DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var dateFolder = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var storedFileName = $"{Guid.NewGuid():N}{extension}";
         return $"{dateFolder}/{storedFileName}";
     }

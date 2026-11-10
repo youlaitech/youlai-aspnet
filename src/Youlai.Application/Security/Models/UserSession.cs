@@ -3,9 +3,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.Security.Models;
 
 /// <summary>
-/// 用户会话信息
-/// 存储在Token中的用户会话快照，包含用户身份、数据权限和角色权限信息。
-/// 用于Redis-Token模式下的会话管理，支持在线用户查询和会话控制。
+/// 用户会话信息（JWT 内的身份、数据权限与角色权限快照）
 /// </summary>
 public class UserSession
 {

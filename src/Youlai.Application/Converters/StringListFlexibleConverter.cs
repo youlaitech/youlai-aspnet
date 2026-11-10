@@ -5,8 +5,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.Converters;
 
 /// <summary>
-/// 字符串数组转换器：JSON 数组中的元素既可为数字也可为字符串，统一按字符串读出。
-/// 数字元素按不变文化格式化为字符串（如 1 → "1"），小数退化为字符串形式保留。
+/// 字符串数组转换器：JSON 数组元素可为数字或字符串，统一按字符串读出
 /// </summary>
 public sealed class StringListFlexibleConverter : JsonConverter<IReadOnlyCollection<string>?>
 {

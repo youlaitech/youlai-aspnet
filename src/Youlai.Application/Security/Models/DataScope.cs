@@ -1,9 +1,7 @@
 namespace Youlai.Application.Security.Models;
 
 /// <summary>
-/// 数据权限范围
-/// 多角色数据权限合并策略：取并集（OR），即用户能看到所有角色权限范围内的数据。
-/// 如果任一角色是 ALL，则直接跳过数据权限过滤。
+/// 数据权限范围，多角色取并集，任一角色为 All 时跳过过滤
 /// </summary>
 public enum DataScope
 {

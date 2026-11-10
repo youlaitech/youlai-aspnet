@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
+using Youlai.Application.Exceptions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.System;
@@ -79,12 +80,14 @@ internal sealed class SystemLogService : ISystemLogService
     /// </summary>
     public async Task<VisitTrendVo> GetVisitTrendAsync(VisitTrendQuery query, CancellationToken cancellationToken = default)
     {
-        var startDate = DateOnly.Parse(query.StartDate);
-        var endDate = DateOnly.Parse(query.EndDate);
+        if (!DateOnly.TryParse(query.StartDate, out var startDate)
+            || !DateOnly.TryParse(query.EndDate, out var endDate))
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "开始日期和结束日期不能为空");
+        }
 
         if (endDate < startDate)
         {
-            // 防止用户把起止日期填反了
             (startDate, endDate) = (endDate, startDate);
         }
 

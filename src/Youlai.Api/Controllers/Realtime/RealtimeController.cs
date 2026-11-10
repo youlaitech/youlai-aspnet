@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youlai.Api.Security;
 using Youlai.Application.Realtime;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
@@ -64,6 +65,7 @@ public class RealtimeController : ControllerBase
     /// </summary>
     [HttpGet("presence")]
     [Authorize]
+    [HasPerm("sys:online:view")]
     public IActionResult GetPresence()
     {
         var snapshot = _sessions.PresenceSnapshot();

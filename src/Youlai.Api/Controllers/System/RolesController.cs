@@ -101,7 +101,6 @@ public sealed class RolesController : ControllerBase
             Sort = formData.Sort,
             Status = formData.Status,
             DataScope = formData.DataScope,
-            Remark = formData.Remark,
             DeptIds = formData.DeptIds,
         }, cancellationToken);
         return Result.Judge(ok);
@@ -157,21 +156,10 @@ public sealed class RolesController : ControllerBase
     /// 取角色已分配的数据权限部门 ID 列表
     /// </summary>
     [HttpGet("{roleId:long}/dept-ids")]
+    [HasPerm("sys:role:update")]
     public async Task<Result<IReadOnlyCollection<long>>> GetRoleDeptIds([FromRoute] long roleId, CancellationToken cancellationToken)
     {
         var ids = await _roleService.ListRoleDeptIdsAsync(roleId, cancellationToken);
         return Result.Success(ids);
-    }
-
-    /// <summary>
-    /// 分配数据权限部门
-    /// </summary>
-    [HttpPut("{roleId:long}/depts")]
-    [HasPerm("sys:role:assign")]
-    [Log(LogModule.ROLE, ActionType.GRANT)]
-    public async Task<Result<object?>> AssignDeptsToRole([FromRoute] long roleId, [FromBody] List<long> deptIds, CancellationToken cancellationToken)
-    {
-        await _roleService.AssignDeptsToRoleAsync(roleId, deptIds, cancellationToken);
-        return Result.Success();
     }
 }

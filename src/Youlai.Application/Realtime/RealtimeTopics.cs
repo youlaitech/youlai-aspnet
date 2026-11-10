@@ -35,6 +35,6 @@ public static class RealtimeTopics
     /// <summary>在线状态快照</summary>
     public const string EventPresenceSnapshot = "presence.snapshot";
 
-    /// <summary>心跳超时时间（毫秒），与前端协议保持一致</summary>
+    /// <summary>心跳超时时间（毫秒）</summary>
     public const int HeartbeatTimeoutMs = 60_000;
 }

@@ -110,6 +110,17 @@ public sealed class NoticesController : ControllerBase
     }
 
     /// <summary>
+    /// 管理端预览公告，不改变阅读状态
+    /// </summary>
+    [HttpGet("{id:long}/preview")]
+    [HasPerm("sys:notice:list")]
+    public async Task<Result<NoticeDetailVo>> Preview([FromRoute] long id, CancellationToken cancellationToken)
+    {
+        var detail = await _noticeService.GetNoticePreviewAsync(id, cancellationToken);
+        return Result.Success(detail);
+    }
+
+    /// <summary>
     /// 全部标记已读
     /// </summary>
     [HttpPut("read-all")]

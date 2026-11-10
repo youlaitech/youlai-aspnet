@@ -244,7 +244,7 @@ internal sealed class SystemUserService : ISystemUserService
             throw new BusinessException(ResultCode.InvalidUserInput, "用户名已存在");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var createBy = _currentUser.UserId;
 
         var user = new SysUser
@@ -314,7 +314,7 @@ internal sealed class SystemUserService : ISystemUserService
         user.DeptId = formData.DeptId;
         user.Status = formData.Status ?? user.Status;
         user.UpdateBy = _currentUser.UserId;
-        user.UpdateTime = DateTime.UtcNow;
+        user.UpdateTime = DateTime.Now;
 
         // 角色关系更新与用户更新放在同一事务
         await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -354,7 +354,7 @@ internal sealed class SystemUserService : ISystemUserService
             return true;
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var updateBy = _currentUser.UserId;
         foreach (var u in users)
         {
@@ -387,7 +387,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Status = status;
                 u.UpdateBy = _currentUser.UserId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -407,7 +407,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Mobile = null;
                 u.UpdateBy = userId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -427,7 +427,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Email = null;
                 u.UpdateBy = userId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -450,7 +450,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Password = _passwordHasher.HashPassword(u, password);
                 u.UpdateBy = _currentUser.UserId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -557,6 +557,22 @@ internal sealed class SystemUserService : ISystemUserService
             if (!string.IsNullOrEmpty(d.Name)) deptMap[d.Name] = d.Id;
         }
 
+        // 预加载已占用的用户名、手机号、邮箱，循环中同时拦截库内重复与批内重复
+        var existingUsers = await _readDb.ToListAsync(
+            _readDb.Query<SysUser>().Where(u => !u.IsDeleted)
+                .Select(u => new { u.Username, u.Mobile, u.Email }),
+            cancellationToken).ConfigureAwait(false);
+
+        var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var mobiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var emails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var existing in existingUsers)
+        {
+            if (!string.IsNullOrWhiteSpace(existing.Username)) usernames.Add(existing.Username!);
+            if (!string.IsNullOrWhiteSpace(existing.Mobile)) mobiles.Add(existing.Mobile!);
+            if (!string.IsNullOrWhiteSpace(existing.Email)) emails.Add(existing.Email!);
+        }
+
         var importResult = await _excelManager.ImportAsync(
             content,
             new ExcelImportSpec<UserImportRow>(UserImportTemplateSpec.SheetName, UserImportTemplateSpec.Columns),
@@ -591,17 +607,33 @@ internal sealed class SystemUserService : ISystemUserService
                 continue;
             }
 
-            var exists = await _readDb.AnyAsync(
-                _readDb.Query<SysUser>().Where(u => u.Username == username && !u.IsDeleted),
-                cancellationToken).ConfigureAwait(false);
-
-            if (exists)
+            if (usernames.Contains(username))
             {
                 invalid++;
                 messages.Add($"第{excelRow}行：用户名已存在: {username}");
                 excelRow++;
                 continue;
             }
+
+            if (!string.IsNullOrWhiteSpace(mobile) && mobiles.Contains(mobile))
+            {
+                invalid++;
+                messages.Add($"第{excelRow}行：手机号已存在: {mobile}");
+                excelRow++;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(email) && emails.Contains(email))
+            {
+                invalid++;
+                messages.Add($"第{excelRow}行：邮箱已存在: {email}");
+                excelRow++;
+                continue;
+            }
+
+            usernames.Add(username);
+            if (!string.IsNullOrWhiteSpace(mobile)) mobiles.Add(mobile);
+            if (!string.IsNullOrWhiteSpace(email)) emails.Add(email);
 
             // 解析角色
             var roleIds = new List<long>();
@@ -643,7 +675,7 @@ internal sealed class SystemUserService : ISystemUserService
                 }
             }
 
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var createBy = _currentUser.UserId;
 
             var user = new SysUser
@@ -792,7 +824,7 @@ internal sealed class SystemUserService : ISystemUserService
         }
 
         user.UpdateBy = userId;
-        user.UpdateTime = DateTime.UtcNow;
+        user.UpdateTime = DateTime.Now;
 
         _userRepo.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -838,7 +870,7 @@ internal sealed class SystemUserService : ISystemUserService
 
         user.Password = _passwordHasher.HashPassword(user, newPwd);
         user.UpdateBy = userId;
-        user.UpdateTime = DateTime.UtcNow;
+        user.UpdateTime = DateTime.Now;
 
         _userRepo.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -897,7 +929,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Mobile = mobile;
                 u.UpdateBy = userId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -955,7 +987,7 @@ internal sealed class SystemUserService : ISystemUserService
             {
                 u.Email = email;
                 u.UpdateBy = userId;
-                u.UpdateTime = DateTime.UtcNow;
+                u.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 

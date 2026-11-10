@@ -168,7 +168,7 @@ internal sealed class SystemDeptService : ISystemDeptService
 
         if (entity is null)
         {
-            return new DeptForm();
+            throw new BusinessException(ResultCode.InvalidUserInput, "部门不存在");
         }
 
         return new DeptForm
@@ -195,6 +195,25 @@ internal sealed class SystemDeptService : ISystemDeptService
         }
 
         var parentId = formData.ParentId ?? RootNodeId;
+
+        if (parentId == deptId)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "上级部门不能为自己");
+        }
+
+        if (parentId != RootNodeId)
+        {
+            var parent = await _readDb.FirstOrDefaultAsync(
+                _readDb.Query<SysDept>().Where(d => d.Id == parentId && !d.IsDeleted),
+                cancellationToken).ConfigureAwait(false) ?? throw new BusinessException(ResultCode.InvalidUserInput, "上级部门不存在");
+
+            // 父级路径包含当前部门，说明要挂到自己的后代上，会形成环
+            var parentPath = "," + (parent.TreePath ?? string.Empty) + ",";
+            if (parentPath.Contains("," + deptId + ",", StringComparison.Ordinal))
+            {
+                throw new BusinessException(ResultCode.InvalidUserInput, "上级部门不能为当前部门的下级");
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(formData.Code))
         {

@@ -155,7 +155,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     {
         ValidateTargets(formData);
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var uid = _currentUser.GetRequiredUserId();
 
         var notice = new SysNotice
@@ -207,7 +207,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         notice.TargetType = formData.TargetType ?? notice.TargetType;
         notice.TargetUserIds = JoinIds(formData.TargetUserIds);
         notice.UpdateBy = _currentUser.GetRequiredUserId();
-        notice.UpdateTime = DateTime.UtcNow;
+        notice.UpdateTime = DateTime.Now;
 
         _noticeRepo.Update(notice);
         return await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
@@ -232,7 +232,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             {
                 n.IsDeleted = true;
                 n.UpdateBy = _currentUser.GetRequiredUserId();
-                n.UpdateTime = DateTime.UtcNow;
+                n.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -267,7 +267,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             throw new BusinessException(ResultCode.InvalidUserInput, "推送指定用户不能为空");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var uid = _currentUser.GetRequiredUserId();
 
         await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -355,7 +355,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
             throw new BusinessException(ResultCode.InvalidUserInput, "通知公告未发布或已撤回");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var uid = _currentUser.GetRequiredUserId();
 
         await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -384,9 +384,18 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     }
 
     /// <summary>
-    /// 公告详情
+    /// 公告详情（读取后标记已读）
     /// </summary>
-    public async Task<NoticeDetailVo> GetNoticeDetailAsync(long id, CancellationToken cancellationToken = default)
+    public Task<NoticeDetailVo> GetNoticeDetailAsync(long id, CancellationToken cancellationToken = default)
+        => LoadNoticeDetailAsync(id, markRead: true, cancellationToken);
+
+    /// <summary>
+    /// 管理端预览公告，不修改阅读状态
+    /// </summary>
+    public Task<NoticeDetailVo> GetNoticePreviewAsync(long id, CancellationToken cancellationToken = default)
+        => LoadNoticeDetailAsync(id, markRead: false, cancellationToken);
+
+    private async Task<NoticeDetailVo> LoadNoticeDetailAsync(long id, bool markRead, CancellationToken cancellationToken)
     {
         var noticeQuery =
             from n in _readDb.Query<SysNotice>()
@@ -413,15 +422,15 @@ internal sealed class SystemNoticeService : ISystemNoticeService
         }
 
         var userId = _currentUser.UserId;
-        if (userId.HasValue && userId.Value > 0)
+        if (markRead && userId.HasValue && userId.Value > 0)
         {
             await _userNoticeRepo.BatchUpdateAsync(
                 un => un.NoticeId == id && un.UserId == userId.Value && un.IsRead == 0,
                 un =>
                 {
                     un.IsRead = 1;
-                    un.ReadTime = DateTime.UtcNow;
-                    un.UpdateTime = DateTime.UtcNow;
+                    un.ReadTime = DateTime.Now;
+                    un.UpdateTime = DateTime.Now;
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -446,7 +455,7 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     public async Task<bool> ReadAllAsync(CancellationToken cancellationToken = default)
     {
         var userId = _currentUser.GetRequiredUserId();
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         await _userNoticeRepo.BatchUpdateAsync(
             un => un.UserId == userId && un.IsRead == 0,

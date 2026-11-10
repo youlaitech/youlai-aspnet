@@ -1,7 +1,7 @@
 namespace Youlai.Application.Realtime;
 
 /// <summary>
-/// 当前节点的在线状态快照，与前端协议保持一致
+/// 当前节点的在线状态快照
 /// </summary>
 public sealed record RealtimePresenceSnapshot
 {

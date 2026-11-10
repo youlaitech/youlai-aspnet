@@ -148,7 +148,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             return Array.Empty<Option<long>>();
         }
 
-        // 固定以顶级(0)为根递归：类型过滤后父级不在结果集内的节点不作为根节点，与参考实现一致
+        // 固定以顶级(0)为根递归：类型过滤后父级不在结果集内的节点不作为根节点
         return RecurMenuOptions(0, list);
     }
 
@@ -271,7 +271,7 @@ internal sealed class SystemMenuService : ISystemMenuService
 
             if (exists)
             {
-                throw new BusinessException(ResultCode.InvalidUserInput, "Route name already exists");
+                throw new BusinessException(ResultCode.InvalidUserInput, "路由名称已存在");
             }
 
             routeName = routeNameTrim;
@@ -312,6 +312,7 @@ internal sealed class SystemMenuService : ISystemMenuService
             entity.ExternalUrl = formData.ExternalUrl;
             entity.Params = paramsJson;
             entity.TreePath = treePath;
+            entity.UpdateTime = DateTime.Now;
         }
         else
         {
@@ -488,7 +489,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     public async Task<bool> RemoveMenuAsync(long menuId, CancellationToken cancellationToken = default)
     {
         // 自身 + 子树：tree_path 记录祖先链，覆盖 "menuId" / "menuId,..." / "...,menuId" / "...,menuId,..." 四种形态
-        // （等价于参考实现的 CONCAT(',',tree_path,',') LIKE '%,menuId,%'，全部用可翻译的字符串方法）
+        // 全部用 EF 可翻译的字符串方法判断，不拼接原生 SQL
         var menuIdText = menuId.ToString();
         var treePathPrefix = menuIdText + ",";
         var treePathSuffix = "," + menuIdText;
@@ -544,6 +545,7 @@ internal sealed class SystemMenuService : ISystemMenuService
         }
 
         entity.Visible = visible;
+        entity.UpdateTime = DateTime.Now;
         _menuRepo.Update(entity);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;

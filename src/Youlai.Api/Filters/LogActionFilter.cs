@@ -74,7 +74,9 @@ public sealed class LogActionFilter : IAsyncActionFilter
                 operatorId = itemUid;
             }
 
-            var usernameClaim = httpContext.User.FindFirst("username") ?? httpContext.User.FindFirst("nickname");
+            // 登录名写入 JWT 的 sub，JwtBearer 默认映射为 NameIdentifier
+            var usernameClaim = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                ?? httpContext.User.FindFirst("sub");
             if (usernameClaim != null)
             {
                 operatorName = usernameClaim.Value;
@@ -129,9 +131,7 @@ public sealed class LogActionFilter : IAsyncActionFilter
     }
 
     /// <summary>
-    /// 判定操作结果：(状态, 错误信息)。
-    /// 优先级：未捕获异常 → 响应体业务码（Result.Failed 返回 200，仅靠异常判断会漏记失败）→ 过滤器短路（如模型校验失败，Canceled 且无响应体）。
-    /// File() 等非 Result 响应无业务码可读，默认成功。
+    /// 判定操作结果：未捕获异常优先，其次响应体业务码，最后看过滤器短路；非 Result 响应默认成功
     /// </summary>
     private static (int Status, string? ErrorMsg) ResolveStatus(ActionExecutedContext context)
     {
@@ -151,8 +151,7 @@ public sealed class LogActionFilter : IAsyncActionFilter
     }
 
     /// <summary>
-    /// 从 Controller 动作描述符读取方法上标记的 [Log] 特性。
-    /// 不可用 ActionDescriptor.EndpointMetadata：它只装框架内置的路由/授权元数据，不含自定义特性。
+    /// 从动作描述符读取 [Log] 特性；EndpointMetadata 不含自定义特性，不能用
     /// </summary>
     private static LogAttribute? GetLogAttribute(ActionDescriptor descriptor)
     {

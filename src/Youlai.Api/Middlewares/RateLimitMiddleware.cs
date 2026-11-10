@@ -1,7 +1,7 @@
-using System.Net;
 using System.Text.Json;
 using StackExchange.Redis;
 using Microsoft.Extensions.Options;
+using Youlai.Api.Security;
 using Youlai.Application.Options;
 using Youlai.Application.Results;
 
@@ -57,7 +57,7 @@ public sealed class RateLimitMiddleware
             return;
         }
 
-        var ip = GetClientIp(context);
+        var ip = ClientIp.Resolve(context);
         if (string.IsNullOrWhiteSpace(ip))
         {
             await _next(context);
@@ -85,7 +85,7 @@ public sealed class RateLimitMiddleware
             {
                 // 窗口内已超最大请求数，返回 429 并附限流头
                 context.Response.Clear();
-                context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 context.Response.ContentType = "application/json; charset=utf-8";
                 context.Response.Headers["X-RateLimit-Limit"] = ipConfig.Limit.ToString();
                 context.Response.Headers["X-RateLimit-Remaining"] = "0";
@@ -113,17 +113,5 @@ public sealed class RateLimitMiddleware
         }
 
         await _next(context);
-    }
-
-    /// <summary>
-    /// 取客户端真实 IP：优先 X-Forwarded-For 首段，否则取远端地址
-    /// </summary>
-    private static string GetClientIp(HttpContext context)
-    {
-        var xForwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(xForwardedFor))
-            return xForwardedFor.Split(',')[0].Trim();
-
-        return context.Connection.RemoteIpAddress?.ToString() ?? "";
     }
 }

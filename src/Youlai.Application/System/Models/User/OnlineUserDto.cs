@@ -3,8 +3,7 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Models.User;
 
 /// <summary>
-/// 在线用户信息DTO
-/// 用于返回在线用户的基本信息，包括用户名、会话数量和登录时间。
+/// 在线用户信息（用户名、会话数量、登录时间）
 /// </summary>
 public class OnlineUserDto
 {

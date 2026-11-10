@@ -465,6 +465,11 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
             return Task.FromResult(new NoticeDetailVo { Id = id, Title = "测试" });
         }
 
+        public Task<NoticeDetailVo> GetNoticePreviewAsync(long id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new NoticeDetailVo { Id = id, Title = "测试" });
+        }
+
         public Task<bool> ReadAllAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult(true);

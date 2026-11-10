@@ -58,9 +58,4 @@ public interface ISystemRoleService
     /// 角色已分配的数据权限部门 ID
     /// </summary>
     Task<IReadOnlyCollection<long>> ListRoleDeptIdsAsync(long roleId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 分配数据权限部门
-    /// </summary>
-    Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default);
 }

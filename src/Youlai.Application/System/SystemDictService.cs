@@ -155,7 +155,7 @@ internal sealed class SystemDictService : ISystemDictService
             throw new BusinessException(ResultCode.InvalidUserInput, "字典编码已存在");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var uid = _currentUser.UserId;
 
         var dict = new SysDict
@@ -220,7 +220,7 @@ internal sealed class SystemDictService : ISystemDictService
         dict.Status = formData.Status ?? dict.Status;
         dict.Remark = formData.Remark;
         dict.UpdateBy = _currentUser.UserId;
-        dict.UpdateTime = DateTime.UtcNow;
+        dict.UpdateTime = DateTime.Now;
 
         _dictRepo.Update(dict);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -269,7 +269,7 @@ internal sealed class SystemDictService : ISystemDictService
             {
                 d.IsDeleted = true;
                 d.UpdateBy = _currentUser.UserId;
-                d.UpdateTime = DateTime.UtcNow;
+                d.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -401,9 +401,9 @@ internal sealed class SystemDictService : ISystemDictService
             Sort = formData.Sort ?? 0,
             TagType = formData.TagType,
             CreateBy = _currentUser.UserId,
-            CreateTime = DateTime.UtcNow,
+            CreateTime = DateTime.Now,
             UpdateBy = _currentUser.UserId,
-            UpdateTime = DateTime.UtcNow,
+            UpdateTime = DateTime.Now,
         };
 
         _dictItemRepo.Add(item);
@@ -436,7 +436,7 @@ internal sealed class SystemDictService : ISystemDictService
         item.Sort = formData.Sort ?? item.Sort;
         item.TagType = formData.TagType;
         item.UpdateBy = _currentUser.UserId;
-        item.UpdateTime = DateTime.UtcNow;
+        item.UpdateTime = DateTime.Now;
 
         _dictItemRepo.Update(item);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

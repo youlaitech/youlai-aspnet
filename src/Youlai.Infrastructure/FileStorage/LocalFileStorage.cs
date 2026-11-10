@@ -38,7 +38,7 @@ internal sealed class LocalFileStorage : IFileStorage
 
         var extension = Path.GetExtension(fileName);
         var safeExtension = string.IsNullOrWhiteSpace(extension) ? string.Empty : extension;
-        var dateFolder = DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var dateFolder = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var storedFileName = $"{Guid.NewGuid():N}{safeExtension}";
 
         var relativePath = Path.Combine(dateFolder, storedFileName);
@@ -91,7 +91,8 @@ internal sealed class LocalFileStorage : IFileStorage
 
         var storagePath = _options.StoragePath.Trim();
         var absolutePath = Path.GetFullPath(Path.Combine(storagePath, relativePath));
-        var rootPath = Path.GetFullPath(storagePath);
+        var rootPath = Path.GetFullPath(storagePath).TrimEnd(Path.DirectorySeparatorChar)
+                       + Path.DirectorySeparatorChar;
         if (!absolutePath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessException(ResultCode.DeleteFileException, "文件路径不合法");

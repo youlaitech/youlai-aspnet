@@ -50,13 +50,13 @@ internal sealed class Repository<T> : IRepository<T> where T : class
         {
             return await query.ExecuteUpdateAsync(s => s
                 .SetProperty(e => EF.Property<bool>(e, "IsDeleted"), true)
-                .SetProperty(e => EF.Property<DateTime>(e, "UpdateTime"), DateTime.UtcNow), cancellationToken);
+                .SetProperty(e => EF.Property<DateTime?>(e, "UpdateTime"), DateTime.Now), cancellationToken);
         }
 
         return await query.ExecuteUpdateAsync(s => s
             .SetProperty(e => EF.Property<bool>(e, "IsDeleted"), true)
             .SetProperty(e => EF.Property<long?>(e, "UpdateBy"), updateBy)
-            .SetProperty(e => EF.Property<DateTime>(e, "UpdateTime"), DateTime.UtcNow), cancellationToken);
+            .SetProperty(e => EF.Property<DateTime?>(e, "UpdateTime"), DateTime.Now), cancellationToken);
     }
 
     /// <summary>批量更新：加载匹配实体后在内存中 mutate，再统一落库</summary>

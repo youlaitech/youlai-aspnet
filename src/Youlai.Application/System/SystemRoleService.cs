@@ -175,7 +175,7 @@ internal sealed class SystemRoleService : ISystemRoleService
                 Status = formData.Status ?? 1,
                 DataScope = formData.DataScope,
                 CreateBy = _currentUser.UserId,
-                CreateTime = DateTime.UtcNow,
+                CreateTime = DateTime.Now,
                 IsDeleted = false,
             };
 
@@ -197,7 +197,7 @@ internal sealed class SystemRoleService : ISystemRoleService
         oldRole.Status = formData.Status ?? oldRole.Status;
         oldRole.DataScope = formData.DataScope;
         oldRole.UpdateBy = _currentUser.UserId;
-        oldRole.UpdateTime = DateTime.UtcNow;
+        oldRole.UpdateTime = DateTime.Now;
 
         _roleRepo.Update(oldRole);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -256,7 +256,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
         role.Status = status;
         role.UpdateBy = _currentUser.UserId;
-        role.UpdateTime = DateTime.UtcNow;
+        role.UpdateTime = DateTime.Now;
 
         _roleRepo.Update(role);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -299,7 +299,6 @@ internal sealed class SystemRoleService : ISystemRoleService
             Sort = role.Sort,
             Status = role.Status,
             DataScope = role.DataScope,
-            Remark = null,
             DeptIds = deptIds,
         };
     }
@@ -369,7 +368,7 @@ internal sealed class SystemRoleService : ISystemRoleService
 
             role.IsDeleted = true;
             role.UpdateBy = _currentUser.UserId;
-            role.UpdateTime = DateTime.UtcNow;
+            role.UpdateTime = DateTime.Now;
 
             if (!string.IsNullOrWhiteSpace(role.Code))
             {
@@ -435,36 +434,6 @@ internal sealed class SystemRoleService : ISystemRoleService
             cancellationToken).ConfigureAwait(false);
 
         return list;
-    }
-
-    /// <summary>
-    /// 给角色分配数据权限部门
-    /// </summary>
-    public async Task AssignDeptsToRoleAsync(long roleId, IReadOnlyCollection<long> deptIds, CancellationToken cancellationToken = default)
-    {
-        var role = await _roleRepo.FindByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
-
-        if (role is null)
-        {
-            throw new BusinessException(ResultCode.InvalidUserInput, "角色不存在");
-        }
-
-        var distinctDeptIds = deptIds
-            .Where(id => id > 0)
-            .Distinct()
-            .ToArray();
-
-        var newDepts = distinctDeptIds.Select(deptId => new SysRoleDept { RoleId = roleId, DeptId = deptId });
-        await ReplaceRelatedAsync(_roleDeptRepo, rd => rd.RoleId == roleId, newDepts, cancellationToken).ConfigureAwait(false);
-
-        var userIds = await _readDb.ToListAsync(
-            _readDb.Query<SysUserRole>().Where(ur => ur.RoleId == roleId).Select(ur => ur.UserId).Distinct(),
-            cancellationToken).ConfigureAwait(false);
-
-        foreach (var userId in userIds)
-        {
-            await _tokenManager.InvalidateUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
-        }
     }
 
     /// <summary>

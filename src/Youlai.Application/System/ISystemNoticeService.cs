@@ -49,6 +49,11 @@ public interface ISystemNoticeService
     Task<NoticeDetailVo> GetNoticeDetailAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 管理端预览公告，不修改阅读状态
+    /// </summary>
+    Task<NoticeDetailVo> GetNoticePreviewAsync(long id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 全部标记已读
     /// </summary>
     Task<bool> ReadAllAsync(CancellationToken cancellationToken = default);
