@@ -16,11 +16,6 @@ public sealed class WxMaLoginResultDto
     public bool NeedBindMobile { get; init; }
 
     /// <summary>
-    /// 微信openid（绑定手机号时需要）
-    /// </summary>
-    public string? OpenId { get; init; }
-
-    /// <summary>
     /// 访问令牌
     /// </summary>
     public string? AccessToken { get; init; }
@@ -43,11 +38,10 @@ public sealed class WxMaLoginResultDto
     /// <summary>
     /// 创建需要绑定手机号的结果
     /// </summary>
-    public static WxMaLoginResultDto RequireBindMobile(string openId) => new()
+    public static WxMaLoginResultDto RequireBindMobile() => new()
     {
         IsNewUser = true,
-        NeedBindMobile = true,
-        OpenId = openId
+        NeedBindMobile = true
     };
 
     /// <summary>

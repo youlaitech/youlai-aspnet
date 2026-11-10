@@ -100,9 +100,9 @@ public sealed class AuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("refresh-token")]
-    public async Task<Result<AuthenticationTokenDto>> RefreshToken([FromQuery] string refreshToken, CancellationToken cancellationToken)
+    public async Task<Result<AuthenticationTokenDto>> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var token = await _authService.RefreshTokenAsync(refreshToken, cancellationToken);
+        var token = await _authService.RefreshTokenAsync(request.RefreshToken, cancellationToken);
         return Result.Success(token);
     }
 

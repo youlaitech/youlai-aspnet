@@ -87,7 +87,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         }
 
         _logger.LogInformation("微信小程序静默登录：用户未绑定手机号，openId={OpenId}", openId);
-        return WxMaLoginResultDto.RequireBindMobile(openId);
+        return WxMaLoginResultDto.RequireBindMobile();
     }
 
     /// <summary>
@@ -107,9 +107,11 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         _logger.LogInformation("微信小程序手机号快捷登录：openId={OpenId}, mobile={Mobile}", openId, mobile);
 
+        // 建用户、分配角色与绑定 openid 同一事务，绑定冲突时不留下孤立账号
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
-
         await BindWechatOpenIdAsync(user.Id, openId, session.SessionKey, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);
     }
@@ -117,20 +119,28 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     /// <summary>
     /// 绑定手机号
     /// </summary>
-    public async Task<AuthenticationTokenDto> BindMobileAsync(string openId, string mobile, string smsCode, CancellationToken cancellationToken = default)
+    public async Task<AuthenticationTokenDto> BindMobileAsync(string loginCode, string mobile, string smsCode, CancellationToken cancellationToken = default)
     {
+        // openid 只从微信接口取得，不接受客户端提交的身份标识
+        var session = await GetSessionAsync(loginCode, cancellationToken);
+        var openId = session.OpenId;
+        if (string.IsNullOrWhiteSpace(openId))
+        {
+            throw new BusinessException(ResultCode.UserLoginException, "微信登录失败：无法获取用户标识");
+        }
+
         await ValidateSmsCodeAsync(mobile, smsCode, cancellationToken);
 
+        // 建用户、分配角色与绑定 openid 同一事务，绑定冲突时不留下孤立账号
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
         var user = await FindOrCreateUserAsync(mobile, cancellationToken);
-
-        await BindWechatOpenIdAsync(user.Id, openId, null, cancellationToken);
+        await BindWechatOpenIdAsync(user.Id, openId, session.SessionKey, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         _logger.LogInformation("微信小程序绑定手机号成功：mobile={Mobile}, openId={OpenId}", mobile, openId);
 
         return await GenerateTokenByUserIdAsync(user.Id, cancellationToken);
     }
-
-    // ==================== 私有方法 ====================
 
     private async Task<WechatSessionResponse> GetSessionAsync(string code, CancellationToken cancellationToken)
     {
@@ -140,7 +150,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         try
         {
             var response = await httpClient.GetFromJsonAsync<WechatSessionResponse>(url, JsonOptions, cancellationToken);
-            if (response is null || !string.IsNullOrEmpty(response.ErrCode))
+            if (response is null || response.ErrCode is not null and not 0)
             {
                 var errMsg = response?.ErrMsg ?? "Unknown error";
                 _logger.LogError("获取微信会话信息失败：code={Code}, errCode={ErrCode}, errMsg={ErrMsg}", code, response?.ErrCode, errMsg);
@@ -211,7 +221,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         var httpClient = _httpClientFactory.CreateClient("Wechat");
 
         var response = await httpClient.GetFromJsonAsync<WechatAccessTokenResponse>(url, JsonOptions, cancellationToken);
-        if (response is null || !string.IsNullOrEmpty(response.ErrCode))
+        if (response is null || response.ErrCode is not null and not 0)
         {
             var errMsg = response?.ErrMsg ?? "Unknown error";
             throw new BusinessException(ResultCode.UserLoginException, $"获取微信AccessToken失败：{errMsg}");
@@ -271,57 +281,47 @@ internal sealed class WxMaAuthService : IWxMaAuthService
     }
 
     /// <summary>
-    /// 绑定微信 openid，会话密钥存 Redis，失败仅记录日志不阻断登录
+    /// 绑定微信 openid 并缓存会话密钥；openid 已属于其他用户时拒绝绑定
     /// </summary>
     private async Task BindWechatOpenIdAsync(long userId, string openId, string? sessionKey, CancellationToken cancellationToken)
     {
-        try
+        var existing = await _readDb.FirstOrDefaultAsync(
+            _readDb.Query<SysUserIdentity>().Where(s => s.Provider == WechatProvider && s.ProviderAccountId == openId),
+            cancellationToken);
+
+        if (existing is not null && existing.UserId != userId)
         {
-            var existing = await _readDb.FirstOrDefaultAsync(
-                _readDb.Query<SysUserIdentity>().Where(s => s.Provider == WechatProvider && s.ProviderAccountId == openId),
-                cancellationToken);
-
-            if (existing is not null && existing.UserId != userId)
-            {
-                // 账号已归属其他用户，不能转移
-                _logger.LogWarning("该微信账号已关联其他用户，userId={UserId}, openId={OpenId}", userId, openId);
-                return;
-            }
-
-            if (existing is null)
-            {
-                _userIdentityRepo.Add(new SysUserIdentity
-                {
-                    UserId = userId,
-                    Provider = WechatProvider,
-                    ProviderAccountId = openId,
-                    LastLoginTime = DateTime.Now,
-                    CreateTime = DateTime.Now,
-                    UpdateTime = DateTime.Now
-                });
-            }
-            else
-            {
-                existing.LastLoginTime = DateTime.Now;
-                existing.UpdateTime = DateTime.Now;
-                _userIdentityRepo.Update(existing);
-            }
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(sessionKey))
-            {
-                var cacheKey = string.Format(RedisKeyConstants.Wechat.SessionKey, WechatProvider, openId);
-                await _cache.SetStringAsync(cacheKey, sessionKey, new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(3)
-                }, cancellationToken);
-            }
+            throw new BusinessException(ResultCode.UserLoginException, "该微信账号已关联其他用户");
         }
-        catch (Exception ex)
+
+        if (existing is null)
         {
-            // 绑定失败不影响登录
-            _logger.LogWarning(ex, "绑定微信 openid 失败，userId={UserId}, openId={OpenId}", userId, openId);
+            _userIdentityRepo.Add(new SysUserIdentity
+            {
+                UserId = userId,
+                Provider = WechatProvider,
+                ProviderAccountId = openId,
+                LastLoginTime = DateTime.Now,
+                CreateTime = DateTime.Now,
+                UpdateTime = DateTime.Now
+            });
+        }
+        else
+        {
+            existing.LastLoginTime = DateTime.Now;
+            existing.UpdateTime = DateTime.Now;
+            _userIdentityRepo.Update(existing);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(sessionKey))
+        {
+            var cacheKey = string.Format(RedisKeyConstants.Wechat.SessionKey, WechatProvider, openId);
+            await _cache.SetStringAsync(cacheKey, sessionKey, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(3)
+            }, cancellationToken);
         }
     }
 
@@ -412,8 +412,6 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         return _tokenManager.GenerateToken(subject);
     }
 
-    #region 微信 API 响应模型
-
     /// <summary>
     /// 微信小程序 code2session 响应
     /// </summary>
@@ -433,7 +431,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         /// <summary>错误码，0 或缺失表示成功</summary>
         [JsonPropertyName("errcode")]
-        public string? ErrCode { get; set; }
+        public int? ErrCode { get; set; }
 
         /// <summary>错误信息</summary>
         [JsonPropertyName("errmsg")]
@@ -455,7 +453,7 @@ internal sealed class WxMaAuthService : IWxMaAuthService
 
         /// <summary>错误码，0 或缺失表示成功</summary>
         [JsonPropertyName("errcode")]
-        public string? ErrCode { get; set; }
+        public int? ErrCode { get; set; }
 
         /// <summary>错误信息</summary>
         [JsonPropertyName("errmsg")]
@@ -497,6 +495,4 @@ internal sealed class WxMaAuthService : IWxMaAuthService
         [JsonPropertyName("countryCode")]
         public string? CountryCode { get; set; }
     }
-
-    #endregion
 }

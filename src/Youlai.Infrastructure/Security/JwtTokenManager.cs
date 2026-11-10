@@ -147,7 +147,6 @@ internal sealed class JwtTokenManager : ITokenManager
     /// <summary>
     /// 校验访问令牌签名与版本（非刷新令牌）
     /// </summary>
-    /// </summary>
     public bool ValidateAccessToken(string token)
     {
         return ValidateToken(token, validateRefreshToken: false, out _);

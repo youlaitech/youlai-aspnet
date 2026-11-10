@@ -2,22 +2,20 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using System.Text.Json;
+using Youlai.Api.Security;
 using Youlai.Application.Auth;
 using Youlai.Application.Auth.Models;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Extensions;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.Security;
 using Youlai.Domain.Entities;
 
-using Youlai.Application.Extensions;
-
 namespace Youlai.Api.Controllers.Auth;
 
 /// <summary>
-/// 扫码登录接口。
-/// generate/status/login 不需要登录态（PC 端未登录），由 [AllowAnonymous] 放行；
-/// scan/confirm/cancel 需要 APP 端登录态，从 ICurrentUser 取当前用户 ID。
+/// 扫码登录接口：generate/status/login 免登录，scan/confirm/cancel 需 APP 端登录态
 /// </summary>
 [ApiController]
 [Route("api/v1/auth/qr-code")]
@@ -26,7 +24,6 @@ namespace Youlai.Api.Controllers.Auth;
 public sealed class QrCodeController : ControllerBase
 {
     private const int DefaultExpireSeconds = 300;
-    private const int MinRemainSeconds = 30;
     private const string QrCodeKeyFormat = "auth:qr_code:{0}";
 
     private const string StatusWaiting = "WAITING";
@@ -65,12 +62,11 @@ public sealed class QrCodeController : ControllerBase
         {
             Ticket = ticket,
             Status = StatusWaiting,
-            CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            ClientIp = GetClientIp()
+            CreatedAt = Now(),
+            ClientIp = ClientIp.Resolve(HttpContext)
         };
         var key = string.Format(QrCodeKeyFormat, ticket);
-        var json = JsonSerializer.Serialize(ctx);
-        await db.StringSetAsync(key, json, TimeSpan.FromSeconds(DefaultExpireSeconds));
+        await db.StringSetAsync(key, JsonSerializer.Serialize(ctx), TimeSpan.FromSeconds(DefaultExpireSeconds));
         return Result.Success(new QrCodeGenerateVO(ticket, DefaultExpireSeconds));
     }
 
@@ -81,8 +77,8 @@ public sealed class QrCodeController : ControllerBase
     [HttpGet("status")]
     public async Task<Result<QrCodeStatusVO>> Status([FromQuery] string ticket)
     {
-        var ctx = await LoadContextAsync(ticket);
-        return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(ticket)));
+        var (ctx, _, ttl) = await LoadAsync(ticket);
+        return Result.Success(ToStatusVO(ctx, (int)ttl.TotalSeconds));
     }
 
     /// <summary>
@@ -92,22 +88,28 @@ public sealed class QrCodeController : ControllerBase
     public async Task<Result<QrCodeStatusVO>> Scan([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
-        var ctx = await LoadContextAsync(form.Ticket);
+        var (ctx, raw, ttl) = await LoadAsync(form.Ticket);
         if (ctx.Status != StatusWaiting)
+        {
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
+        }
+
         var user = await _readDb.FirstOrDefaultAsync(
             _readDb.Query<SysUser>()
                 .Where(u => u.Id == userId && !u.IsDeleted)
                 .Select(u => new { u.Nickname, u.Avatar }));
         if (user is null)
+        {
             throw new BusinessException(ResultCode.AccountNotFound);
+        }
+
         ctx.UserId = userId;
         ctx.Nickname = user.Nickname;
         ctx.Avatar = user.Avatar;
         ctx.Status = StatusScanned;
-        ctx.ScannedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        await SaveContextAsync(ctx, await RefreshTtlAsync(form.Ticket));
-        return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
+        ctx.ScannedAt = Now();
+        await SaveAsync(form.Ticket, raw, ctx, ttl);
+        return Result.Success(ToStatusVO(ctx, (int)ttl.TotalSeconds));
     }
 
     /// <summary>
@@ -117,15 +119,20 @@ public sealed class QrCodeController : ControllerBase
     public async Task<Result<QrCodeStatusVO>> Confirm([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
-        var ctx = await LoadContextAsync(form.Ticket);
+        var (ctx, raw, ttl) = await LoadAsync(form.Ticket);
         if (ctx.Status != StatusScanned)
+        {
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
+        }
         if (ctx.UserId is null || ctx.UserId != userId)
+        {
             throw new BusinessException(ResultCode.QrCodeUserMismatch);
+        }
+
         ctx.Status = StatusConfirmed;
-        ctx.ConfirmedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        await SaveContextAsync(ctx, await RefreshTtlAsync(form.Ticket));
-        return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
+        ctx.ConfirmedAt = Now();
+        await SaveAsync(form.Ticket, raw, ctx, ttl);
+        return Result.Success(ToStatusVO(ctx, (int)ttl.TotalSeconds));
     }
 
     /// <summary>
@@ -135,14 +142,19 @@ public sealed class QrCodeController : ControllerBase
     public async Task<Result<QrCodeStatusVO>> Cancel([FromBody] QrCodeTicketForm form)
     {
         var userId = _currentUser.GetRequiredUserId();
-        var ctx = await LoadContextAsync(form.Ticket);
+        var (ctx, raw, ttl) = await LoadAsync(form.Ticket);
         if (ctx.Status != StatusWaiting && ctx.Status != StatusScanned && ctx.Status != StatusConfirmed)
+        {
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
+        }
         if (ctx.Status != StatusWaiting && ctx.UserId is not null && ctx.UserId != userId)
+        {
             throw new BusinessException(ResultCode.QrCodeUserMismatch);
+        }
+
         ctx.Status = StatusCanceled;
-        await SaveContextAsync(ctx, await RefreshTtlAsync(form.Ticket));
-        return Result.Success(ToStatusVO(ctx, await RemainSecondsAsync(form.Ticket)));
+        await SaveAsync(form.Ticket, raw, ctx, ttl);
+        return Result.Success(ToStatusVO(ctx, (int)ttl.TotalSeconds));
     }
 
     /// <summary>
@@ -152,62 +164,78 @@ public sealed class QrCodeController : ControllerBase
     [HttpPost("login")]
     public async Task<Result<AuthenticationTokenDto>> Login([FromBody] QrCodeTicketForm form)
     {
-        var ctx = await LoadContextAsync(form.Ticket);
+        var (ctx, raw, ttl) = await LoadAsync(form.Ticket);
         if (ctx.Status != StatusConfirmed)
+        {
             throw new BusinessException(ResultCode.QrCodeStatusIllegal);
+        }
         if (ctx.UserId is null)
+        {
             throw new BusinessException(ResultCode.AccountNotFound);
+        }
+
         var user = await _readDb.FirstOrDefaultAsync(
             _readDb.Query<SysUser>()
                 .Where(u => u.Id == ctx.UserId.Value && !u.IsDeleted)
                 .Select(u => new { u.Status }));
         if (user is null)
+        {
             throw new BusinessException(ResultCode.AccountNotFound);
+        }
         if (user.Status != 1)
+        {
             throw new BusinessException(ResultCode.AccountFrozen);
-        var token = await _authService.LoginByQrAsync(ctx.UserId.Value);
-        // 换取令牌成功后立即把票据置为已使用（一次性），再次 login 会在状态校验处被拒，杜绝重放
+        }
+
+        // 先原子消费票据再签发令牌，并发请求只有一个能换到令牌
         ctx.Status = StatusLoggedIn;
-        var remain = await RemainSecondsAsync(form.Ticket);
-        await SaveContextAsync(ctx, remain > MinRemainSeconds ? remain : MinRemainSeconds);
+        await SaveAsync(form.Ticket, raw, ctx, ttl);
+
+        var token = await _authService.LoginByQrAsync(ctx.UserId.Value);
         return Result.Success(token);
     }
 
-    private async Task<QrCodeContext> LoadContextAsync(string ticket)
+    /// <summary>
+    /// 读取票据上下文与剩余有效期，票据不存在或已过期时报错
+    /// </summary>
+    private async Task<(QrCodeContext Context, string Raw, TimeSpan Ttl)> LoadAsync(string ticket)
     {
         if (string.IsNullOrWhiteSpace(ticket))
+        {
             throw new BusinessException(ResultCode.QrCodeNotFound);
+        }
+
         var db = _redis.GetDatabase();
         var key = string.Format(QrCodeKeyFormat, ticket);
-        var raw = await db.StringGetAsync(key);
-        if (!raw.HasValue)
+        var value = await db.StringGetWithExpiryAsync(key);
+        if (!value.Value.HasValue || value.Expiry is null || value.Expiry <= TimeSpan.Zero)
+        {
             throw new BusinessException(ResultCode.QrCodeNotFound);
-        return JsonSerializer.Deserialize<QrCodeContext>(raw.ToString())
-               ?? throw new BusinessException(ResultCode.QrCodeNotFound);
+        }
+
+        var raw = value.Value.ToString();
+        var ctx = JsonSerializer.Deserialize<QrCodeContext>(raw)
+                  ?? throw new BusinessException(ResultCode.QrCodeNotFound);
+        return (ctx, raw, value.Expiry.Value);
     }
 
-    private async Task SaveContextAsync(QrCodeContext ctx, int ttl)
-    {
-        var db = _redis.GetDatabase();
-        var key = string.Format(QrCodeKeyFormat, ctx.Ticket);
-        var json = JsonSerializer.Serialize(ctx);
-        await db.StringSetAsync(key, json, TimeSpan.FromSeconds(ttl));
-    }
-
-    private async Task<int> RemainSecondsAsync(string ticket)
+    /// <summary>
+    /// 以读取时的值为条件写回，期间被其他请求修改时拒绝本次更新
+    /// </summary>
+    private async Task SaveAsync(string ticket, string raw, QrCodeContext ctx, TimeSpan ttl)
     {
         var db = _redis.GetDatabase();
         var key = string.Format(QrCodeKeyFormat, ticket);
-        var ttl = await db.KeyTimeToLiveAsync(key);
-        var sec = (int)(ttl?.TotalSeconds ?? 0);
-        return sec > 0 ? sec : 0;
+        var transaction = db.CreateTransaction();
+        transaction.AddCondition(Condition.StringEqual(key, raw));
+        _ = transaction.StringSetAsync(key, JsonSerializer.Serialize(ctx), ttl);
+        if (!await transaction.ExecuteAsync())
+        {
+            throw new BusinessException(ResultCode.QrCodeStatusIllegal);
+        }
     }
 
-    private async Task<int> RefreshTtlAsync(string ticket)
-    {
-        var remain = await RemainSecondsAsync(ticket);
-        return remain < MinRemainSeconds ? MinRemainSeconds : remain;
-    }
+    private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     private static QrCodeStatusVO ToStatusVO(QrCodeContext ctx, int expireSeconds)
     {
@@ -230,25 +258,14 @@ public sealed class QrCodeController : ControllerBase
         if (n == 2) return $"{chars[0]}*";
         return $"{chars[0]}{new string('*', n - 2)}{chars[^1]}";
     }
-
-    private string GetClientIp()
-    {
-        var xff = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(xff))
-            return xff.Split(',')[0].Trim();
-        var xrip = HttpContext.Request.Headers["X-Real-IP"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(xrip))
-            return xrip.Trim();
-        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
 }
 
-/// <summary>扫码登录票据上下文，序列化为 JSON 存入 Redis。</summary>
+/// <summary>扫码登录票据上下文，序列化为 JSON 存入 Redis</summary>
 public sealed class QrCodeContext
 {
     /// <summary>票据标识</summary>
     public string Ticket { get; set; } = "";
-    /// <summary>状态：waiting / scanned / confirmed / canceled</summary>
+    /// <summary>状态：WAITING / SCANNED / CONFIRMED / LOGGED_IN / CANCELED</summary>
     public string Status { get; set; } = "";
     /// <summary>扫码用户 ID，未扫码为 null</summary>
     public long? UserId { get; set; }
@@ -266,12 +283,12 @@ public sealed class QrCodeContext
     public string? ClientIp { get; set; }
 }
 
-/// <summary>generate 接口响应。</summary>
+/// <summary>generate 接口响应</summary>
 /// <param name="Ticket">二维码票据</param>
 /// <param name="ExpireSeconds">票据有效秒数</param>
 public sealed record QrCodeGenerateVO(string Ticket, int ExpireSeconds);
 
-/// <summary>status 接口响应。</summary>
+/// <summary>status 接口响应</summary>
 /// <param name="Ticket">二维码票据</param>
 /// <param name="Status">扫码状态（待扫码/已扫码/已确认/已取消）</param>
 /// <param name="Nickname">扫码用户昵称（未扫码时为空）</param>
@@ -279,7 +296,6 @@ public sealed record QrCodeGenerateVO(string Ticket, int ExpireSeconds);
 /// <param name="ExpireSeconds">票据剩余有效秒数</param>
 public sealed record QrCodeStatusVO(string Ticket, string Status, string? Nickname, string? Avatar, int ExpireSeconds);
 
-/// <summary>scan/confirm/cancel/login 请求体。</summary>
+/// <summary>scan/confirm/cancel/login 请求体</summary>
 /// <param name="Ticket">二维码票据</param>
 public sealed record QrCodeTicketForm(string Ticket);
-

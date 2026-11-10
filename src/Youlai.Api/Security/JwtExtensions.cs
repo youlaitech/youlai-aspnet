@@ -40,20 +40,25 @@ public static class JwtAuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
-                    // 收到请求：打印 Authorization 头和令牌载荷，辅助排查认证问题
+                    // 收到请求：仅在 Debug 级别记录令牌头与载荷，排查认证问题时开启
                     OnMessageReceived = context =>
                     {
                         var logger = context.HttpContext.RequestServices
                             .GetRequiredService<ILoggerFactory>()
                             .CreateLogger("JwtBearer");
+                        if (!logger.IsEnabled(LogLevel.Debug))
+                        {
+                            return Task.CompletedTask;
+                        }
+
                         var authHeader = context.Request.Headers.Authorization.ToString();
                         if (string.IsNullOrWhiteSpace(authHeader))
                         {
-                            logger.LogWarning("JWT message received with empty Authorization header.");
+                            logger.LogDebug("JWT message received with empty Authorization header.");
                         }
                         else
                         {
-                            logger.LogWarning(
+                            logger.LogDebug(
                                 "JWT message received. HeaderLength={Length}, StartsWithBearer={StartsWithBearer}",
                                 authHeader.Length,
                                 authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase));
@@ -72,7 +77,7 @@ public static class JwtAuthenticationExtensions
                                     var tokenType = jwt.Payload.TryGetValue("tokenType", out var tt) ? tt?.ToString() : null;
                                     var securityVersion = jwt.Payload.TryGetValue("securityVersion", out var sv) ? sv?.ToString() : null;
 
-                                    logger.LogWarning(
+                                    logger.LogDebug(
                                         "JWT payload info: Alg={Alg}, Exp={Exp}, Iat={Iat}, Now={Now}, Sub={Sub}, Jti={Jti}, TokenType={TokenType}, SecurityVersion={SecurityVersion}",
                                         jwt.Header.Alg,
                                         exp,
@@ -85,7 +90,7 @@ public static class JwtAuthenticationExtensions
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.LogWarning(ex, "JWT message received but failed to read token payload.");
+                                    logger.LogDebug(ex, "JWT message received but failed to read token payload.");
                                 }
                             }
                         }

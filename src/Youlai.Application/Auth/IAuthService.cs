@@ -33,7 +33,7 @@ public interface IAuthService
     Task LogoutAsync(string? authorizationHeader, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 扫码登录换发会话令牌：按用户 ID 查认证信息并复用既有令牌签发逻辑。
+    /// 扫码登录换发会话令牌：按用户 ID 查认证信息并复用既有令牌签发逻辑
     /// </summary>
     Task<AuthenticationTokenDto> LoginByQrAsync(long userId, CancellationToken cancellationToken = default);
 }
