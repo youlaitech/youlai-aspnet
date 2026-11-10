@@ -122,8 +122,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-
 // 实时连接走 WebSocket，握手在中间件内用一次性票据完成
 app.UseWebSockets();
 app.UseMiddleware<RealtimeWebSocketMiddleware>();
@@ -153,17 +151,18 @@ try
 {
     app.Run();
 }
-catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AccessDenied)
+catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode is System.Net.Sockets.SocketError.AccessDenied
+             or System.Net.Sockets.SocketError.AddressAlreadyInUse)
 {
     logger.LogError(
         "============================================================\n" +
         "                    端口绑定失败\n" +
         "------------------------------------------------------------\n" +
-        "  端口 8000 已被占用或权限不足\n" +
+        "  监听地址绑定被拒绝，端口可能已被占用或当前用户无绑定权限\n" +
         "  请检查:\n" +
-        "  1. 是否有其他程序占用该端口\n" +
-        "  2. 使用 netstat -ano | findstr :8000 查看占用进程\n" +
-        "  3. 结束占用进程或更换端口后重试\n" +
+        "  1. 是否有其他程序占用配置的端口\n" +
+        "  2. 用 netstat -ano 查看端口占用进程\n" +
+        "  3. 结束占用进程或修改监听地址后重试\n" +
         "============================================================");
     throw;
 }

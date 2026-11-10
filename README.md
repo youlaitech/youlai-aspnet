@@ -155,6 +155,8 @@ youlai-aspnet/
 }
 ```
 
+**代码生成菜单（生产关闭）**：`Codegen:CreateMenu` 控制保存生成配置时是否自动创建页面菜单与增删改查按钮，默认开启，`appsettings.Production.json` 中已关闭。
+
 ## 技术合作
 
 本项目采用 [Apache License 2.0](LICENSE) 开源，可免费商用。欢迎在 [Issue](https://gitee.com/youlaiorg/youlai-aspnet/issues) 提交问题或反馈，也欢迎提交 [Pull Request](https://gitee.com/youlaiorg/youlai-aspnet/pulls) 共建。
