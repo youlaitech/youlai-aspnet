@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Youlai.Application.Form.Models;
@@ -8,6 +9,8 @@ namespace Youlai.Application.Form.Models;
 public sealed class FormMenuForm
 {
     /// <summary>菜单名称（侧边栏展示）</summary>
+    [Required(ErrorMessage = "菜单名称不能为空")]
+    [StringLength(50, ErrorMessage = "菜单名称不能超过 50 个字符")]
     [JsonPropertyName("menuName")]
     public string MenuName { get; init; } = string.Empty;
 

@@ -159,6 +159,11 @@ internal sealed class FormDefinitionService : IFormDefinitionService
             throw new BusinessException(ResultCode.InvalidUserInput, "表单标识不能为空");
         }
 
+        if (string.IsNullOrWhiteSpace(formData.FormName))
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "表单名称不能为空");
+        }
+
         // 校验 formKey 唯一（逻辑删除查询默认过滤，同 key 删除后可重建）
         var exists = await _readDb.AnyAsync(
             _readDb.Query<FormDefinition>().Where(f => f.FormKey == formKey),
@@ -213,7 +218,7 @@ internal sealed class FormDefinitionService : IFormDefinitionService
         }
 
         entity.FormJson = formData.FormJson ?? entity.FormJson;
-        entity.OptionsJson = formData.OptionsJson;
+        entity.OptionsJson = formData.OptionsJson ?? entity.OptionsJson;
         // 公开开关是访问控制而非身份元数据，任意状态可切换
         entity.IsPublic = formData.IsPublic ?? entity.IsPublic;
 
@@ -246,6 +251,9 @@ internal sealed class FormDefinitionService : IFormDefinitionService
             return true;
         }
 
+        // 菜单、提交数据、版本快照与表单定义一起删除，避免中途失败留下孤立数据
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
         // 级联删除已生成的访问菜单（内含角色授权清理与权限缓存刷新）
         foreach (var form in forms)
         {
@@ -273,6 +281,8 @@ internal sealed class FormDefinitionService : IFormDefinitionService
 
         await _formRepo.BatchSoftDeleteAsync(idList, _currentUser.UserId, cancellationToken).ConfigureAwait(false);
 
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
         // 已发布表单的渲染缓存一并清除，防止删除后仍可渲染
         foreach (var form in forms.Where(f => f.Status == StatusPublished))
         {
@@ -295,6 +305,9 @@ internal sealed class FormDefinitionService : IFormDefinitionService
             throw new BusinessException(ResultCode.InvalidUserInput, "表单不存在");
         }
 
+        // 版本号与快照必须同时落库，否则会出现已发布但无对应快照
+        await using var tx = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
         var updated = await _formRepo.BatchUpdateAsync(
             f => f.Id == formId,
             f =>
@@ -302,11 +315,12 @@ internal sealed class FormDefinitionService : IFormDefinitionService
                 f.Status = StatusPublished;
                 f.Version += 1;
                 f.UpdateBy = _currentUser.UserId;
-                f.UpdateTime = DateTime.UtcNow;
+                f.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
         if (updated <= 0)
         {
+            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
             return false;
         }
 
@@ -322,10 +336,16 @@ internal sealed class FormDefinitionService : IFormDefinitionService
                 Version = published.Version,
                 FormJson = published.FormJson,
                 OptionsJson = published.OptionsJson,
-                CreateTime = DateTime.UtcNow,
-                UpdateTime = DateTime.UtcNow,
+                CreateTime = DateTime.Now,
+                UpdateTime = DateTime.Now,
             });
             await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        if (published is not null)
+        {
             await EvictRenderCacheAsync(published.FormKey, cancellationToken).ConfigureAwait(false);
         }
 
@@ -351,7 +371,7 @@ internal sealed class FormDefinitionService : IFormDefinitionService
             {
                 f.Status = StatusDisabled;
                 f.UpdateBy = _currentUser.UserId;
-                f.UpdateTime = DateTime.UtcNow;
+                f.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -512,7 +532,7 @@ internal sealed class FormDefinitionService : IFormDefinitionService
             {
                 f.MenuId = menu.Id;
                 f.UpdateBy = _currentUser.UserId;
-                f.UpdateTime = DateTime.UtcNow;
+                f.UpdateTime = DateTime.Now;
             },
             cancellationToken).ConfigureAwait(false);
 

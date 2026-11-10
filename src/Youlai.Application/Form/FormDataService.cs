@@ -21,6 +21,7 @@ internal sealed class FormDataService : IFormDataService
     private readonly IFormDefinitionService _definitionService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPublicSubmitLimiter _submitLimiter;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<FormDataService> _logger;
 
     public FormDataService(
@@ -29,6 +30,7 @@ internal sealed class FormDataService : IFormDataService
         IFormDefinitionService definitionService,
         IUnitOfWork unitOfWork,
         IPublicSubmitLimiter submitLimiter,
+        ICurrentUser currentUser,
         ILogger<FormDataService> logger)
     {
         _readDb = readDb;
@@ -36,6 +38,7 @@ internal sealed class FormDataService : IFormDataService
         _definitionService = definitionService;
         _unitOfWork = unitOfWork;
         _submitLimiter = submitLimiter;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -174,7 +177,7 @@ internal sealed class FormDataService : IFormDataService
             return true;
         }
 
-        await _formDataRepo.BatchSoftDeleteAsync(exists, null, cancellationToken).ConfigureAwait(false);
+        await _formDataRepo.BatchSoftDeleteAsync(exists, _currentUser.UserId, cancellationToken).ConfigureAwait(false);
         return true;
     }
 

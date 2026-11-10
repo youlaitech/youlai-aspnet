@@ -169,7 +169,7 @@ public sealed class FormsController : ControllerBase
     [AllowAnonymous]
     public async Task<Result<object?>> SavePublicFormData([FromRoute] string formKey, [FromBody] JsonElement data, CancellationToken cancellationToken)
     {
-        var ok = await _formDataService.SavePublicFormDataAsync(formKey, data, GetClientIp(), cancellationToken);
+        var ok = await _formDataService.SavePublicFormDataAsync(formKey, data, ClientIp.Resolve(HttpContext), cancellationToken);
         return Result.Judge(ok);
     }
 
@@ -233,17 +233,4 @@ public sealed class FormsController : ControllerBase
         return Result.Success(rule);
     }
 
-    /// <summary>
-    /// 取客户端真实 IP：优先 X-Forwarded-For 首段，否则取远端地址
-    /// </summary>
-    private string GetClientIp()
-    {
-        var xForwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(xForwardedFor))
-        {
-            return xForwardedFor.Split(',')[0].Trim();
-        }
-
-        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
 }
