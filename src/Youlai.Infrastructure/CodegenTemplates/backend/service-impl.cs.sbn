@@ -9,7 +9,7 @@ using Youlai.Application.{{ moduleNamePascal }}.Dtos;
 using Youlai.Application.{{ moduleNamePascal }}.Interfaces;
 using Youlai.Domain.Entities;
 
-namespace Youlai.Application.Services.{{ moduleNamePascal }};
+namespace Youlai.Application.{{ moduleNamePascal }}.Services;
 
 /// <summary>
 /// {{ businessName }}服务
@@ -175,10 +175,10 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{~ end ~}}
 {{~ end ~}}
 {{~ if hasCreateTime ~}}
-            CreateTime = DateTime.UtcNow,
+            CreateTime = DateTime.Now,
 {{~ end ~}}
 {{~ if hasUpdateTime ~}}
-            UpdateTime = DateTime.UtcNow,
+            UpdateTime = DateTime.Now,
 {{~ end ~}}
 {{~ if hasCreateBy ~}}
             CreateBy = _currentUser.UserId,
@@ -217,7 +217,7 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
 {{~ end ~}}
 {{~ end ~}}
 {{~ if hasUpdateTime ~}}
-        entity.UpdateTime = DateTime.UtcNow;
+        entity.UpdateTime = DateTime.Now;
 {{~ end ~}}
 {{~ if hasUpdateBy ~}}
         entity.UpdateBy = _currentUser.UserId;
@@ -246,7 +246,7 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
             {
                 x.IsDeleted = {{ if isDeletedType == "bool" }}true{{ else }}1{{ end }};
 {{~ if hasUpdateTime ~}}
-                x.UpdateTime = DateTime.UtcNow;
+                x.UpdateTime = DateTime.Now;
 {{~ end ~}}
 {{~ if hasUpdateBy ~}}
                 x.UpdateBy = _currentUser.UserId;

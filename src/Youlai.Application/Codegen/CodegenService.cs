@@ -5,10 +5,12 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Youlai.Application.Ai;
 using Youlai.Application.Codegen.Models;
 using Youlai.Application.Common;
 using Youlai.Application.Exceptions;
+using Youlai.Application.Options;
 using Youlai.Application.Persistence;
 using Youlai.Application.Results;
 using Youlai.Application.System;
@@ -73,12 +75,13 @@ internal sealed class CodegenService : ICodegenService
             ["API_TYPES"] = new TemplateConfig("frontend/ts/api-types.ts.sbn", "types", ".ts"),
             ["VIEW"] = new TemplateConfig("frontend/ts/index.vue.sbn", "views", ".vue"),
             ["Controller"] = new TemplateConfig("backend/controller.cs.sbn", "Controllers", ".cs"),
-            ["Service"] = new TemplateConfig("backend/service.cs.sbn", "Services", ".cs"),
+            ["Service"] = new TemplateConfig("backend/service.cs.sbn", "Interfaces", ".cs"),
             ["ServiceImpl"] = new TemplateConfig("backend/service-impl.cs.sbn", "Services", ".cs"),
             ["Form"] = new TemplateConfig("backend/form.cs.sbn", "Dtos", ".cs"),
             ["Query"] = new TemplateConfig("backend/query.cs.sbn", "Dtos", ".cs"),
             ["PageVo"] = new TemplateConfig("backend/page-vo.cs.sbn", "Dtos", ".cs"),
             ["Entity"] = new TemplateConfig("backend/entity.cs.sbn", "Entities", ".cs"),
+            ["EntityConfig"] = new TemplateConfig("backend/entity-config.cs.sbn", "Persistence", ".cs"),
         };
 
     private readonly ISqlExecutor _sqlExecutor;
@@ -86,6 +89,7 @@ internal sealed class CodegenService : ICodegenService
     private readonly IPromptLoader _promptLoader;
     private readonly IAiChatService _aiChatService;
     private readonly ISystemMenuService _menuService;
+    private readonly CodegenOptions _options;
     private readonly string _templateRoot;
 
     public CodegenService(
@@ -93,13 +97,15 @@ internal sealed class CodegenService : ICodegenService
         ITemplateRenderer templateRenderer,
         IPromptLoader promptLoader,
         IAiChatService aiChatService,
-        ISystemMenuService menuService)
+        ISystemMenuService menuService,
+        IOptions<CodegenOptions> options)
     {
         _sqlExecutor = sqlExecutor;
         _templateRenderer = templateRenderer;
         _promptLoader = promptLoader;
         _aiChatService = aiChatService;
         _menuService = menuService;
+        _options = options.Value;
         _templateRoot = Path.Combine(AppContext.BaseDirectory, "CodegenTemplates");
     }
 
@@ -285,10 +291,17 @@ LIMIT @limit OFFSET @offset";
     /// </summary>
     public async Task<GenConfigFormDto> GetConfigAsync(string tableName, CancellationToken cancellationToken = default)
     {
+        // 表结构是配置的唯一来源，读不到说明表不存在，后续生成与 AI 填充都无意义
+        var schemaFields = await GetDefaultFieldConfigsAsync(tableName, cancellationToken).ConfigureAwait(false);
+        if (schemaFields.Count == 0)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "未找到表元数据");
+        }
+
         var config = await GetConfigRowAsync(tableName, cancellationToken).ConfigureAwait(false);
         if (config is not null)
         {
-            var fieldConfigs = await GetFieldConfigsAsync(config.Id, cancellationToken).ConfigureAwait(false);
+            var savedFields = await GetFieldConfigsAsync(config.Id, cancellationToken).ConfigureAwait(false);
             return new GenConfigFormDto
             {
                 Id = config.Id,
@@ -302,8 +315,8 @@ LIMIT @limit OFFSET @offset";
                 BackendAppName = BackendAppName,
                 FrontendAppName = FrontendAppName,
                 RemoveTablePrefix = config.RemoveTablePrefix ?? DefaultRemoveTablePrefix,
-                PageType = string.IsNullOrWhiteSpace(config.PageType) ? "classic" : config.PageType,
-                FieldConfigs = fieldConfigs
+                PageType = string.IsNullOrWhiteSpace(config.PageType) ? "crud" : config.PageType,
+                FieldConfigs = MergeFieldConfigsWithSchema(schemaFields, savedFields)
             };
         }
 
@@ -314,8 +327,6 @@ LIMIT @limit OFFSET @offset";
 
         var removePrefix = DefaultRemoveTablePrefix;
         var entityName = BuildDefaultEntityName(tableName, removePrefix);
-
-        var fieldConfigsFromDb = await GetDefaultFieldConfigsAsync(tableName, cancellationToken).ConfigureAwait(false);
 
         return new GenConfigFormDto
         {
@@ -329,9 +340,58 @@ LIMIT @limit OFFSET @offset";
             BackendAppName = BackendAppName,
             FrontendAppName = FrontendAppName,
             RemoveTablePrefix = removePrefix,
-            PageType = "classic",
-            FieldConfigs = fieldConfigsFromDb
+            PageType = "crud",
+            FieldConfigs = schemaFields
         };
+    }
+
+    /// <summary>
+    /// 已保存字段配置与当前表结构对账：保留用户配置，补新列、去已删列，列类型与注释以表结构为准
+    /// </summary>
+    private static IReadOnlyCollection<FieldConfigDto> MergeFieldConfigsWithSchema(
+        IReadOnlyCollection<FieldConfigDto> schemaFields,
+        IReadOnlyCollection<FieldConfigDto> savedFields)
+    {
+        if (savedFields.Count == 0)
+        {
+            return schemaFields;
+        }
+
+        var savedByColumn = savedFields
+            .Where(f => !string.IsNullOrWhiteSpace(f.ColumnName))
+            .GroupBy(f => f.ColumnName!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var merged = new List<FieldConfigDto>(schemaFields.Count);
+        foreach (var schema in schemaFields)
+        {
+            if (!savedByColumn.TryGetValue(schema.ColumnName ?? string.Empty, out var saved))
+            {
+                merged.Add(schema);
+                continue;
+            }
+
+            merged.Add(new FieldConfigDto
+            {
+                Id = saved.Id,
+                ColumnName = schema.ColumnName,
+                ColumnType = schema.ColumnType,
+                FieldName = string.IsNullOrWhiteSpace(saved.FieldName) ? schema.FieldName : saved.FieldName,
+                FieldType = schema.FieldType,
+                FieldComment = string.IsNullOrWhiteSpace(schema.FieldComment) ? saved.FieldComment : schema.FieldComment,
+                IsShowInList = saved.IsShowInList,
+                IsShowInForm = saved.IsShowInForm,
+                IsShowInQuery = saved.IsShowInQuery,
+                IsRequired = saved.IsRequired,
+                FormType = saved.FormType,
+                QueryType = saved.QueryType,
+                MaxLength = schema.MaxLength ?? saved.MaxLength,
+                FieldSort = saved.FieldSort ?? schema.FieldSort,
+                DictType = saved.DictType
+            });
+        }
+
+        return merged;
     }
 
     /// <summary>
@@ -353,10 +413,15 @@ LIMIT @limit OFFSET @offset";
             ? BuildDefaultEntityName(tableName, removePrefix)
             : formData.EntityName!.Trim();
         var author = string.IsNullOrWhiteSpace(formData.Author) ? DefaultAuthor : formData.Author!.Trim();
-        var pageType = string.Equals(formData.PageType, "crud", StringComparison.OrdinalIgnoreCase) ? "crud" : "classic";
+        var pageType = string.Equals(formData.PageType, "classic", StringComparison.OrdinalIgnoreCase) ? "classic" : "crud";
         var parentMenuId = formData.ParentMenuId;
 
-        var fieldConfigs = formData.FieldConfigs?.ToList() ?? new List<FieldConfigDto>();
+        if (formData.FieldConfigs is null || formData.FieldConfigs.Count == 0)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "字段配置不能为空");
+        }
+
+        var fieldConfigs = formData.FieldConfigs.ToList();
 
         var connection = await _sqlExecutor.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -472,9 +537,9 @@ VALUES
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-            // 选了上级菜单就同步生成页面菜单与增删改查按钮，权限前缀与生成代码的守卫同源。
-            // 菜单写入走 EF 上下文，并入不了上面的原生事务；失败时配置已落库，重试按路由名去重，不会重复挂菜单
-            if (parentMenuId is > 0)
+            // 选了上级菜单且开关打开时生成页面菜单与增删改查按钮，权限前缀与生成代码的守卫同源
+            // 菜单写入走 EF 上下文，无法并入上面的原生事务；失败时配置已落库，重试按路由名去重，不会重复挂菜单
+            if (parentMenuId is > 0 && _options.CreateMenu)
             {
                 await _menuService.AddMenuForCodegenAsync(parentMenuId.Value, moduleName, businessName, entityName,
                     ResolvePermissionPrefix(moduleName, entityName), cancellationToken).ConfigureAwait(false);
@@ -561,9 +626,10 @@ VALUES
 
         var fieldConfigs = config.FieldConfigs?.Select(BuildTemplateFieldConfig).ToList() ?? new List<TemplateFieldConfig>();
 
-        var hasId = fieldConfigs.Any(f =>
+        var idField = fieldConfigs.FirstOrDefault(f =>
             string.Equals(f.ColumnName, "id", StringComparison.OrdinalIgnoreCase)
             || string.Equals(f.FieldName, "id", StringComparison.OrdinalIgnoreCase));
+        var hasId = idField is not null;
         var hasCreateTime = fieldConfigs.Any(f =>
             string.Equals(f.ColumnName, "create_time", StringComparison.OrdinalIgnoreCase)
             || string.Equals(f.FieldName, "createTime", StringComparison.OrdinalIgnoreCase));
@@ -601,6 +667,7 @@ VALUES
             ["pageType"] = effectivePageType,
             ["fieldConfigs"] = fieldConfigs,
             ["hasId"] = hasId,
+            ["idProperty"] = idField?.PropertyName ?? "Id",
             ["hasCreateTime"] = hasCreateTime,
             ["hasUpdateTime"] = hasUpdateTime,
             ["hasCreateBy"] = hasCreateBy,
@@ -1102,6 +1169,11 @@ ORDER BY ORDINAL_POSITION ASC";
             return $"{entityName}Service{extension}";
         }
 
+        if (templateName == "EntityConfig")
+        {
+            return $"{entityName}Configuration{extension}";
+        }
+
         return $"{entityName}{templateName}{extension}";
     }
 
@@ -1135,17 +1207,12 @@ ORDER BY ORDINAL_POSITION ASC";
 
         if (templateName == "Controller")
         {
-            return Path.Combine(backendRoot, "Youlai.Api", "Controllers");
+            return Path.Combine(backendRoot, "Youlai.Api", "Controllers", moduleNamePascal);
         }
 
-        if (templateName == "Service")
+        if (templateName == "Service" || templateName == "ServiceImpl")
         {
             return Path.Combine(backendRoot, "Youlai.Application", moduleNamePascal, subpackageName);
-        }
-
-        if (templateName == "ServiceImpl")
-        {
-            return Path.Combine(backendRoot, "Youlai.Infrastructure", subpackageName);
         }
 
         if (templateName == "Form" || templateName == "Query" || templateName == "PageVo")
@@ -1156,6 +1223,11 @@ ORDER BY ORDINAL_POSITION ASC";
         if (templateName == "Entity")
         {
             return Path.Combine(backendRoot, "Youlai.Domain", subpackageName);
+        }
+
+        if (templateName == "EntityConfig")
+        {
+            return Path.Combine(backendRoot, "Youlai.Infrastructure", subpackageName, "Configurations");
         }
 
         return Path.Combine(backendRoot, "Youlai.Application", moduleNamePascal);

@@ -270,11 +270,11 @@
 } from "element-plus";
   import { FullScreen, Refresh } from "@element-plus/icons-vue";
   import { usePageTable, useTableSelection } from "@/composables";
-  import ${entityName}API from "@/api/${moduleName}/${entityKebab}";
-  import type { ${entityName}Item, ${entityName}Form, ${entityName}QueryParams } from "@/api/${moduleName}/${entityKebab}";
+  import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
+  import type { {{ entityName }}Item, {{ entityName }}Form, {{ entityName }}QueryParams } from "@/api/{{ moduleName }}/{{ entityKebab }}";
 
   defineOptions({
-    name: "${entityName}",
+    name: "{{ entityName }}",
     inheritAttrs: false,
   });
 
@@ -286,18 +286,18 @@
   const initialFormData = reactive({});
 
   const { loading, list, total, params, fetchData, handleQuery, handleResetQuery } = usePageTable<
-    ${entityName}Item,
-    ${entityName}QueryParams
+    {{ entityName }}Item,
+    {{ entityName }}QueryParams
   >({
     initialParams: {
       pageNum: 1,
       pageSize: 10,
     },
-    request: ${entityName}API.getPage,
+    request: {{ entityName }}API.getPage,
     onBeforeReset: () => queryFormRef.value?.resetFields(),
   });
 
-  const { selectedIds, hasSelection, handleSelectionChange } = useTableSelection<${entityName}Item>();
+  const { selectedIds, hasSelection, handleSelectionChange } = useTableSelection<{{ entityName }}Item>();
 
   const dialog = reactive({
     title: "",
@@ -340,7 +340,7 @@
    * 打开新增弹窗
    */
   async function handleCreateClick(): Promise<void> {
-    dialog.title = "新增${businessName}";
+    dialog.title = "新增{{ businessName }}";
     openDialog();
   }
 
@@ -348,14 +348,14 @@
    * 打开编辑弹窗并回填数据
    */
   async function handleEditClick(id: string): Promise<void> {
-    dialog.title = "修改${businessName}";
-    const data = await ${entityName}API.getFormData(id);
+    dialog.title = "修改{{ businessName }}";
+    const data = await {{ entityName }}API.getFormData(id);
     Object.assign(formData, data);
     openDialog();
   }
 
   /**
-   * 提交${businessName}表单
+   * 提交{{ businessName }}表单
    */
   async function handleSubmit(): Promise<void> {
     const valid = await dataFormRef.value?.validate().then(
@@ -368,10 +368,10 @@
     try {
       const id = formData.id;
       if (id) {
-        await ${entityName}API.update(id, formData);
+        await {{ entityName }}API.update(id, formData);
         ElMessage.success("修改成功");
       } else {
-        await ${entityName}API.create(formData);
+        await {{ entityName }}API.create(formData);
         ElMessage.success("新增成功");
       }
       closeDialog();
@@ -382,14 +382,14 @@
   }
 
   /**
-   * 批量删除${businessName}
+   * 批量删除{{ businessName }}
    */
   function handleBatchDelete(): void {
     handleDelete();
   }
 
   /**
-   * 删除${businessName}
+   * 删除{{ businessName }}
    */
   async function handleDelete(id?: string): Promise<void> {
     const ids = id || selectedIds.value.join(",");
@@ -411,7 +411,7 @@
 
     loading.value = true;
     try {
-      await ${entityName}API.deleteByIds(ids);
+      await {{ entityName }}API.deleteByIds(ids);
       ElMessage.success("删除成功");
       handleResetQuery();
     } finally {

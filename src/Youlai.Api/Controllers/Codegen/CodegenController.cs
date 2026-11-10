@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
+using Youlai.Application.Attributes;
 using Youlai.Application.Results;
 using Youlai.Application.Codegen.Models;
 using Youlai.Application.Codegen;
+using Youlai.Domain.Enums;
 
 namespace Youlai.Api.Controllers.Codegen;
 
@@ -46,6 +48,7 @@ public sealed class CodegenController : ControllerBase
     /// 保存生成配置
     /// </summary>
     [HttpPost("{tableName}/config")]
+    [Log(LogModule.CODEGEN, ActionType.UPDATE)]
     public async Task<Result<object?>> SaveConfig([FromRoute] string tableName, [FromBody] GenConfigFormDto formData, CancellationToken cancellationToken)
     {
         var ok = await _codegenService.SaveConfigAsync(tableName, formData, cancellationToken);
@@ -56,6 +59,7 @@ public sealed class CodegenController : ControllerBase
     /// 删除生成配置
     /// </summary>
     [HttpDelete("{tableName}/config")]
+    [Log(LogModule.CODEGEN, ActionType.DELETE)]
     public async Task<Result<object?>> DeleteConfig([FromRoute] string tableName, CancellationToken cancellationToken)
     {
         var ok = await _codegenService.RemoveConfigAsync(tableName, cancellationToken);
@@ -66,6 +70,7 @@ public sealed class CodegenController : ControllerBase
     /// AI 填充生成配置
     /// </summary>
     [HttpPost("{tableName}/ai-config")]
+    [Log(LogModule.CODEGEN, ActionType.UPDATE)]
     public async Task<Result<GenConfigFormDto>> AiFillConfig(
         [FromRoute] string tableName,
         [FromBody] AiFillConfigForm? form,
@@ -81,7 +86,7 @@ public sealed class CodegenController : ControllerBase
     [HttpGet("{tableName}/preview")]
     public async Task<Result<IReadOnlyCollection<CodegenPreviewDto>>> Preview(
         [FromRoute] string tableName,
-        [FromQuery] string pageType = "classic",
+        [FromQuery] string pageType = "crud",
         [FromQuery] string type = "ts",
         CancellationToken cancellationToken = default)
     {
@@ -93,9 +98,10 @@ public sealed class CodegenController : ControllerBase
     /// 下载代码
     /// </summary>
     [HttpGet("{tableName}/download")]
+    [Log(LogModule.CODEGEN, ActionType.DOWNLOAD)]
     public async Task<IActionResult> Download(
         [FromRoute] string tableName,
-        [FromQuery] string pageType = "classic",
+        [FromQuery] string pageType = "crud",
         [FromQuery] string type = "ts",
         CancellationToken cancellationToken = default)
     {

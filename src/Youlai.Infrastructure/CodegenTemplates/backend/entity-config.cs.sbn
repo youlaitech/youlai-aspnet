@@ -1,0 +1,25 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Youlai.Domain.Entities;
+
+namespace Youlai.Infrastructure.Persistence.Configurations;
+
+/// <summary>
+/// {{ businessName }}实体映射
+/// </summary>
+internal sealed class {{ entityName }}Configuration : IEntityTypeConfiguration<{{ entityName }}>
+{
+    public void Configure(EntityTypeBuilder<{{ entityName }}> builder)
+    {
+        builder.ToTable("{{ tableName }}");
+{{ if hasId }}
+        builder.HasKey(e => e.{{ idProperty }});
+{{ end }}
+{{ for field in fieldConfigs }}
+        builder.Property(e => e.{{ field.PropertyName }}).HasColumnName("{{ field.ColumnName }}");
+{{ end }}
+{{ if hasIsDeleted }}
+        builder.HasQueryFilter(e => {{ if isDeletedType == "bool" }}!e.IsDeleted{{ else }}e.IsDeleted == 0{{ end }});
+{{ end }}
+    }
+}

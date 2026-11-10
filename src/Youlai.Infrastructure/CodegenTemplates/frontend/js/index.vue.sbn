@@ -261,10 +261,10 @@
   import { ElMessage, ElMessageBox } from "element-plus";
   import { FullScreen, Refresh } from "@element-plus/icons-vue";
   import { usePageTable, useTableSelection } from "@/composables";
-  import ${entityName}API from "@/api/${moduleName}/${entityKebab}";
+  import {{ entityName }}API from "@/api/{{ moduleName }}/{{ entityKebab }}";
 
   defineOptions({
-    name: "${entityName}",
+    name: "{{ entityName }}",
     inheritAttrs: false,
   });
 
@@ -280,7 +280,7 @@
       pageNum: 1,
       pageSize: 10,
     },
-    request: ${entityName}API.getPage,
+    request: {{ entityName }}API.getPage,
     onBeforeReset: () => queryFormRef.value?.resetFields(),
   });
 
@@ -318,13 +318,13 @@
   }
 
   async function handleCreateClick() {
-    dialog.title = "新增${businessName}";
+    dialog.title = "新增{{ businessName }}";
     openDialog();
   }
 
   async function handleEditClick(id) {
-    dialog.title = "修改${businessName}";
-    const data = await ${entityName}API.getFormData(id);
+    dialog.title = "修改{{ businessName }}";
+    const data = await {{ entityName }}API.getFormData(id);
     Object.assign(formData, data);
     openDialog();
   }
@@ -340,10 +340,10 @@
     try {
       const id = formData.id;
       if (id) {
-        await ${entityName}API.update(id, formData);
+        await {{ entityName }}API.update(id, formData);
         ElMessage.success("修改成功");
       } else {
-        await ${entityName}API.create(formData);
+        await {{ entityName }}API.create(formData);
         ElMessage.success("新增成功");
       }
       closeDialog();
@@ -377,7 +377,7 @@
 
     loading.value = true;
     try {
-      await ${entityName}API.deleteByIds(ids);
+      await {{ entityName }}API.deleteByIds(ids);
       ElMessage.success("删除成功");
       handleResetQuery();
     } finally {

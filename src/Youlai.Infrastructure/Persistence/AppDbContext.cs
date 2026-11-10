@@ -395,6 +395,9 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
+
+        // 代码生成产出的实体映射放在 Persistence/Configurations，按程序集自动装配
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 
     /// <summary>
@@ -417,7 +420,7 @@ public sealed class AppDbContext : DbContext
     }
 
     /// <summary>
-    /// 保存时统一填充审计字段（创建/更新人、时间）；仅补未显式赋值的字段，避免覆盖业务代码设置
+    /// 保存时统一填充审计字段：新增只补未赋值的创建信息，修改强制刷新更新时间与操作人
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -427,7 +430,7 @@ public sealed class AppDbContext : DbContext
 
     private void StampAudit()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var userId = _currentUser?.UserId;
 
         foreach (var entry in ChangeTracker.Entries<IHasAudit>())
@@ -441,8 +444,8 @@ public sealed class AppDbContext : DbContext
                     entry.Entity.UpdateBy ??= userId;
                     break;
                 case EntityState.Modified:
-                    entry.Entity.UpdateTime ??= now;
-                    entry.Entity.UpdateBy ??= userId;
+                    entry.Entity.UpdateTime = now;
+                    entry.Entity.UpdateBy = userId ?? entry.Entity.UpdateBy;
                     break;
             }
         }

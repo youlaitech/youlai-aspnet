@@ -74,6 +74,10 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(AiOptions.SectionName))
             .ValidateOnStart();
 
+        services.AddOptions<CodegenOptions>()
+            .Bind(configuration.GetSection(CodegenOptions.SectionName))
+            .ValidateOnStart();
+
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<FileStorageOptions>>().Value);
 
         // MySQL 服务器版本：启动时探测一次，避免每次请求重复连接探测

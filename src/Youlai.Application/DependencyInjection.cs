@@ -57,6 +57,30 @@ public static class DependencyInjection
         services.AddSingleton<IPromptLoader, PromptLoader>();
         services.AddScoped<IAiChatService, AiChatService>();
 
+        RegisterGeneratedServices(services);
+
         return services;
+    }
+
+    /// <summary>
+    /// 按约定注册代码生成的服务：XxxService 实现 IXxxService，已显式注册的跳过
+    /// </summary>
+    private static void RegisterGeneratedServices(IServiceCollection services)
+    {
+        foreach (var implementation in typeof(DependencyInjection).Assembly.GetTypes())
+        {
+            if (!implementation.IsClass || implementation.IsAbstract || implementation.IsNested)
+            {
+                continue;
+            }
+
+            var contract = implementation.GetInterface("I" + implementation.Name);
+            if (contract is null || services.Any(descriptor => descriptor.ServiceType == contract))
+            {
+                continue;
+            }
+
+            services.AddScoped(contract, implementation);
+        }
     }
 }
