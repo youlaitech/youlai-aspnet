@@ -94,6 +94,19 @@ internal sealed class JwtTokenManager : ITokenManager
     }
 
     /// <summary>
+    /// 校验刷新令牌并取出用户 ID，供调用方回查最新角色与权限
+    /// </summary>
+    public long GetUserIdFromRefreshToken(string refreshToken)
+    {
+        if (!ValidateToken(refreshToken, validateRefreshToken: true, out var payload))
+        {
+            throw new BusinessException(ResultCode.RefreshTokenInvalid);
+        }
+
+        return TryGetInt64(payload, JwtClaimConstants.UserId);
+    }
+
+    /// <summary>
     /// 作废当前令牌：将 JTI 写入 Redis 黑名单，TTL 设为令牌剩余有效期，过期自动清理
     /// </summary>
     public async Task InvalidateTokenAsync(string? authorizationHeader, CancellationToken cancellationToken = default)

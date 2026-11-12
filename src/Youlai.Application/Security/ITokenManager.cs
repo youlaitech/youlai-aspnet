@@ -14,6 +14,9 @@ public interface ITokenManager
     /// <summary>用刷新令牌换取新的访问令牌，刷新令牌本身复用</summary>
     AuthenticationTokenDto RefreshToken(string refreshToken);
 
+    /// <summary>校验刷新令牌并取出用户 ID，供调用方回查最新角色与权限</summary>
+    long GetUserIdFromRefreshToken(string refreshToken);
+
     /// <summary>使当前请求携带的令牌失效（登出写入黑名单）</summary>
     Task InvalidateTokenAsync(string? authorizationHeader, CancellationToken cancellationToken = default);
 

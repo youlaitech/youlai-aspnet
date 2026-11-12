@@ -122,6 +122,7 @@ public sealed class UsersController : ControllerBase
     /// 下载导入模板
     /// </summary>
     [HttpGet("template")]
+    [HasPerm("sys:user:import")]
     public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
     {
         var bytes = await _userService.DownloadUserImportTemplateAsync(cancellationToken);
@@ -257,6 +258,7 @@ public sealed class UsersController : ControllerBase
     /// 用户下拉选项
     /// </summary>
     [HttpGet("options")]
+    [HasPerm("sys:user:list")]
     public async Task<Result<IReadOnlyCollection<Option<long>>>> GetOptions(CancellationToken cancellationToken)
     {
         var list = await _userService.ListUserOptionsAsync(cancellationToken);

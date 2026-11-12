@@ -48,8 +48,8 @@ internal sealed class RealtimeTicketService : IRealtimeTicketService
         {
             AccessToken = accessToken,
             UserId = userId,
-            ClientInstanceId = request.ClientInstanceId,
-            Platform = request.Platform,
+            ClientInstanceId = string.IsNullOrWhiteSpace(request.ClientInstanceId) ? Guid.NewGuid().ToString("N") : request.ClientInstanceId,
+            Platform = string.IsNullOrWhiteSpace(request.Platform) ? "web" : request.Platform,
             Topics = topics,
             ExpiresAtMillis = DateTimeOffset.UtcNow.Add(TicketTtl).ToUnixTimeMilliseconds(),
         };

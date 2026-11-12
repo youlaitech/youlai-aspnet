@@ -57,13 +57,13 @@ public sealed class ExceptionHandlingMiddleware
         {
             var innerMsg = ex.InnerException?.Message ?? "N/A";
             _logger.LogError(ex, "Database execution error | Inner: {InnerMessage}", innerMsg);
-            await WriteErrorAsync(context, ResultCode.DatabaseExecutionError, $"DB Error: {innerMsg}");
+            await WriteErrorAsync(context, ResultCode.DatabaseExecutionError, null);
         }
         catch (Exception ex)
         {
             var innerMsg = ex.InnerException?.Message ?? "N/A";
             _logger.LogError(ex, "Unhandled exception | Type: {Type} | Inner: {InnerMessage}", ex.GetType().Name, innerMsg);
-            await WriteErrorAsync(context, ResultCode.SystemError, $"{ex.GetType().Name}: {ex.Message}");
+            await WriteErrorAsync(context, ResultCode.SystemError, null);
         }
     }
 

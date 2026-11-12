@@ -132,12 +132,12 @@ internal sealed class AuthService : IAuthService
     }
 
     /// <summary>
-    /// 刷新令牌
+    /// 刷新令牌：校验后按用户 ID 回查最新角色与数据权限再签发
     /// </summary>
     public Task<AuthenticationTokenDto> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
-        var token = _tokenManager.RefreshToken(refreshToken);
-        return Task.FromResult(token);
+        var userId = _tokenManager.GetUserIdFromRefreshToken(refreshToken);
+        return GenerateTokenAsync(userId, cancellationToken);
     }
 
     /// <summary>

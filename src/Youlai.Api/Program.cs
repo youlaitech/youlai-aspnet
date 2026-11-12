@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Youlai.Api.Converters;
@@ -74,12 +75,44 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
 
+// 跨域来源白名单（Cors:AllowedOrigins），未配置时仅放行本地开发前端
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (allowedOrigins.Length == 0)
+{
+    allowedOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"];
+}
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
+});
+
 builder.Services.AddScoped<LogActionFilter>();
 
 var app = builder.Build();
 
 // 配置 HTTP 请求管道
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// 先处理跨域预检，避免 OPTIONS 被后续限流与认证拦截
+app.UseCors();
+
+// 本地存储目录以静态文件方式对外提供访问
+var localStoragePath = app.Configuration["FileStorage:Local:StoragePath"] ?? "uploads";
+var localStorageRoot = Path.IsPathRooted(localStoragePath)
+    ? localStoragePath
+    : Path.Combine(app.Environment.ContentRootPath, localStoragePath);
+if (Directory.Exists(localStorageRoot))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(Path.GetFullPath(localStorageRoot)),
+    });
+}
+
 app.UseMiddleware<RateLimitMiddleware>();
 
 app.UseStatusCodePages(async statusContext =>

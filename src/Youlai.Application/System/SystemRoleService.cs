@@ -179,11 +179,15 @@ internal sealed class SystemRoleService : ISystemRoleService
                 IsDeleted = false,
             };
 
+            await using var createTransaction = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
             _roleRepo.Add(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             await SaveRoleDeptsAsync(entity.Id, entity.DataScope, formData.DeptIds, cancellationToken)
                 .ConfigureAwait(false);
+
+            await createTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return true;
         }
 
@@ -199,11 +203,15 @@ internal sealed class SystemRoleService : ISystemRoleService
         oldRole.UpdateBy = _currentUser.UserId;
         oldRole.UpdateTime = DateTime.Now;
 
+        await using var updateTransaction = await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
         _roleRepo.Update(oldRole);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         await SaveRoleDeptsAsync(oldRole.Id, oldRole.DataScope, formData.DeptIds, cancellationToken)
             .ConfigureAwait(false);
+
+        await updateTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
         var changedCode = !string.Equals(oldCode, code, StringComparison.Ordinal);
         var changedStatus = oldStatus != oldRole.Status;

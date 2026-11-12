@@ -38,6 +38,7 @@ public sealed class LogsController : ControllerBase
     /// 访问趋势
     /// </summary>
     [HttpGet("analytics/trend")]
+    [HasPerm("sys:log:list")]
     public async Task<Result<VisitTrendVo>> GetVisitTrend([FromQuery] VisitTrendQuery queryParams, CancellationToken cancellationToken)
     {
         var data = await _logService.GetVisitTrendAsync(queryParams, cancellationToken);
@@ -48,6 +49,7 @@ public sealed class LogsController : ControllerBase
     /// 访问统计概览
     /// </summary>
     [HttpGet("analytics/overview")]
+    [HasPerm("sys:log:list")]
     public async Task<Result<VisitStatsVo>> GetVisitOverview(CancellationToken cancellationToken)
     {
         var data = await _logService.GetVisitStatsAsync(cancellationToken);

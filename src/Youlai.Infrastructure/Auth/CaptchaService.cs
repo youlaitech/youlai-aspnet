@@ -63,21 +63,23 @@ internal sealed class CaptchaService : ICaptchaService
 
         var db = _redis.GetDatabase();
         var key = string.Format(RedisKeyConstants.Captcha.ImageCode, captchaId);
-        var cached = await db.StringGetAsync(key).ConfigureAwait(false);
+        // GET+DEL 在 Lua 内原子执行：并发请求只有一个能取到值，且无论校验是否通过都作废
+        var cached = await db.ScriptEvaluateAsync(GetDeleteScript, new RedisKey[] { key }).ConfigureAwait(false);
 
-        if (!cached.HasValue)
+        if (cached.IsNull)
         {
             throw new BusinessException(ResultCode.UserVerificationCodeExpired);
         }
 
-        var expected = cached.ToString();
-        if (!string.Equals(expected, captchaCode.Trim(), StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(cached.ToString(), captchaCode.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessException(ResultCode.UserVerificationCodeError);
         }
-
-        await db.KeyDeleteAsync(key).ConfigureAwait(false);
     }
+
+    /// <summary>原子读取并删除验证码</summary>
+    private static readonly string GetDeleteScript =
+        "local v = redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); end; return v";
 
     /// <summary>从易辨识字符集中随机取 length 位验证码</summary>
     private static string GenerateCode(int length)

@@ -35,7 +35,7 @@
 - 🛡️ **Fine-grained permissions** — RBAC model governing menus, buttons, and APIs in one place
 - ⚡ **Code generator** — one-click generation of full-stack CRUD code
 - 📦 **Complete modules** — users, roles, menus, departments, dictionaries, files, message center, operation logs
-- 🔌 **Real-time communication** — SSE push: online user count, dictionary sync, notification broadcast
+- 🔌 **Real-time communication** — WebSocket push: online user count, dictionary sync, notification broadcast
 
 ## System Preview
 
