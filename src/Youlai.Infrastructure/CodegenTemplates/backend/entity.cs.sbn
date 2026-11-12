@@ -9,7 +9,7 @@ public sealed class {{ entityName }}
     /// <summary>
     /// {{ field.FieldComment }}
     /// </summary>
-    public {{ if (field.FieldName == "id" || field.ColumnName == "id") }}{{ field.CsType }}{{ else }}{{ field.CsTypeNullable }}{{ end }} {{ field.PropertyName }} { get; set; }
+    public {{ if field.PropertyName == idProperty }}{{ field.CsType }}{{ else }}{{ field.CsTypeNullable }}{{ end }} {{ field.PropertyName }} { get; set; }
 
 {{ end }}
 }

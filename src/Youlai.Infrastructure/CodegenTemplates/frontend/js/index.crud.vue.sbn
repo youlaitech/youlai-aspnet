@@ -55,7 +55,11 @@ const searchConfig = {
         endPlaceholder: "结束日期",
       },
 {{ else }}
+{{ if field.FormType == "DATE_TIME" }}
+      attrs: { type: "datetime", valueFormat: "YYYY-MM-DD HH:mm:ss", clearable: true },
+{{ else }}
       attrs: { type: "date", valueFormat: "YYYY-MM-DD", clearable: true },
+{{ end }}
 {{ end }}
 {{ else if field.TsType == "number" }}
       type: "input-number",

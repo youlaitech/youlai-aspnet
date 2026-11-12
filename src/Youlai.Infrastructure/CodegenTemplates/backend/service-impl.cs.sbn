@@ -61,7 +61,11 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
             var endOk = DateTime.TryParse(query.{{ field.PropertyName }}[1], out var end);
             if (startOk && endOk)
             {
+            {{~ if field.FormType == "DATE_TIME" ~}}
+                q = q.Where(x => x.{{ field.PropertyName }} >= start && x.{{ field.PropertyName }} < end.Date.AddDays(1));
+            {{~ else ~}}
                 q = q.Where(x => x.{{ field.PropertyName }} >= start && x.{{ field.PropertyName }} <= end);
+            {{~ end ~}}
             }
         }
 {{~ else ~}}
@@ -70,7 +74,12 @@ internal sealed class {{ entityName }}Service : I{{ entityName }}Service
             var value = query.{{ field.PropertyName }}!.Trim();
             if (DateTime.TryParse(value, out var dateValue))
             {
+            {{~ if field.FormType == "DATE_TIME" ~}}
+                var dateEnd = dateValue.Date.AddDays(1);
+                q = q.Where(x => x.{{ field.PropertyName }} >= dateValue.Date && x.{{ field.PropertyName }} < dateEnd);
+            {{~ else ~}}
                 q = q.Where(x => x.{{ field.PropertyName }} == dateValue);
+            {{~ end ~}}
             }
         }
 {{~ end ~}}

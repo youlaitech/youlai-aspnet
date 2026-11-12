@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Youlai.Application.Ai;
 using Youlai.Application.Codegen.Models;
@@ -68,8 +69,9 @@ internal sealed class CodegenService : ICodegenService
             ["system"] = "sys",
         };
 
-    private static readonly IReadOnlyDictionary<string, TemplateConfig> TemplateConfigs =
-        new Dictionary<string, TemplateConfig>(StringComparer.OrdinalIgnoreCase)
+    /// <summary>模板集合按声明顺序输出，保证预览与下载的产物顺序稳定</summary>
+    private static readonly OrderedDictionary<string, TemplateConfig> TemplateConfigs =
+        new(StringComparer.OrdinalIgnoreCase)
         {
             ["API"] = new TemplateConfig("frontend/ts/api.ts.sbn", "api", ".ts"),
             ["API_TYPES"] = new TemplateConfig("frontend/ts/api-types.ts.sbn", "types", ".ts"),
@@ -422,6 +424,40 @@ LIMIT @limit OFFSET @offset";
         }
 
         var fieldConfigs = formData.FieldConfigs.ToList();
+
+        // 输出名进入类型名与文件路径，必须是合法标识符；列名需与表结构对账
+        if (!Regex.IsMatch(entityName, "^[A-Z][A-Za-z0-9]*$"))
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "实体名须为 PascalCase 字母数字组合");
+        }
+        if (!Regex.IsMatch(moduleName, "^[a-z][a-z0-9]*$"))
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "模块名须为全小写字母数字");
+        }
+
+        var tableColumns = await GetDefaultFieldConfigsAsync(tableName, cancellationToken).ConfigureAwait(false);
+        var columnSet = tableColumns
+            .Select(c => c.ColumnName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var field in fieldConfigs)
+        {
+            if (string.IsNullOrWhiteSpace(field.ColumnName))
+            {
+                continue;
+            }
+            if (!columnSet.Contains(field.ColumnName!))
+            {
+                throw new BusinessException(ResultCode.InvalidUserInput, "列 " + field.ColumnName + " 不存在于表 " + tableName);
+            }
+
+            var fieldName = string.IsNullOrWhiteSpace(field.FieldName) ? ToCamelCase(field.ColumnName!) : field.FieldName!;
+            if (!Regex.IsMatch(fieldName, "^[A-Za-z][A-Za-z0-9]*$"))
+            {
+                throw new BusinessException(ResultCode.InvalidUserInput, "字段名 " + fieldName + " 须为驼峰字母数字组合");
+            }
+        }
 
         var connection = await _sqlExecutor.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -887,7 +923,7 @@ LIMIT 1";
                 EntityName = reader["entity_name"]?.ToString() ?? string.Empty,
                 Author = reader["author"]?.ToString() ?? DefaultAuthor,
                 ParentMenuId = reader["parent_menu_id"] == DBNull.Value ? null : Convert.ToInt64(reader["parent_menu_id"]),
-                PageType = reader["page_type"]?.ToString() ?? "classic",
+                PageType = reader["page_type"]?.ToString() ?? "crud",
                 RemoveTablePrefix = reader["remove_table_prefix"]?.ToString()
             };
         }, cancellationToken).ConfigureAwait(false);
@@ -1024,6 +1060,23 @@ ORDER BY ORDINAL_POSITION ASC";
     }
 
     /// <summary>
+    /// 字段注释会写入生成的代码与前端字符串，转义引号、反斜杠与标签结束符
+    /// </summary>
+    private static string SanitizeComment(string? comment)
+    {
+        if (string.IsNullOrWhiteSpace(comment))
+        {
+            return string.Empty;
+        }
+
+        return comment
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("</", "<\\/")
+            .Trim();
+    }
+
+    /// <summary>
     /// 把字段配置转成模板变量，补齐 C#/TS 类型、可空类型、属性名等派生值
     /// </summary>
     private TemplateFieldConfig BuildTemplateFieldConfig(FieldConfigDto field)
@@ -1038,7 +1091,7 @@ ORDER BY ORDINAL_POSITION ASC";
             ColumnName = field.ColumnName ?? string.Empty,
             ColumnType = field.ColumnType ?? string.Empty,
             FieldName = field.FieldName ?? string.Empty,
-            FieldComment = field.FieldComment ?? string.Empty,
+            FieldComment = SanitizeComment(field.FieldComment),
             IsShowInList = field.IsShowInList ?? 0,
             IsShowInForm = field.IsShowInForm ?? 0,
             IsShowInQuery = field.IsShowInQuery ?? 0,
