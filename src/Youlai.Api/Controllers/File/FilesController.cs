@@ -34,7 +34,7 @@ public sealed class FilesController : ControllerBase
     /// <param name="cancellationToken">取消令牌</param>
     [HttpPost]
     [Consumes("multipart/form-data")]
-    public async Task<Result<FileInfoDto>> UploadFile([FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<Result<FileInfoDto>> UploadFile(IFormFile file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
         {
