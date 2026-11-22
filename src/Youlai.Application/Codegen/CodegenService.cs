@@ -1098,6 +1098,8 @@ ORDER BY ORDINAL_POSITION ASC";
             IsRequired = field.IsRequired ?? 0,
             FormType = GetFormTypeName(field.FormType ?? 1),
             QueryType = GetQueryTypeName(field.QueryType ?? 1),
+            IsPassword = (field.FieldName ?? string.Empty).Contains("password", StringComparison.OrdinalIgnoreCase)
+                || (field.FieldName ?? string.Empty).Contains("pwd", StringComparison.OrdinalIgnoreCase),
             MaxLength = field.MaxLength,
             FieldSort = field.FieldSort,
             DictType = field.DictType ?? string.Empty,
@@ -1625,6 +1627,8 @@ ORDER BY ORDINAL_POSITION ASC";
         public string FormType { get; init; } = string.Empty;
         /// <summary>查询控件类型</summary>
         public string QueryType { get; init; } = string.Empty;
+        /// <summary>是否密码字段</summary>
+        public bool IsPassword { get; init; }
         /// <summary>字段最大长度，可选</summary>
         public int? MaxLength { get; init; }
         /// <summary>字段排序</summary>

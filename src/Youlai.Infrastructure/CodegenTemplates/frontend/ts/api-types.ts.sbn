@@ -14,11 +14,19 @@ export interface {{ entityName }}QueryParams extends PageQuery {
     {{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
       {{ if field.QueryType == "BETWEEN" }}
   {{ field.FieldName }}?: [string, string];
+      {{ else if field.QueryType == "IN" }}
+  {{ field.FieldName }}?: string[];
       {{ else }}
   {{ field.FieldName }}?: {{ field.TsType }};
       {{ end }}
     {{ else }}
+      {{ if field.QueryType == "IN" }}
+  {{ field.FieldName }}?: string[];
+      {{ else if field.QueryType == "BETWEEN" }}
+  {{ field.FieldName }}: [{{ field.TsType }} | null, {{ field.TsType }} | null];
+      {{ else }}
   {{ field.FieldName }}?: {{ field.TsType }};
+      {{ end }}
     {{ end }}
   {{ end }}
 {{ end }}
@@ -28,7 +36,7 @@ export interface {{ entityName }}QueryParams extends PageQuery {
 export interface {{ entityName }}Form {
   id?: string;
 {{ for field in fieldConfigs }}
-  {{ if field.IsShowInForm == 1 }}
+  {{ if field.IsShowInForm == 1 && field.FieldName != "id" }}
     {{ if field.FieldComment != "" }}
   /** {{ field.FieldComment }} */
     {{ end }}
@@ -42,8 +50,10 @@ export type {{ entityName }}Detail = {{ entityName }}Item & {{ entityName }}Form
 
 /** {{ businessName }}列表项 */
 export interface {{ entityName }}Item {
+  /** 稳定主键，不受列表显示配置影响 */
+  id: string;
 {{ for field in fieldConfigs }}
-  {{ if field.IsShowInList == 1 }}
+  {{ if field.IsShowInList == 1 && field.FieldName != "id" }}
     {{ if field.FieldComment != "" }}
   /** {{ field.FieldComment }} */
     {{ end }}

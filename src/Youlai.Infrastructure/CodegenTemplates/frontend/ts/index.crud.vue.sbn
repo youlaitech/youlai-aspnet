@@ -6,10 +6,32 @@
     :load-form-data="loadFormData"
   >
 {{ for field in fieldConfigs }}
-{{ if field.IsShowInQuery == 1 && field.DictType != "" }}
+{{ if field.IsShowInQuery == 1 }}
+{{ if field.QueryType == "IN" }}
+{{ if field.DictType != "" }}
+    <template #search-{{ field.FieldName }}="{ formData, prop, attrs }">
+      <DictSelect v-model="formData[prop]" type="checkbox" code="{{ field.DictType }}" v-bind="attrs" />
+    </template>
+{{ end }}
+{{ else if field.QueryType == "BETWEEN" && field.FormType != "DATE" && field.FormType != "DATE_TIME" }}
+    <template #search-{{ field.FieldName }}="{ formData, prop, attrs }">
+      <div class="flex w-full items-center gap-2" v-bind="attrs">
+{{ if field.TsType == "number" }}
+        <el-input-number v-model="formData[prop][0]" placeholder="最小值" class="flex-1" />
+        <span class="text-[var(--el-text-color-placeholder)]">~</span>
+        <el-input-number v-model="formData[prop][1]" placeholder="最大值" class="flex-1" />
+{{ else }}
+        <el-input v-model="formData[prop][0]" placeholder="开始值" clearable class="flex-1" />
+        <span class="text-[var(--el-text-color-placeholder)]">~</span>
+        <el-input v-model="formData[prop][1]" placeholder="结束值" clearable class="flex-1" />
+{{ end }}
+      </div>
+    </template>
+{{ else if field.DictType != "" }}
     <template #search-{{ field.FieldName }}="{ formData, prop, attrs }">
       <DictSelect v-model="formData[prop]" code="{{ field.DictType }}" v-bind="attrs" />
     </template>
+{{ end }}
 {{ end }}
 {{ end }}
 {{ for field in fieldConfigs }}
@@ -52,25 +74,45 @@ const searchConfig: CrudSearchConfig = {
     {
       prop: "{{ field.FieldName }}",
       label: "{{ field.FieldComment }}",
+{{ if field.QueryType == "IN" }}
 {{ if field.DictType != "" }}
       type: "custom",
+      initialValue: [],
       attrs: { clearable: true },
-{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+{{ else }}
+      type: "input-tag",
+      attrs: { clearable: true },
+{{ end }}
+{{ else if field.QueryType == "BETWEEN" }}
+{{ if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
       type: "date-picker",
-{{ if field.QueryType == "BETWEEN" }}
       initialValue: [],
       attrs: {
+{{ if field.FormType == "DATE_TIME" }}
+        type: "datetimerange",
+        valueFormat: "YYYY-MM-DD HH:mm:ss",
+        startPlaceholder: "开始时间",
+        endPlaceholder: "结束时间",
+{{ else }}
         type: "daterange",
         valueFormat: "YYYY-MM-DD",
         startPlaceholder: "开始日期",
         endPlaceholder: "结束日期",
+{{ end }}
       },
 {{ else }}
+      type: "custom",
+      initialValue: [null, null],
+{{ end }}
+{{ else if field.DictType != "" }}
+      type: "custom",
+      attrs: { clearable: true },
+{{ else if field.FormType == "DATE" || field.FormType == "DATE_TIME" }}
+      type: "date-picker",
 {{ if field.FormType == "DATE_TIME" }}
       attrs: { type: "datetime", valueFormat: "YYYY-MM-DD HH:mm:ss", clearable: true },
 {{ else }}
       attrs: { type: "date", valueFormat: "YYYY-MM-DD", clearable: true },
-{{ end }}
 {{ end }}
 {{ else if field.TsType == "number" }}
       type: "input-number",
@@ -168,6 +210,8 @@ const formConfig: CrudFormConfig<{{ entityName }}Form> = {
       type: "input",
 {{ if field.FormType == "TEXT_AREA" }}
       attrs: { type: "textarea", rows: 3 },
+{{ else if field.IsPassword }}
+      attrs: { type: "password", showPassword: true },
 {{ end }}
 {{ end }}
     },
