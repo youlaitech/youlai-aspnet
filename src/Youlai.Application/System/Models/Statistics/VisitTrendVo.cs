@@ -3,25 +3,31 @@ using System.Text.Json.Serialization;
 namespace Youlai.Application.System.Models.Statistics;
 
 /// <summary>
+/// 单日访问量
+/// </summary>
+public sealed class VisitTrendPointVo
+{
+    [JsonPropertyName("date")]
+    public string Date { get; init; } = string.Empty;
+
+    [JsonPropertyName("pv")]
+    public int Pv { get; init; }
+
+    [JsonPropertyName("uv")]
+    public int Uv { get; init; }
+}
+
+/// <summary>
 /// 访问趋势数据
 /// </summary>
 public sealed class VisitTrendVo
 {
-    /// <summary>
-    /// 日期列表
-    /// </summary>
-    [JsonPropertyName("dates")]
-    public IReadOnlyCollection<string> Dates { get; init; } = Array.Empty<string>();
+    [JsonPropertyName("startDate")]
+    public string StartDate { get; init; } = string.Empty;
 
-    /// <summary>
-    /// PV 列表
-    /// </summary>
-    [JsonPropertyName("pvList")]
-    public IReadOnlyCollection<int> PvList { get; init; } = Array.Empty<int>();
+    [JsonPropertyName("endDate")]
+    public string EndDate { get; init; } = string.Empty;
 
-    /// <summary>
-    /// 访客数(UV)列表
-    /// </summary>
-    [JsonPropertyName("uvList")]
-    public IReadOnlyCollection<int> UvList { get; init; } = Array.Empty<int>();
+    [JsonPropertyName("points")]
+    public IReadOnlyCollection<VisitTrendPointVo> Points { get; init; } = Array.Empty<VisitTrendPointVo>();
 }

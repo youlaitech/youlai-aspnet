@@ -3,13 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Youlai.Api.Security;
 using Youlai.Application.Results;
 using Youlai.Application.System.Models.Log;
-using Youlai.Application.System.Models.Statistics;
 using Youlai.Application.System;
 
 namespace Youlai.Api.Controllers.System;
 
 /// <summary>
-/// 系统日志接口（查询、清理）
+/// 系统日志接口（查询）
 /// </summary>
 [ApiController]
 [Route("api/v1/logs")]
@@ -17,9 +16,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("09.日志接口")]
 public sealed class LogsController : ControllerBase
 {
-    private readonly ISystemLogService _logService;
+    private readonly ILogService _logService;
 
-    public LogsController(ISystemLogService logService)
+    public LogsController(ILogService logService)
     {
         _logService = logService;
     }
@@ -32,27 +31,5 @@ public sealed class LogsController : ControllerBase
     public async Task<PageResult<LogPageVo>> GetLogPage([FromQuery] LogQuery queryParams, CancellationToken cancellationToken)
     {
         return await _logService.GetLogPageAsync(queryParams, cancellationToken);
-    }
-
-    /// <summary>
-    /// 访问趋势
-    /// </summary>
-    [HttpGet("analytics/trend")]
-    [HasPerm("sys:log:list")]
-    public async Task<Result<VisitTrendVo>> GetVisitTrend([FromQuery] VisitTrendQuery queryParams, CancellationToken cancellationToken)
-    {
-        var data = await _logService.GetVisitTrendAsync(queryParams, cancellationToken);
-        return Result.Success(data);
-    }
-
-    /// <summary>
-    /// 访问统计概览
-    /// </summary>
-    [HttpGet("analytics/overview")]
-    [HasPerm("sys:log:list")]
-    public async Task<Result<VisitStatsVo>> GetVisitOverview(CancellationToken cancellationToken)
-    {
-        var data = await _logService.GetVisitStatsAsync(cancellationToken);
-        return Result.Success(data);
     }
 }
