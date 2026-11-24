@@ -15,7 +15,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 公告服务（分页、CRUD、发布/撤回）
 /// </summary>
-internal sealed class SystemNoticeService : ISystemNoticeService
+internal sealed class NoticeService : INoticeService
 {
     private const int PublishStatusDraft = 0;
     private const int PublishStatusPublished = 1;
@@ -30,16 +30,16 @@ internal sealed class SystemNoticeService : ISystemNoticeService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IRealtimeService _realtimeService;
-    private readonly ILogger<SystemNoticeService> _logger;
+    private readonly ILogger<NoticeService> _logger;
 
-    public SystemNoticeService(
+    public NoticeService(
         IReadOnlyDbContext readDb,
         IRepository<SysNotice> noticeRepo,
         IRepository<SysUserNotice> userNoticeRepo,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
         IRealtimeService realtimeService,
-        ILogger<SystemNoticeService> logger)
+        ILogger<NoticeService> logger)
     {
         _readDb = readDb;
         _noticeRepo = noticeRepo;

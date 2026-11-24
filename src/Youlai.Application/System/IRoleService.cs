@@ -7,7 +7,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 角色管理
 /// </summary>
-public interface ISystemRoleService
+public interface IRoleService
 {
     /// <summary>
     /// 分页查询角色

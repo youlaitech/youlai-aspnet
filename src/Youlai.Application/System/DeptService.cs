@@ -12,7 +12,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 部门服务（树查询、下拉选项、CRUD）
 /// </summary>
-internal sealed class SystemDeptService : ISystemDeptService
+internal sealed class DeptService : IDeptService
 {
     private const long RootNodeId = 0;
 
@@ -27,7 +27,7 @@ internal sealed class SystemDeptService : ISystemDeptService
     private readonly ICurrentUser _currentUser;
     private readonly IDataPermissionService _dataPermissionService;
 
-    public SystemDeptService(
+    public DeptService(
         IReadOnlyDbContext readDb,
         IRepository<SysDept> deptRepo,
         IUnitOfWork unitOfWork,

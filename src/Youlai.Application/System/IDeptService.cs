@@ -6,7 +6,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 部门管理
 /// </summary>
-public interface ISystemDeptService
+public interface IDeptService
 {
     /// <summary>
     /// 部门列表

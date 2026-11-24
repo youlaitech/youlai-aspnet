@@ -6,7 +6,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 参数配置
 /// </summary>
-public interface ISystemConfigService
+public interface IConfigService
 {
     /// <summary>
     /// 分页查询配置

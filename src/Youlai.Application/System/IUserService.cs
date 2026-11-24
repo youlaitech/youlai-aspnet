@@ -7,7 +7,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 用户管理
 /// </summary>
-public interface ISystemUserService
+public interface IUserService
 {
     /// <summary>
     /// 获取当前登录用户信息

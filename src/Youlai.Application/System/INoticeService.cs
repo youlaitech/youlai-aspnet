@@ -6,7 +6,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 通知公告
 /// </summary>
-public interface ISystemNoticeService
+public interface INoticeService
 {
     /// <summary>
     /// 分页查询公告

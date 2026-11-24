@@ -7,7 +7,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 字典管理
 /// </summary>
-public interface ISystemDictService
+public interface IDictService
 {
     /// <summary>
     /// 分页查询字典

@@ -19,9 +19,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("05.部门接口")]
 public sealed class DeptsController : ControllerBase
 {
-    private readonly ISystemDeptService _deptService;
+    private readonly IDeptService _deptService;
 
-    public DeptsController(ISystemDeptService deptService)
+    public DeptsController(IDeptService deptService)
     {
         _deptService = deptService;
     }

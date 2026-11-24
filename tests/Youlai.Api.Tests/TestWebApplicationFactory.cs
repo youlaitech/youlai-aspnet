@@ -47,17 +47,17 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
                 })
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
 
-            services.AddSingleton<ISystemUserService, FakeSystemUserService>();
-            services.AddSingleton<ISystemMenuService, FakeSystemMenuService>();
-            services.AddSingleton<ISystemDeptService, FakeSystemDeptService>();
-            services.AddSingleton<ISystemRoleService, FakeSystemRoleService>();
-            services.AddSingleton<ISystemDictService, FakeSystemDictService>();
-            services.AddSingleton<ISystemNoticeService, FakeSystemNoticeService>();
+            services.AddSingleton<IUserService, FakeUserService>();
+            services.AddSingleton<IMenuService, FakeMenuService>();
+            services.AddSingleton<IDeptService, FakeDeptService>();
+            services.AddSingleton<IRoleService, FakeRoleService>();
+            services.AddSingleton<IDictService, FakeDictService>();
+            services.AddSingleton<INoticeService, FakeNoticeService>();
             services.AddSingleton<IRolePermissionService, FakeRolePermissionService>();
         });
     }
 
-    private sealed class FakeSystemDeptService : ISystemDeptService
+    private sealed class FakeDeptService : IDeptService
     {
         public Task<IReadOnlyCollection<DeptVo>> GetDeptListAsync(DeptQuery query, CancellationToken cancellationToken = default)
         {
@@ -98,7 +98,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         }
     }
 
-    private sealed class FakeSystemUserService : ISystemUserService
+    private sealed class FakeUserService : IUserService
     {
         public Task<CurrentUserDto> GetCurrentUserAsync(CancellationToken cancellationToken = default)
         {
@@ -230,7 +230,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         }
     }
 
-    private sealed class FakeSystemMenuService : ISystemMenuService
+    private sealed class FakeMenuService : IMenuService
     {
         public Task<IReadOnlyCollection<RouteVo>> GetCurrentUserRoutesAsync(CancellationToken cancellationToken = default)
         {
@@ -287,7 +287,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         }
     }
 
-    private sealed class FakeSystemRoleService : ISystemRoleService
+    private sealed class FakeRoleService : IRoleService
     {
         public Task<PageResult<RolePageVo>> GetRolePageAsync(RoleQuery query, CancellationToken cancellationToken = default)
         {
@@ -354,7 +354,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         }
     }
 
-    private sealed class FakeSystemDictService : ISystemDictService
+    private sealed class FakeDictService : IDictService
     {
         public Task<PageResult<DictPageVo>> GetDictPageAsync(DictQuery query, CancellationToken cancellationToken = default)
         {
@@ -421,7 +421,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<UsersContr
         }
     }
 
-    private sealed class FakeSystemNoticeService : ISystemNoticeService
+    private sealed class FakeNoticeService : INoticeService
     {
         public Task<PageResult<NoticePageVo>> GetNoticePageAsync(NoticeQuery query, CancellationToken cancellationToken = default)
         {

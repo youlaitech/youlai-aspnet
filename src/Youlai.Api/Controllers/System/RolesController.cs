@@ -20,9 +20,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("03.角色接口")]
 public sealed class RolesController : ControllerBase
 {
-    private readonly ISystemRoleService _roleService;
+    private readonly IRoleService _roleService;
 
-    public RolesController(ISystemRoleService roleService)
+    public RolesController(IRoleService roleService)
     {
         _roleService = roleService;
     }

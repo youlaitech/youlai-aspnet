@@ -25,14 +25,14 @@ public static class DependencyInjection
         services.AddScoped<IWxMaAuthService, WxMaAuthService>();
 
         // 系统管理相关
-        services.AddScoped<ISystemUserService, SystemUserService>();
-        services.AddScoped<ISystemRoleService, SystemRoleService>();
-        services.AddScoped<ISystemMenuService, SystemMenuService>();
-        services.AddScoped<ISystemDeptService, SystemDeptService>();
-        services.AddScoped<ISystemDictService, SystemDictService>();
-        services.AddScoped<ISystemConfigService, SystemConfigService>();
-        services.AddScoped<ISystemLogService, SystemLogService>();
-        services.AddScoped<ISystemNoticeService, SystemNoticeService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IMenuService, MenuService>();
+        services.AddScoped<IDeptService, DeptService>();
+        services.AddScoped<IDictService, DictService>();
+        services.AddScoped<IConfigService, ConfigService>();
+        services.AddScoped<ILogService, LogService>();
+        services.AddScoped<INoticeService, NoticeService>();
 
         // 动态表单
         services.AddScoped<IFormDefinitionService, FormDefinitionService>();

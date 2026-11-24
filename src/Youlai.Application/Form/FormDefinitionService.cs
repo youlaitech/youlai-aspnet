@@ -41,7 +41,7 @@ internal sealed class FormDefinitionService : IFormDefinitionService
     private readonly IRepository<FormData> _formDataRepo;
     private readonly IRepository<FormSnapshot> _snapshotRepo;
     private readonly IRepository<SysRoleMenu> _roleMenuRepo;
-    private readonly ISystemMenuService _menuService;
+    private readonly IMenuService _menuService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IDistributedCache _cache;
@@ -55,7 +55,7 @@ internal sealed class FormDefinitionService : IFormDefinitionService
         IRepository<FormData> formDataRepo,
         IRepository<FormSnapshot> snapshotRepo,
         IRepository<SysRoleMenu> roleMenuRepo,
-        ISystemMenuService menuService,
+        IMenuService menuService,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
         IDistributedCache cache,

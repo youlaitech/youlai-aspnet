@@ -16,9 +16,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("08.通知公告")]
 public sealed class NoticesController : ControllerBase
 {
-    private readonly ISystemNoticeService _noticeService;
+    private readonly INoticeService _noticeService;
 
-    public NoticesController(ISystemNoticeService noticeService)
+    public NoticesController(INoticeService noticeService)
     {
         _noticeService = noticeService;
     }

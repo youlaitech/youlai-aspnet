@@ -90,7 +90,7 @@ internal sealed class CodegenService : ICodegenService
     private readonly ITemplateRenderer _templateRenderer;
     private readonly IPromptLoader _promptLoader;
     private readonly IAiChatService _aiChatService;
-    private readonly ISystemMenuService _menuService;
+    private readonly IMenuService _menuService;
     private readonly CodegenOptions _options;
     private readonly string _templateRoot;
 
@@ -99,7 +99,7 @@ internal sealed class CodegenService : ICodegenService
         ITemplateRenderer templateRenderer,
         IPromptLoader promptLoader,
         IAiChatService aiChatService,
-        ISystemMenuService menuService,
+        IMenuService menuService,
         IOptions<CodegenOptions> options)
     {
         _sqlExecutor = sqlExecutor;

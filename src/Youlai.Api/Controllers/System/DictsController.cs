@@ -19,9 +19,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("06.字典接口")]
 public sealed class DictsController : ControllerBase
 {
-    private readonly ISystemDictService _dictService;
+    private readonly IDictService _dictService;
 
-    public DictsController(ISystemDictService dictService)
+    public DictsController(IDictService dictService)
     {
         _dictService = dictService;
     }

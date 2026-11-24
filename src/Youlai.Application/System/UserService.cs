@@ -21,7 +21,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 用户服务
 /// </summary>
-internal sealed class SystemUserService : ISystemUserService
+internal sealed class UserService : IUserService
 {
     private static readonly TimeSpan VerifyCodeTtl = TimeSpan.FromMinutes(5);
 
@@ -36,9 +36,9 @@ internal sealed class SystemUserService : ISystemUserService
     private readonly IPasswordHasher<SysUser> _passwordHasher;
     private readonly IExcelManager _excelManager;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<SystemUserService> _logger;
+    private readonly ILogger<UserService> _logger;
 
-    public SystemUserService(
+    public UserService(
         IReadOnlyDbContext readDb,
         IRepository<SysUser> userRepo,
         IRepository<SysUserRole> userRoleRepo,
@@ -50,7 +50,7 @@ internal sealed class SystemUserService : ISystemUserService
         IPasswordHasher<SysUser> passwordHasher,
         IExcelManager excelManager,
         IUnitOfWork unitOfWork,
-        ILogger<SystemUserService> logger)
+        ILogger<UserService> logger)
     {
         _readDb = readDb;
         _userRepo = userRepo;

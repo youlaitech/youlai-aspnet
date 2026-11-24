@@ -17,7 +17,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 菜单服务（路由、树形列表、CRUD）
 /// </summary>
-internal sealed class SystemMenuService : ISystemMenuService
+internal sealed class MenuService : IMenuService
 {
     private const string LayoutComponent = "Layout";
 
@@ -42,7 +42,7 @@ internal sealed class SystemMenuService : ISystemMenuService
     /// <summary>系统提示词名称，对应 prompts 下的相对路径</summary>
     private const string MenuSystemPromptPath = "menu/system.md";
 
-    public SystemMenuService(
+    public MenuService(
         IReadOnlyDbContext readDb,
         IRepository<SysMenu> menuRepo,
         IRepository<SysRoleMenu> roleMenuRepo,

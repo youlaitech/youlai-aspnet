@@ -19,9 +19,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("04.菜单接口")]
 public sealed class MenusController : ControllerBase
 {
-    private readonly ISystemMenuService _menuService;
+    private readonly IMenuService _menuService;
 
-    public MenusController(ISystemMenuService menuService)
+    public MenusController(IMenuService menuService)
     {
         _menuService = menuService;
     }

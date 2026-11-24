@@ -18,9 +18,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("07.系统配置")]
 public sealed class ConfigsController : ControllerBase
 {
-    private readonly ISystemConfigService _configService;
+    private readonly IConfigService _configService;
 
-    public ConfigsController(ISystemConfigService configService)
+    public ConfigsController(IConfigService configService)
     {
         _configService = configService;
     }

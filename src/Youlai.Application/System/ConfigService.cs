@@ -14,7 +14,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 参数配置服务（查询与维护，支持 Redis 缓存刷新）
 /// </summary>
-internal sealed class SystemConfigService : ISystemConfigService
+internal sealed class ConfigService : IConfigService
 {
     private readonly IReadOnlyDbContext _readDb;
     private readonly IRepository<SysConfig> _configRepo;
@@ -22,7 +22,7 @@ internal sealed class SystemConfigService : ISystemConfigService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDistributedCache _cache;
 
-    public SystemConfigService(
+    public ConfigService(
         IReadOnlyDbContext readDb,
         IRepository<SysConfig> configRepo,
         ICurrentUser currentUser,

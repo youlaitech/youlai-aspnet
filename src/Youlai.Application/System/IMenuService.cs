@@ -6,7 +6,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 菜单与路由
 /// </summary>
-public interface ISystemMenuService
+public interface IMenuService
 {
     /// <summary>
     /// 当前用户路由

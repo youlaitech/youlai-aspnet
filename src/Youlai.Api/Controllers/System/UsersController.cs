@@ -20,9 +20,9 @@ namespace Youlai.Api.Controllers.System;
 [Tags("02.用户接口")]
 public sealed class UsersController : ControllerBase
 {
-    private readonly ISystemUserService _userService;
+    private readonly IUserService _userService;
 
-    public UsersController(ISystemUserService userService)
+    public UsersController(IUserService userService)
     {
         _userService = userService;
     }

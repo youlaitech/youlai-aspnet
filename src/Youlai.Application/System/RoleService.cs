@@ -15,7 +15,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 角色服务（CRUD、菜单权限分配）
 /// </summary>
-internal sealed class SystemRoleService : ISystemRoleService
+internal sealed class RoleService : IRoleService
 {
     private readonly IReadOnlyDbContext _readDb;
     private readonly ICurrentUser _currentUser;
@@ -27,7 +27,7 @@ internal sealed class SystemRoleService : ISystemRoleService
     private readonly IRepository<SysUserRole> _userRoleRepo;
     private readonly IUnitOfWork _unitOfWork;
 
-    public SystemRoleService(
+    public RoleService(
         IReadOnlyDbContext readDb,
         ICurrentUser currentUser,
         IRolePermsCacheInvalidator rolePermsCacheInvalidator,

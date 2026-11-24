@@ -14,11 +14,11 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 系统日志服务（查询、清理、导出）
 /// </summary>
-internal sealed class SystemLogService : ISystemLogService
+internal sealed class LogService : ILogService
 {
     private readonly IReadOnlyDbContext _readDb;
 
-    public SystemLogService(IReadOnlyDbContext readDb)
+    public LogService(IReadOnlyDbContext readDb)
     {
         _readDb = readDb;
     }
@@ -88,7 +88,11 @@ internal sealed class SystemLogService : ISystemLogService
 
         if (endDate < startDate)
         {
-            (startDate, endDate) = (endDate, startDate);
+            throw new BusinessException(ResultCode.InvalidUserInput, "开始日期不能晚于结束日期");
+        }
+        if (endDate.DayNumber - startDate.DayNumber >= 366)
+        {
+            throw new BusinessException(ResultCode.InvalidUserInput, "查询跨度不能超过366天");
         }
 
         var start = startDate.ToDateTime(TimeOnly.MinValue);
@@ -111,68 +115,75 @@ internal sealed class SystemLogService : ISystemLogService
         var ipMap = grouped.ToDictionary(x => x.Date, x => x.Ip);
 
         // 补齐日期区间，没有数据的日期补 0
-        var dates = new List<string>();
-        var pvList = new List<int>();
-        var uvList = new List<int>();
-
+        var points = new List<VisitTrendPointVo>();
         for (var d = startDate; d <= endDate; d = d.AddDays(1))
         {
             var dt = d.ToDateTime(TimeOnly.MinValue).Date;
-            dates.Add(d.ToString("yyyy-MM-dd"));
-            pvList.Add(pvMap.TryGetValue(dt, out var pvCount) ? pvCount : 0);
-            uvList.Add(ipMap.TryGetValue(dt, out var ipCount) ? ipCount : 0);
+            points.Add(new VisitTrendPointVo
+            {
+                Date = d.ToString("yyyy-MM-dd"),
+                Pv = pvMap.TryGetValue(dt, out var pvCount) ? pvCount : 0,
+                Uv = ipMap.TryGetValue(dt, out var ipCount) ? ipCount : 0,
+            });
         }
 
         return new VisitTrendVo
         {
-            Dates = dates,
-            PvList = pvList,
-            UvList = uvList,
+            StartDate = startDate.ToString("yyyy-MM-dd"),
+            EndDate = endDate.ToString("yyyy-MM-dd"),
+            Points = points,
         };
     }
 
     /// <summary>
-    /// 访问统计概览（总PV/今日PV/昨日PV、总UV/今日UV/昨日UV、增长率）
+    /// 访问汇总（今日/昨日/累计的 PV、UV 及增长率）
     /// </summary>
-    public async Task<VisitStatsVo> GetVisitStatsAsync(CancellationToken cancellationToken = default)
+    public async Task<VisitSummaryVo> GetVisitSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.Now;
-        var today = now.Date;
+        var today = DateTime.Now.Date;
         var yesterday = today.AddDays(-1);
-        var nowTime = now.TimeOfDay;
+        var tomorrow = today.AddDays(1);
 
-        // 各维度分别查一次 Count
         var totalPv = await _readDb.CountAsync(_readDb.Query<SysLog>(), cancellationToken).ConfigureAwait(false);
         var todayPv = await _readDb.CountAsync(
-            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1)),
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < tomorrow),
             cancellationToken).ConfigureAwait(false);
-        var yesterdayPvToNow = await _readDb.CountAsync(
-            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime),
+        var yesterdayPv = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < today),
             cancellationToken).ConfigureAwait(false);
 
         var totalUv = await _readDb.CountAsync(
             _readDb.Query<SysLog>().Select(x => x.Ip).Distinct(),
             cancellationToken).ConfigureAwait(false);
         var todayUv = await _readDb.CountAsync(
-            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < today.AddDays(1)).Select(x => x.Ip).Distinct(),
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= today && x.CreateTime < tomorrow).Select(x => x.Ip).Distinct(),
             cancellationToken).ConfigureAwait(false);
-        var yesterdayUvToNow = await _readDb.CountAsync(
-            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < yesterday.AddDays(1) && x.CreateTime!.Value.TimeOfDay <= nowTime)
-                .Select(x => x.Ip).Distinct(),
+        var yesterdayUv = await _readDb.CountAsync(
+            _readDb.Query<SysLog>().Where(x => x.CreateTime >= yesterday && x.CreateTime < today).Select(x => x.Ip).Distinct(),
             cancellationToken).ConfigureAwait(false);
 
-        var pvGrowth = ComputeGrowthRate(todayPv, yesterdayPvToNow);
-        var uvGrowth = ComputeGrowthRate(todayUv, yesterdayUvToNow);
-
-        return new VisitStatsVo
+        return new VisitSummaryVo
         {
-            TodayPvCount = todayPv,
-            TotalPvCount = totalPv,
-            PvGrowthRate = pvGrowth,
-            TodayUvCount = todayUv,
-            TotalUvCount = totalUv,
-            UvGrowthRate = uvGrowth,
+            TodayPv = todayPv,
+            YesterdayPv = yesterdayPv,
+            TotalPv = totalPv,
+            TodayUv = todayUv,
+            YesterdayUv = yesterdayUv,
+            TotalUv = totalUv,
+            PvGrowthRate = ComputeGrowthRate(todayPv, yesterdayPv),
+            UvGrowthRate = ComputeGrowthRate(todayUv, yesterdayUv),
         };
+    }
+
+    /// <summary>
+    /// 用户汇总
+    /// </summary>
+    public async Task<UserSummaryVo> GetUserSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        var total = await _readDb.CountAsync(
+            _readDb.Query<SysUser>().Where(x => !x.IsDeleted),
+            cancellationToken).ConfigureAwait(false);
+        return new UserSummaryVo { Total = total };
     }
 
     /// <summary>
@@ -218,17 +229,17 @@ internal sealed class SystemLogService : ISystemLogService
     }
 
     /// <summary>
-    /// 算增长率，昨日为 0 时返回 0 避免除零错误
+    /// 算增长率，昨日为 0 时返回 null
     /// </summary>
-    private static decimal ComputeGrowthRate(int todayCount, int yesterdayCount)
+    private static decimal? ComputeGrowthRate(int todayCount, int yesterdayCount)
     {
         if (yesterdayCount <= 0)
         {
-            return 0m;
+            return null;
         }
 
         var rate = (decimal)(todayCount - yesterdayCount) / yesterdayCount;
-        return Math.Round(rate, 2);
+        return Math.Round(rate, 4);
     }
 
     /// <summary>

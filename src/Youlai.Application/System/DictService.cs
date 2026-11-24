@@ -15,7 +15,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 字典服务（字典类型/字典项 CRUD）
 /// </summary>
-internal sealed class SystemDictService : ISystemDictService
+internal sealed class DictService : IDictService
 {
     private readonly IReadOnlyDbContext _readDb;
     private readonly IRepository<SysDict> _dictRepo;
@@ -24,7 +24,7 @@ internal sealed class SystemDictService : ISystemDictService
     private readonly ICurrentUser _currentUser;
     private readonly IRealtimeService _realtimeService;
 
-    public SystemDictService(
+    public DictService(
         IReadOnlyDbContext readDb,
         IRepository<SysDict> dictRepo,
         IRepository<SysDictItem> dictItemRepo,

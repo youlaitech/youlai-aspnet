@@ -7,7 +7,7 @@ namespace Youlai.Application.System;
 /// <summary>
 /// 日志与统计
 /// </summary>
-public interface ISystemLogService
+public interface ILogService
 {
     /// <summary>
     /// 分页查询操作日志
@@ -20,7 +20,12 @@ public interface ISystemLogService
     Task<VisitTrendVo> GetVisitTrendAsync(VisitTrendQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 访问统计
+    /// 访问汇总
     /// </summary>
-    Task<VisitStatsVo> GetVisitStatsAsync(CancellationToken cancellationToken = default);
+    Task<VisitSummaryVo> GetVisitSummaryAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 用户汇总
+    /// </summary>
+    Task<UserSummaryVo> GetUserSummaryAsync(CancellationToken cancellationToken = default);
 }
