@@ -12,7 +12,7 @@ namespace Youlai.Api.Controllers.Realtime;
 /// </summary>
 [ApiController]
 [Route("api/v1/realtime")]
-[Tags("13.Realtime Connection")]
+[Tags("13.实时推送")]
 public class RealtimeController : ControllerBase
 {
     private const string BearerPrefix = "Bearer ";

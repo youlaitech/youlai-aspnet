@@ -12,7 +12,7 @@ namespace Youlai.Api.Controllers.System;
 [ApiController]
 [Route("api/v1/analytics")]
 [Authorize]
-[Tags("10.统计接口")]
+[Tags("15.统计接口")]
 public sealed class AnalyticsController : ControllerBase
 {
     private readonly ILogService _logService;
